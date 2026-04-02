@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>수라골 참숯갈비 - 매출 통계</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ range(1, 9999) | random }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <header style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; padding: 15px 25px; gap: 15px;">
+        <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+            <h1 style="color: #f1c40f; margin: 0; font-size: clamp(1.2rem, 4vw, 1.8rem);">매출 통계 센터</h1>
+            <button onclick="resetStats()" style="background: #e74c3c; color: white; border: none; padding: 6px 12px; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 0.75rem;">일일 매출 초기화</button>
+        </div>
+        <a href="/" style="color: white; text-decoration: none; font-size: 0.9rem; border: 1px solid rgba(255,255,255,0.2); padding: 5px 12px; border-radius: 4px;">홈으로</a>
+    </header>
+
+    <div class="container">
+        <div class="dashboard-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+            <!-- 오늘 매출 카드 -->
+            <div class="order-card" style="text-align: center; padding: 30px 20px;">
+                <h2 style="color: var(--text-muted); font-size: 1rem; margin-bottom: 15px;">오늘의 총 매출</h2>
+                <div id="today-sales" style="font-size: clamp(2rem, 8vw, 3rem); font-weight: 900; color: var(--secondary-color);">0원</div>
+            </div>
+
+            <!-- 인기 메뉴 카드 -->
+            <div class="order-card">
+                <h2 style="margin-bottom: 20px; font-size: 1.2rem;">인기 메뉴 (TOP 5)</h2>
+                <div id="best-menu-list">
+                    <!-- 인기 메뉴 리스트 -->
+                </div>
+            </div>
+        </div>
+
+        <div class="order-card" style="margin-top: 30px;">
+            <h2 style="margin-bottom: 20px; font-size: 1.2rem;">메뉴별 판매 비중</h2>
+            <canvas id="menuChart" style="max-height: 400px;"></canvas>
+        </div>
+    </div>
+
+    <script>
+        let chart = null;
+
+        async function resetStats() {
+            if (!confirm('정말 오늘 매출 통계를 초기화하시겠습니까? (DB 데이터는 삭제되지 않으며, 오늘 집계에서만 제외됩니다)')) return;
+            
+            try {
+                const res = await fetch('/api/stats/reset', { method: 'POST' });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    alert('초기화되었습니다.');
+                    loadStats();
+                } else {
+                    alert('오류: ' + data.message);
+                }
+            } catch (e) {
+                alert('초기화 실패: ' + e);
+            }
+        }
+
+        async function loadStats() {
+            try {
+                const res = await fetch('/api/stats');
+                const data = await res.json();
+                
+                // 매출 업데이트
+                document.getElementById('today-sales').innerText = (data.daily_sales || 0).toLocaleString() + '원';
+                
+                // 인기 메뉴 업데이트
+                const list = document.getElementById('best-menu-list');
+                list.innerHTML = '';
+                if (data.best_menu && data.best_menu.length > 0) {
+                    data.best_menu.forEach((item, index) => {
+                        const div = document.createElement('div');
+                        div.style.display = 'flex';
+                        div.style.justifyContent = 'space-between';
+                        div.style.padding = '10px 0';
+                        div.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
+                        div.innerHTML = `
+                            <span>${index + 1}. ${item.name}</span>
+                            <span style="font-weight: bold; color: var(--secondary-color);">${item.count}개</span>
+                        `;
+                        list.appendChild(div);
+                    });
+                } else {
+                    list.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 20px;">집계된 데이터가 없습니다.</div>';
+                }
+
+                // 차트 업데이트
+                updateChart(data.best_menu || []);
+            } catch (e) {
+                console.error('Failed to load stats:', e);
+            }
+        }
+
+        function updateChart(bestMenu) {
+            const ctx = document.getElementById('menuChart').getContext('2d');
+            
+            if (chart) chart.destroy();
+            
+            chart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: bestMenu.map(m => m.name),
+                    datasets: [{
+                        label: '판매 수량',
+                        data: bestMenu.map(m => m.count),
+                        backgroundColor: 'rgba(241, 196, 15, 0.6)',
+                        borderColor: 'rgba(241, 196, 15, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { color: '#ecf0f1' }
+                        },
+                        x: {
+                            ticks: { color: '#ecf0f1' }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            labels: { color: '#ecf0f1' }
+                        }
+                    }
+                }
+            });
+        }
+
+        window.onload = loadStats;
+    </script>
+</body>
+</html>

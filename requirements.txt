@@ -1,0 +1,8 @@
+flask
+flask-socketio
+eventlet
+flask-sqlalchemy
+requests
+python-dotenv
+psycopg2-binary>=2.9.10
+# gunicorn==21.2.0

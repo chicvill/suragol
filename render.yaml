@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: free-order
+    env: docker
+    plan: free # Render 무료 요금제 사용 시
+    branch: main
+    envVars:
+      - key: DATABASE_URL
+        sync: false # Supabase에서 발급받은 URI를 Render 대시보드에 직접 입력하세요

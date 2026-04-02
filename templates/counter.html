@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>수라골 참숯갈비 - 통합 카운터 관제</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ range(1, 9999) | random }}">
+    <!-- Socket.IO & Icons -->
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root {
+            /* 왕궁 프리미엄 컬러 세트 */
+            --royal-red: #8b0000;
+            --royal-gold: #d4af37;
+            --dark-card: rgba(30, 10, 10, 0.95);
+            --border-gold: rgba(212, 175, 55, 0.3);
+        }
+
+        body {
+            background: #0a0505; /* 더 깊은 블랙 */
+            color: #fff;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 헤더 스타일 */
+        header {
+            background: rgba(40, 0, 0, 0.9);
+            border-bottom: 2px solid var(--royal-gold);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 5px 25px rgba(0,0,0,0.8);
+            z-index: 100;
+        }
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .header-brand h1 {
+            color: var(--royal-gold);
+            margin: 0;
+            font-size: 1.8rem;
+            font-weight: 900;
+            letter-spacing: -1px;
+        }
+
+        /* 메인 레이아웃: 2분할 */
+        .main-layout {
+            display: grid;
+            grid-template-columns: 1fr 400px; /* 테이블 8 : 대기열 2 */
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* 좌측: 테이블 구역 */
+        .tables-area {
+            padding: 40px;
+            overflow-y: auto;
+            background: radial-gradient(circle at top left, #1a0505, #050505);
+        }
+        .tables-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+            gap: 30px;
+        }
+
+        /* 우측: 대기열 사이드바 */
+        .waiting-sidebar {
+            background: #121212;
+            border-left: 2px solid var(--border-gold);
+            display: flex;
+            flex-direction: column;
+            padding: 25px;
+            overflow-y: auto;
+        }
+        .sidebar-title {
+            color: var(--royal-gold);
+            font-size: 1.4rem;
+            font-weight: 800;
+            margin-bottom: 30px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--border-gold);
+        }
+
+        /* 테이블 카드 스타일 */
+        .table-card {
+            background: var(--dark-card);
+            border: 1px solid var(--border-gold);
+            border-radius: 12px;
+            padding: 30px;
+            position: relative;
+            transition: all 0.4s;
+            animation: fadeIn 0.5s ease-out;
+        }
+        .table-card.ready-to-serve {
+            border-color: var(--royal-gold);
+            box-shadow: 0 0 30px rgba(212, 175, 55, 0.4);
+        }
+        .table-card .status-badge {
+            position: absolute;
+            top: 25px;
+            right: 25px;
+            font-size: 0.85rem;
+            padding: 5px 15px;
+            border-radius: 50px;
+            font-weight: 800;
+        }
+        .status-pending { background: #34495e; color: #fff; } /* 조리중 */
+        .status-ready { background: var(--royal-gold); color: #000; animation: pulse 2s infinite; } /* 서빙대기 */
+        .status-served { background: #27ae60; color: #fff; } /* 결제대상 */
+
+        .table-card h3 {
+            font-size: 1.8rem;
+            margin: 0 0 5px 0;
+            color: var(--royal-gold);
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .order-id { font-size: 0.8rem; color: #666; margin-bottom: 10px; }
+
+        .items-list {
+            margin: 10px 0;
+            padding: 15px 0;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            min-height: 60px;
+        }
+        .item-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 1.1rem;
+        }
+
+        .price-total {
+            font-size: 1.6rem;
+            font-weight: 900;
+            color: #fff;
+            margin-bottom: 20px;
+            text-align: right;
+        }
+
+        /* 액션 버튼 */
+        .action-btn {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 800;
+            cursor: pointer;
+            transition: 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        .btn-serve { background: var(--royal-gold); color: #000; }
+        .btn-pay { background: var(--royal-red); color: #fff; }
+        .btn-waiting { background: #222; color: #555; cursor: default; }
+
+        /* 대기열 카드 스타일 */
+        .wait-card {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            transition: 0.3s;
+        }
+        .wait-card:hover { border-color: var(--royal-gold); background: #222; }
+        .wait-no { font-size: 1.5rem; font-weight: 900; color: var(--royal-gold); margin-bottom: 8px; }
+        .wait-info { font-size: 0.95rem; color: #aaa; margin-bottom: 15px; }
+        .enter-btn {
+            width: 100%;
+            background: transparent;
+            border: 1px solid var(--royal-gold);
+            color: var(--royal-gold);
+            padding: 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 800;
+            transition: 0.3s;
+        }
+        .enter-btn:hover { background: var(--royal-gold); color: #000; }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.4); }
+            70% { box-shadow: 0 0 0 15px rgba(212, 175, 55, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(212, 175, 55, 0); }
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .empty-state {
+            text-align: center;
+            padding: 100px 0;
+            color: #444;
+            grid-column: 1/-1;
+        }
+
+        /* Responsive Mobile Styling */
+        .sidebar-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(5px);
+            z-index: 900;
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .sidebar-overlay.active {
+            display: block;
+            opacity: 1;
+        }
+        
+        /* 유틸리티 클래스 */
+        .mobile-only { display: none !important; }
+        .desktop-only { display: block !important; }
+        
+        .waiting-toggle-btn {
+            display: none; /* Desktop hidden */
+            background: rgba(212, 175, 55, 0.15);
+            border: 1px solid var(--royal-gold);
+            color: var(--royal-gold);
+            padding: 10px 18px;
+            border-radius: 30px;
+            font-weight: 800;
+            cursor: pointer;
+            align-items: center;
+            gap: 10px;
+            position: relative;
+        }
+        .wait-badge {
+            background: var(--royal-red);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.75rem;
+            min-width: 20px;
+            text-align: center;
+        }
+
+        @media (max-width: 1024px) {
+            .mobile-only { display: block !important; }
+            .desktop-only { display: none !important; }
+            
+            .main-layout {
+                grid-template-columns: 1fr;
+            }
+            .waiting-sidebar {
+                position: fixed;
+                top: 0;
+                right: 0;
+                transform: translateX(100%); 
+                width: 380px;
+                max-width: 95vw;
+                height: 100vh;
+                z-index: 1000;
+                transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+                box-shadow: -10px 0 30px rgba(0,0,0,0.5);
+                border-left: 1px solid var(--royal-gold);
+            }
+            .waiting-sidebar.active {
+                transform: translateX(0);
+            }
+            .waiting-toggle-btn {
+                display: flex;
+            }
+            /* Mobile header sizing */
+            header { padding: 10px 15px; }
+            .header-brand h1 { font-size: 1.2rem; }
+            .sync-btn { padding: 5px 10px; font-size: 0.8rem; }
+            .tables-area { padding: 20px; }
+            .tables-grid { grid-template-columns: 1fr; }
+        }
+
+        /* 로딩 애니메이션 및 커스텀 컨펌 모달 */
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .loading-spin { animation: spin 0.8s linear infinite; display: inline-block; }
+        
+        .confirm-modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.85); backdrop-filter: blur(8px);
+            z-index: 2000; display: none; justify-content: center; align-items: center;
+            opacity: 0; transition: opacity 0.3s;
+        }
+        .confirm-modal-overlay.active { display: flex; opacity: 1; }
+        .confirm-modal-inner {
+            background: #1a0a0a; border: 2px solid var(--royal-gold);
+            padding: 30px; border-radius: 15px; width: 320px; text-align: center;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+            transform: translateY(-20px); transition: transform 0.3s;
+        }
+        .confirm-modal-overlay.active .confirm-modal-inner { transform: translateY(0); }
+        .confirm-modal-inner h4 { color: var(--royal-gold); margin: 0 0 15px 0; font-size: 1.2rem; }
+        .confirm-modal-inner p { color: #ccc; margin-bottom: 25px; line-height: 1.5; word-break: keep-all; }
+        .confirm-modal-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .cbtn { padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .cbtn-cancel { background: #333; color: white; }
+        .cbtn-ok { background: var(--royal-red); color: white; border: 1px solid var(--royal-gold); }
+        .cbtn:active { transform: scale(0.95); }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-brand">
+            <i data-lucide="layout-dashboard" color="#d4af37"></i>
+            <h1>수라골 통합 카운터 센터</h1>
+        </div>
+            <div id="conn-status" style="font-size: 0.8rem; color: #2ecc71;" class="desktop-only">
+                <i data-lucide="wifi" size="16" style="vertical-align: middle;"></i> 실시간 연결됨
+            </div>
+            <button onclick="toggleWaitingSidebar()" class="waiting-toggle-btn">
+                <i data-lucide="users" size="18"></i> 대기 현황
+                <span id="wait-badge-count" class="wait-badge">0</span>
+            </button>
+            <button onclick="forceReSync()" class="sync-btn" title="데이터 동기화">
+                <i data-lucide="refresh-cw" size="16"></i>
+            </button>
+            <button onclick="resetStats()" style="background:rgba(139,0,0,0.3); border:1px solid #8b0000; color:#ff4444; padding:5px 12px; border-radius:5px; cursor:pointer;" title="초기화">
+                <i data-lucide="trash-2" size="16"></i>
+            </button>
+    </header>
+
+    <div class="main-layout">
+        <!-- 메인: 테이블 현황 -->
+        <div class="tables-area">
+            <div class="tables-grid" id="tables-grid">
+                <div class="empty-state">로딩 중...</div>
+            </div>
+        </div>
+
+        <!-- 사이드바: 대기 현황 -->
+        <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleWaitingSidebar()"></div>
+        <div class="waiting-sidebar" id="waiting-sidebar">
+            <div class="sidebar-title" style="border-bottom: none; padding-bottom: 0;">
+                <button onclick="enterFirstWaiting()" class="enter-btn" style="background: var(--royal-gold); color: #000; font-size: 1.2rem; padding: 15px; border-radius: 8px; border: none; display: flex; align-items: center; justify-content: center; gap: 10px; flex: 1;">
+                    <i data-lucide="check-circle"></i> 다음 순서 입장
+                </button>
+                <button onclick="toggleWaitingSidebar()" class="mobile-only" style="background:none; border:none; color:var(--royal-gold); cursor:pointer; padding: 10px;">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div id="waiting-list">
+                <div style="text-align: center; color: #444; padding: 40px 0;">대기 손님이 없습니다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 알림음 -->
+    <audio id="chime-new" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"></audio>
+
+    <!-- 커스텀 컨펌 모달 -->
+    <div id="confirm-modal" class="confirm-modal-overlay">
+        <div class="confirm-modal-inner">
+            <h4 id="confirm-title">입장 처리</h4>
+            <p id="confirm-message">이 손님을 입장 처리할까요?</p>
+            <div class="confirm-modal-btns">
+                <button class="cbtn cbtn-cancel" onclick="closeConfirmModal()">취소</button>
+                <button class="cbtn cbtn-ok" id="confirm-ok-btn">확인</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Lucide 아이콘 초기화
+        lucide.createIcons();
+
+        let sessions = {};
+        const socket = io();
+
+        // 1. 소켓 통신 시스템
+        socket.on('connect', () => {
+            console.log("Counter System Connected");
+            forceReSync();
+        });
+
+        socket.on('new_order', (order) => {
+            playAudio('new');
+            processOrder(order);
+        });
+
+        socket.on('order_status_update', (order) => {
+            processOrder(order);
+        });
+
+        socket.on('waiting_update', () => {
+            loadWaitingList();
+        });
+
+        socket.on('table_status_update', (data) => {
+            const sid = data.session_id || (data.table_id ? `legacy-${data.table_id}` : null);
+            if (data.status === 'paid') {
+                if (sid) fadeOutCard(sid);
+                else forceReSync();
+            } else {
+                if (sid && sessions[sid]) {
+                    sessions[sid].status = data.status;
+                    if (data.status === 'served') {
+                        Object.values(sessions[sid].orders).forEach(o => {
+                            if (o.status === 'ready') o.status = 'served';
+                        });
+                    }
+                    render();
+                }
+            }
+        });
+
+        // 2. 데이터 처리 엔진
+        async function forceReSync() {
+            try {
+                const res = await fetch('/api/orders');
+                const data = await res.json();
+                sessions = {};
+                data.forEach(order => processOrder(order, false));
+                render();
+                loadWaitingList();
+            } catch (err) { console.error("Sync Error:", err); }
+        }
+
+        async function loadWaitingList() {
+            try {
+                const res = await fetch('/api/waiting/list');
+                const list = await res.json();
+                
+                // 배지 무조건 먼저 업데이트
+                const badge = document.getElementById('wait-badge-count');
+                if (badge) badge.innerText = list.length;
+                
+                const container = document.getElementById('waiting-list');
+                if (list.length === 0) {
+                    container.innerHTML = '<div style="text-align: center; color: #444; padding: 40px 0;">대기 손님이 없습니다.</div>';
+                    return;
+                }
+                container.innerHTML = list.map(w => {
+                    const createdDate = new Date(w.created_at + 'Z');
+                    const diffMins = Math.max(0, Math.floor((new Date() - createdDate) / 60000));
+                    
+                    return `
+                    <div class="wait-card" style="padding: 15px;">
+                        <div class="wait-no" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                            <span>대기 ${w.waiting_no}번</span>
+                            <button class="enter-btn" style="width: auto; padding: 4px 14px; font-size: 0.85rem; border-radius: 4px;" id="btn-enter-${w.id}" onclick="executeEnter(${w.id})">입장</button>
+                        </div>
+                        <div class="wait-info" style="margin-bottom: 0;">${w.phone} / ${w.people}명 / 경과 ${diffMins}분</div>
+                    </div>
+                `}).join('');
+                document.getElementById('wait-badge-count').innerText = list.length;
+                lucide.createIcons();
+            } catch (e) { console.error("Wait List Error:", e); }
+        }
+
+        // 2-1. 모바일 UI 제어 로직
+        function toggleWaitingSidebar() {
+            // 데스크톱(1024px 초과)일 때는 슬라이드 기능을 수행하지 않음
+            if (window.innerWidth > 1024) return;
+            
+            const sidebar = document.getElementById('waiting-sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            sidebar.classList.toggle('active');
+            overlay.classList.toggle('active');
+        }
+
+        function processOrder(order, shouldRender = true) {
+            const sid = order.session_id || `legacy-${order.table_id}`;
+            if (!sessions[sid]) {
+                sessions[sid] = { table_id: order.table_id, orders: {}, total: 0, status: 'pending' };
+            }
+            sessions[sid].orders[order.id] = order;
+            sessions[sid].table_id = order.table_id;
+
+            const orderList = Object.values(sessions[sid].orders);
+            const anyReady = orderList.some(o => o.status === 'ready');
+            const allServed = orderList.every(o => o.status === 'served');
+
+            if (anyReady) {
+                sessions[sid].status = 'ready';
+            } else if (allServed && orderList.length > 0) {
+                sessions[sid].status = 'served';
+            } else {
+                sessions[sid].status = 'pending';
+            }
+
+            sessions[sid].total = orderList.reduce((sum, o) => sum + o.total_price, 0);
+            if (shouldRender) render();
+        }
+
+        // 3. UI 렌더링
+        function render() {
+            const container = document.getElementById('tables-grid');
+            container.innerHTML = '';
+            const keys = Object.keys(sessions);
+            if (keys.length === 0) {
+                container.innerHTML = '<div class="empty-state">현재 식사 중인 테이블이 없습니다.</div>';
+                return;
+            }
+
+            keys.sort((a, b) => sessions[a].table_id - sessions[b].table_id).forEach(sid => {
+                const session = sessions[sid];
+                const orderValues = Object.values(session.orders);
+                const allItems = orderValues.flatMap(o => o.items || []);
+                
+                // Get earliest order details for the title
+                const sortedOrders = [...orderValues].sort((o1, o2) => new Date(o1.created_at + 'Z') - new Date(o2.created_at + 'Z'));
+                const firstOrder = sortedOrders.length > 0 ? sortedOrders[0] : null;
+                // 주문번호 표기: ORD-... 가 아닌 3자리 session_id를 보여줍니다. legacy인 경우 대체 텍스트 적용.
+                const displayId = sid.startsWith('legacy-') ? '현장' : sid;
+                
+                let timeStr = '';
+                if (firstOrder && firstOrder.created_at) {
+                    const diffMins = Math.max(0, Math.floor((new Date() - new Date(firstOrder.created_at + 'Z')) / 60000));
+                    timeStr = `경과 ${diffMins}분`;
+                }
+
+                const card = document.createElement('div');
+                card.id = `card-${sid}`;
+                card.className = `table-card ${session.status === 'ready' ? 'ready-to-serve' : ''}`;
+                card.innerHTML = `
+                    <div class="status-badge status-${session.status}">${statusToText(session.status)}</div>
+                    <h3>테이블 ${session.table_id} <span style="font-size: 1.1rem; color: #bbb; font-weight: normal;">( ${displayId} ) ${timeStr}</span></h3>
+                    <div class="items-list">
+                        ${allItems.map(i => `
+                            <div class="item-row">
+                                <span>${i.name}</span>
+                                <span>x ${i.quantity}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="price-total">${session.total.toLocaleString()}원</div>
+                    ${renderActionBtn(sid, session.status)}
+                `;
+                container.appendChild(card);
+            });
+            lucide.createIcons();
+        }
+
+        function statusToText(s) {
+            switch(s) {
+                case 'pending': return '조리중';
+                case 'ready': return '서빙 대기';
+                case 'served': return '식사중';
+                default: return '진행중';
+            }
+        }
+
+        function renderActionBtn(sid, status) {
+            if (status === 'ready') {
+                return `<button class="action-btn btn-serve" id="btn-serve-${sid}" onclick="executeServe('${sid}')"><i data-lucide="check-circle"></i> 서빙 완료</button>`;
+            } else if (status === 'served') {
+                return `<button class="action-btn btn-pay" id="btn-pay-${sid}" onclick="executePay('${sid}')"><i data-lucide="credit-card"></i> 결제 및 퇴장</button>`;
+            } else {
+                return `<button class="action-btn btn-waiting" disabled><i data-lucide="clock"></i> 주방 조리 중...</button>`;
+            }
+        }
+
+        // 4. 액션 함수
+        function executeServe(sid) {
+            const btn = document.getElementById(`btn-serve-${sid}`);
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i data-lucide="loader-2" class="loading-spin"></i> 처리 중..';
+                lucide.createIcons();
+            }
+            socket.emit('set_served', { session_id: sid, table_id: sessions[sid].table_id });
+        }
+
+        function executePay(sid) {
+            const btn = document.getElementById(`btn-pay-${sid}`);
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i data-lucide="loader-2" class="loading-spin"></i> 처리 중..';
+                lucide.createIcons();
+            }
+            socket.emit('set_paid', { session_id: sid, table_id: sessions[sid].table_id });
+        }
+
+        // 커스텀 모달 로직
+        function showConfirmModal(title, msg, onConfirm) {
+            document.getElementById('confirm-title').innerText = title;
+            document.getElementById('confirm-message').innerText = msg;
+            const modal = document.getElementById('confirm-modal');
+            const okBtn = document.getElementById('confirm-ok-btn');
+            
+            modal.classList.add('active');
+            okBtn.onclick = () => {
+                closeConfirmModal();
+                onConfirm();
+            };
+        }
+
+        function closeConfirmModal() {
+            document.getElementById('confirm-modal').classList.remove('active');
+        }
+
+        async function executeEnter(waitId) {
+            const btn = document.getElementById(`btn-enter-${waitId}`);
+            let originalContent = '';
+            if (btn) {
+                originalContent = btn.innerHTML;
+                btn.disabled = true;
+                btn.innerHTML = '<i data-lucide="loader-2" class="loading-spin"></i>';
+                lucide.createIcons();
+            }
+            try {
+                const res = await fetch(`/api/waiting/enter/${waitId}`, { method: 'POST' });
+                const data = await res.json();
+                
+                if (data.status === 'success') {
+                    loadWaitingList(); // 즉시 목록 갱신
+                } else {
+                    throw new Error(data.message);
+                }
+            } catch (e) {
+                alert('처리 중 오류가 발생했습니다: ' + e.message);
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = originalContent;
+                    lucide.createIcons();
+                }
+            }
+        }
+
+        async function enterFirstWaiting() {
+            try {
+                const res = await fetch('/api/waiting/list');
+                const list = await res.json();
+                if (list.length > 0) {
+                    const firstWaitId = list[0].id;
+                    await executeEnter(firstWaitId);
+                } else {
+                    alert('대기 손님이 없습니다.');
+                }
+            } catch (e) {
+                console.error("Enter First Error:", e);
+                alert('처리 중 오류가 발생했습니다.');
+            }
+        }
+
+        function fadeOutCard(sid) {
+            const card = document.getElementById(`card-${sid}`);
+            if (card) {
+                card.style.opacity = '0';
+                card.style.transform = 'scale(0.9)';
+                setTimeout(() => { delete sessions[sid]; render(); }, 300);
+            }
+        }
+
+        function playAudio(type) {
+            const audio = document.getElementById(`chime-${type}`);
+            if (audio) audio.play().catch(() => {});
+        }
+
+        async function resetStats() {
+            if (!confirm('정말 오늘 매출을 초기화하시겠습니까?')) return;
+            await fetch('/api/stats/reset', { method: 'POST' });
+            alert('초기화되었습니다.');
+        }
+
+        window.onload = () => {
+            forceReSync();
+            setInterval(() => {
+                loadWaitingList();
+                render(); // 주문 경과 시간 갱신을 위해 테이블 카드도 주기적으로 리렌더링
+            }, 60000); 
+        };
+    </script>
+</body>
+</html>

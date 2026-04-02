@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>수라골 참숯갈비 - 주방</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ range(1, 9999) | random }}">
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        .table-card {
+            background: rgba(30, 10, 10, 0.95);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            border-radius: 12px;
+            padding: 30px;
+            position: relative;
+            animation: fadeIn 0.5s ease-out;
+        }
+        .table-card h3 {
+            font-size: 1.8rem;
+            margin: 0 0 5px 0;
+            color: var(--secondary-color);
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+        }
+        .status-badge {
+            position: absolute;
+            top: 25px;
+            right: 25px;
+            font-size: 0.85rem;
+            padding: 5px 15px;
+            border-radius: 50px;
+            font-weight: 800;
+        }
+        .status-pending { background: #34495e; color: #fff; }
+        .items-list {
+            margin: 15px 0;
+            padding: 15px 0;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            min-height: 60px;
+        }
+        .item-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 1.1rem;
+        }
+        .action-btn {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 800;
+            cursor: pointer;
+            transition: 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--secondary-color);
+            color: #000;
+            margin-top: 10px;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1 style="color: #f1c40f;">주방 대시보드 (KITCHEN)</h1>
+        <div id="connection-status" style="font-size: 0.8rem; color: #2ecc71;">● 서버 연결됨</div>
+    </header>
+
+    <div class="container" style="padding: 15px;">
+        <div id="kitchen-orders" class="dashboard-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 30px; align-items: start;">
+            <!-- 주문 목록 동적 생성 -->
+        </div>
+    </div>
+
+    <!-- 알림음 -->
+    <audio id="chime" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"></audio>
+
+    <script>
+        const socket = io({
+            transports: ['websocket', 'polling'],
+            upgrade: true
+        });
+
+        socket.on('connect', () => {
+            console.log('Kitchen Socket Connected!');
+            loadOrders();
+        });
+
+        socket.on('connect_error', (error) => {
+            console.error('Kitchen Socket Error:', error);
+        });
+        let orders = [];
+
+        socket.on('connect', () => {
+            document.getElementById('connection-status').innerText = '● 서버 연결됨';
+            document.getElementById('connection-status').style.color = '#2ecc71';
+        });
+
+        socket.on('disconnect', () => {
+            document.getElementById('connection-status').innerText = '○ 연결 끊김';
+            document.getElementById('connection-status').style.color = '#e74c3c';
+        });
+
+        socket.on('new_order', (order) => {
+            console.log('New Order Received:', order);
+            const existing = orders.find(o => String(o.id) === String(order.id));
+            if (!existing) {
+                orders.push(order);
+                if (order.status === 'pending') {
+                    playChime();
+                }
+                renderOrders();
+            }
+        });
+
+        function playChime() {
+            const audio = document.getElementById('chime');
+            audio.play().catch(e => console.log('Audio play blocked'));
+        }
+
+        socket.on('table_status_update', (data) => {
+            if (data.status === 'paid') {
+                orders = orders.filter(o => String(o.table_id) !== String(data.table_id));
+                renderOrders();
+            }
+        });
+
+        // 초기 데이터 로드
+        async function loadInitialOrders() {
+            try {
+                const res = await fetch('/api/orders');
+                const data = await res.json();
+                orders = data.filter(o => o.status === 'pending');
+                renderOrders();
+            } catch (e) {
+                console.error('Failed to load initial orders:', e);
+            }
+        }
+
+        window.onload = loadInitialOrders;
+
+        function renderOrders() {
+            const container = document.getElementById('kitchen-orders');
+            container.innerHTML = '';
+            
+            const pendingOrders = orders.filter(o => o.status === 'pending');
+            
+            if (pendingOrders.length === 0) {
+                container.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 100px; color: var(--text-muted);">현재 대기 중인 주문이 없습니다.</div>';
+                return;
+            }
+
+            pendingOrders.forEach(order => {
+                const orderNoDisplay = order.session_id ? order.session_id : '현장';
+                const card = document.createElement('div');
+                card.className = 'table-card';
+                card.innerHTML = `
+                    <div class="status-badge status-pending">조리중</div>
+                    
+                    <div class="items-list" style="margin: 5px 0 15px 0; padding: 10px 0 15px 0; border-top: none; border-bottom: 2px dashed rgba(212, 175, 55, 0.4);">
+                        ${order.items.map(i => `
+                            <div class="item-row" style="font-size: 2rem; font-weight: 900; color: #fff; margin-bottom: 12px; display: flex; align-items: center;">
+                                <span>${i.name}</span>
+                                <span style="color: #f1c40f; font-size: 2.4rem;">${i.quantity}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+
+                    <div style="display: flex; align-items: baseline; gap: 10px; margin-bottom: 15px; color: #999;">
+                        <span>배달 테이블:</span>
+                        <span style="font-size: 1.4rem; font-weight: bold; color: #ccc;">${order.table_id}</span>
+                        <span style="font-size: 0.9rem; margin-left: auto;">(주문 #${orderNoDisplay})</span>
+                    </div>
+                    
+                    <button class="action-btn" onclick="completeOrder('${order.id}')">
+                        조리 완료 전송
+                    </button>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function completeOrder(orderId) {
+            console.log('Completing Order:', orderId);
+            socket.emit('set_ready', { order_id: orderId });
+            
+            // 즉시 UI 반영
+            const orderIndex = orders.findIndex(o => String(o.id) === String(orderId));
+            if (orderIndex > -1) {
+                orders.splice(orderIndex, 1);
+                renderOrders();
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>수라골 참숯갈비 - 주문</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ range(1, 9999) | random }}">
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #8B0000;
+            --secondary-color: #D4AF37;
+            --bg-dark: #0F0F0F;
+            --text-white: #f5f5f5;
+            --glass-bg: rgba(255, 255, 255, 0.07);
+        }
+        body {
+            background-color: #0F0F0F;
+            color: #f5f5f5;
+            margin: 0;
+            padding-bottom: 100px; /* 장바구니 바를 고려한 하단 여백 */
+            font-family: 'Pretendard', -apple-system, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        /* 모바일 헤더 최적화 */
+        @media (max-width: 480px) {
+            header { padding: 10px 15px; }
+            .brand-korean { font-size: 1.1rem; }
+            .order-badge { font-size: 0.65rem; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="brand-box">
+            <div class="brand-chinese">水剌</div>
+            <div class="brand-korean">수라골 참숯갈비</div>
+        </div>
+        <div class="header-right">
+            <div class="table-pill">
+                <span>테이블</span>
+                <span>테이블</span>
+                <span style="font-weight: bold; margin: 0 5px; font-size: 1.2rem;">{{ table_id }}</span>
+                <span>번</span>
+            </div>
+            <div id="order-no" class="order-badge">주문번호: #----</div>
+        </div>
+    </header>
+
+    <div id="toast" class="toast">장바구니에 담겼습니다!</div>
+
+    <div class="tabs">
+        {% for category in menu.keys() %}
+        <div class="tab {{ 'active' if loop.first else '' }}" onclick="showCategory('{{ category }}', this)">
+            {{ category }}
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="container" style="padding: 15px;">
+        <div id="menu-container" class="menu-list">
+            <!-- 메뉴 항목 동적 생성 -->
+        </div>
+    </div>
+
+    <!-- 장바구니 사이드바 (SideDrawer) -->
+    <div id="cart-modal" class="modal-overlay" onclick="closeCartOnOverlay(event)">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>장바구니 확인</h2>
+                <button class="close-btn" onclick="toggleCartModal()">×</button>
+            </div>
+            <div id="cart-items-list" class="cart-items-list">
+                <!-- 장바구니 항목 동적 생성 -->
+            </div>
+            <div class="cart-summary">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 15px; font-size: 1.2rem;">
+                    <span>총 합계</span>
+                    <span id="modal-total" style="color: var(--secondary-color); font-weight: bold;">0원</span>
+                </div>
+                <button class="order-submit-btn" onclick="placeOrder()">주문하기</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="cart-bar" class="cart-bar" style="display: none;" onclick="toggleCartModal()">
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="background: white; color: var(--primary-color); width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.8rem;">
+                <span id="cart-count">0</span>
+            </div>
+            <span style="font-weight: bold;">장바구니 확인</span>
+        </div>
+        <span style="font-weight: 900;"><span id="cart-total">0</span>원 주문하기</span>
+    </div>
+
+    <script id="menu-data" type="application/json">{{ menu | tojson | safe }}</script>
+    <script>
+        const socket = io();
+        
+        socket.on('connect', () => {
+            console.log('Socket.IO Connected for Customer');
+        });
+
+        const menuData = JSON.parse(document.getElementById('menu-data').textContent);
+        let tableId = parseInt('{{ table_id }}');
+        
+        let sessionId = '{{ session_id }}';
+        if (!sessionId) {
+            sessionId = localStorage.getItem('wang_gung_session');
+            if (!sessionId || sessionId.length > 3) {
+                sessionId = Math.floor(Math.random() * 900 + 100).toString();
+                localStorage.setItem('wang_gung_session', sessionId);
+            }
+        } else {
+            localStorage.setItem('wang_gung_session', sessionId);
+        }
+        document.getElementById('order-no').innerText = `주문번호: #${sessionId}`;
+        
+        // 장바구니 초기화 (이전 캐시 오류 방지)
+        // localStorage.removeItem(`cart_table_${tableId}`); // 필요 시 로컬 캐시를 비우는 구문을 여기에 활성화할 수 있습니다.
+
+        // Load cart from localStorage or initialize empty
+        let cart = JSON.parse(localStorage.getItem(`cart_table_${tableId}`)) || [];
+
+        function showCategory(category, el) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            el.classList.add('active');
+
+            const container = document.getElementById('menu-container');
+            container.innerHTML = '';
+            
+            menuData[category].forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'menu-item';
+                div.style.padding = '12px';
+                div.innerHTML = `
+                    <div style="display: flex; gap: 12px; width: 100%; align-items: center;">
+                        ${item.image ? `<img src="${item.image}" alt="${item.name}" class="menu-image-thumb" style="width: 70px; height: 70px;">` : '<div class="menu-image-placeholder" style="width: 70px; height: 70px;">No Image</div>'}
+                        <div class="item-info" style="flex: 1;">
+                            <h3 style="font-size: 1.1rem; margin-bottom: 4px;">${item.name}</h3>
+                            <p class="price" style="font-size: 1rem;">${item.price.toLocaleString()}원</p>
+                        </div>
+                        <button class="add-btn" onclick="addToCart(event, ${item.id}, '${item.name}', ${item.price})" style="width: 36px; height: 36px; font-size: 1.4rem;">+</button>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+            lucide.createIcons();
+        }
+
+        function addToCart(event, id, name, price) {
+            const existing = cart.find(i => i.id === id);
+            if (existing) {
+                existing.quantity++;
+            } else {
+                cart.push({ id, name, price, quantity: 1 });
+            }
+            saveCart();
+            updateCartBar();
+            
+            // UI Feedback
+            showToast(`${name} 장바구니 추가`);
+            const btn = event.currentTarget;
+            btn.style.transform = 'scale(1.3)';
+            setTimeout(() => btn.style.transform = 'scale(1)', 200);
+        }
+
+        function saveCart() {
+            localStorage.setItem(`cart_table_${tableId}`, JSON.stringify(cart));
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2000);
+        }
+
+        function updateCartBar() {
+            const bar = document.getElementById('cart-bar');
+            const count = document.getElementById('cart-count');
+            const total = document.getElementById('cart-total');
+            
+            if (cart.length > 0) {
+                bar.style.display = 'flex';
+                const totalCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+                const totalPrice = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                count.innerText = totalCount;
+                total.innerText = totalPrice.toLocaleString();
+                updateCartModalContent(); 
+            } else {
+                bar.style.display = 'none';
+                toggleCartModal(false); 
+            }
+        }
+
+        function toggleCartModal(show) {
+            const modal = document.getElementById('cart-modal');
+            const isCurrentlyShown = modal.classList.contains('show');
+            const shouldShow = show === undefined ? !isCurrentlyShown : show;
+            
+            if (shouldShow) {
+                modal.classList.add('show');
+                updateCartModalContent();
+            } else {
+                modal.classList.remove('show');
+            }
+        }
+
+        function closeCartOnOverlay(event) {
+            if (event.target.id === 'cart-modal') {
+                toggleCartModal(false);
+            }
+        }
+
+        function updateCartModalContent() {
+            const list = document.getElementById('cart-items-list');
+            const modalTotal = document.getElementById('modal-total');
+            list.innerHTML = '';
+            
+            let totalPrice = 0;
+            if (cart.length === 0) {
+                list.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-muted);">장바구니가 비어 있습니다.</div>';
+            }
+            
+            cart.forEach(item => {
+                totalPrice += item.price * item.quantity;
+                const div = document.createElement('div');
+                div.className = 'cart-item-row';
+                div.innerHTML = `
+                    <div style="flex: 1;">
+                        <div style="font-weight: bold; font-size: 1.1rem; margin-bottom: 3px;">${item.name}</div>
+                        <div style="font-size: 0.85rem; color: var(--secondary-color);">${item.price.toLocaleString()}원</div>
+                    </div>
+                    <div class="quantity-controls">
+                        <button onclick="changeQuantity(${item.id}, -1)">-</button>
+                        <span style="min-width: 20px; text-align: center; font-weight: bold;">${item.quantity}</span>
+                        <button onclick="changeQuantity(${item.id}, 1)">+</button>
+                    </div>
+                    <button class="remove-btn" onclick="removeItem(${item.id})" style="margin-left: 15px;">삭제</button>
+                `;
+                list.appendChild(div);
+            });
+            modalTotal.innerText = totalPrice.toLocaleString() + '원';
+        }
+
+        function changeQuantity(id, delta) {
+            const item = cart.find(i => i.id === id);
+            if (item) {
+                item.quantity += delta;
+                if (item.quantity <= 0) {
+                    removeItem(id);
+                } else {
+                    saveCart();
+                    updateCartBar();
+                }
+            }
+        }
+
+        function removeItem(id) {
+            cart = cart.filter(i => i.id !== id);
+            saveCart();
+            updateCartBar();
+        }
+
+        function placeOrder() {
+            if (cart.length === 0) return;
+            
+            const totalPrice = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            const orderId = 'ORD-' + Date.now();
+            const payload = {
+                order_id: orderId,
+                session_id: sessionId,
+                table_id: tableId,
+                items: cart,
+                total_price: totalPrice,
+                timestamp: Date.now()
+            };
+            
+            socket.emit('place_order', payload);
+            
+            alert('주문이 접수되었습니다! 감사합니다.');
+            cart = [];
+            saveCart();
+            toggleCartModal(false);
+            updateCartBar();
+        }
+
+        socket.on('order_error', (data) => {
+            alert(data.message);
+        });
+
+        window.onload = () => {
+            const firstTab = document.querySelector('.tab');
+            if (firstTab) {
+                const category = firstTab.innerText.trim();
+                showCategory(category, firstTab);
+            }
+            updateCartBar(); // Initialize cart UI on load
+        };
+    </script>
+</body>
+</html>
