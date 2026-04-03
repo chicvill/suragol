@@ -623,6 +623,12 @@ def trigger_notifications():
     except Exception as e:
         print(f"[Error] trigger_notifications: {e}")
 
+@app.after_request
+def add_header(response):
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    return response
+
 if __name__ == '__main__':
     # 서버 실행 시 도메인 주소 안내 (보안 인증 적용)
     port = int(os.environ.get('PORT', 8888))
