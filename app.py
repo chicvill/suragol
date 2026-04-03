@@ -390,20 +390,8 @@ def customer_view(table_id):
         # 내 주문이면 무사 통과, 락 갱신
         active_tables[table_id] = {'uid': uid, 'time': time.time()}
     else:
-        # 2. 빈 테이블일 때 메모리 점유(선점) 확인
-        if table_id in active_tables:
-            lock = active_tables[table_id]
-            if lock['uid'] != uid:
-                # 점유된 지 30분이 지난 유령 세션은 풀어줌
-                if time.time() - lock['time'] > 1800:
-                    active_tables[table_id] = {'uid': uid, 'time': time.time()}
-                else:
-                    return render_template('locked.html', table_id=table_id)
-            else:
-                active_tables[table_id]['time'] = time.time()
-        else:
-            # 아무도 없는 방
-            active_tables[table_id] = {'uid': uid, 'time': time.time()}
+        # 2. 빈 테이블일 때: 과거 점유자가 주문을 하지 않고 나갔다면, 즉시 새로운 기기(세션)의 접속을 허용합니다(무단 점유 방지)
+        active_tables[table_id] = {'uid': uid, 'time': time.time()}
 
     return render_template('customer.html', table_id=table_id, menu=menu, session_id=uid)
 
