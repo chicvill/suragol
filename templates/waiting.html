@@ -181,8 +181,12 @@
             <div class="waiting-box">
                 <h2 style="margin-bottom: 30px;">대기 등록</h2>
                 <div class="form-group">
-                    <label>휴대폰 번호</label>
-                    <input type="tel" id="phone" class="form-input" placeholder="010-0000-0000" maxlength="13">
+                    <label>휴대폰 번호 (선택)</label>
+                    <div style="font-size: 0.85rem; color: #aaa; margin-bottom: 12px; line-height: 1.5; word-break: keep-all; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px;">
+                        💡 <strong>전화번호 입력 없이도 대기가 가능합니다!</strong><br>
+                        단, 번호를 입력하지 않으셨다면 이 <strong>대기 화면을 닫지 않고 계속 켜두셔야</strong> 입장 순서 알림을 받으실 수 있습니다.
+                    </div>
+                    <input type="tel" id="phone" class="form-input" placeholder="선택: 번호 입력 시 알림 문자 발송" maxlength="13">
                 </div>
                 <div class="form-group">
                     <label>방문 인원</label>
@@ -339,16 +343,16 @@
             const phone = document.getElementById('phone').value.trim();
             const people = document.getElementById('people').value;
 
-            if (!phone) {
-                customAlert('전화번호를 입력해 주세요.');
-                return;
+            let finalPhone = phone;
+            if (!finalPhone) {
+                finalPhone = "미입력(화면대기)";
             }
 
             try {
                 const res = await fetch('/api/waiting', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ phone, people })
+                    body: JSON.stringify({ phone: finalPhone, people })
                 });
                 const data = await res.json();
                 

@@ -482,17 +482,19 @@ def register_waiting():
         phone = data['phone']
         
         # [핵심 로직] 동일한 번호로 이미 대기 중인 건이 있다면 자동으로 취소 처리 (재등록 허용)
-        today_start = get_today_start_kst()
-        existing_waiting = db.session.query(Waiting).filter(
-            Waiting.phone == phone,
-            Waiting.status == 'waiting',
-            Waiting.created_at >= today_start
-        ).first()
+        # 단, 전화번호 미입력(현장대기) 손님은 중복 처리에서 제외합니다.
+        if phone != "미입력(화면대기)":
+            today_start = get_today_start_kst()
+            existing_waiting = db.session.query(Waiting).filter(
+                Waiting.phone == phone,
+                Waiting.status == 'waiting',
+                Waiting.created_at >= today_start
+            ).first()
 
-        if existing_waiting:
-            existing_waiting.status = 'cancelled'
-            db.session.commit()
-            print(f"[Info] Duplicate phone ({phone}) re-registered. Old entry ({existing_waiting.id}) cancelled.")
+            if existing_waiting:
+                existing_waiting.status = 'cancelled'
+                db.session.commit()
+                print(f"[Info] Duplicate phone ({phone}) re-registered. Old entry ({existing_waiting.id}) cancelled.")
 
         # 3자리 난수 대기 번호 생성
         new_wait = Waiting(
