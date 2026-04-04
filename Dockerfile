@@ -1,11 +1,11 @@
 # 1. Base Image
 FROM python:3.11-slim
 
-# 2. 필수 패키지 및 Cloudflare Tunnel 클라이언트 설치
-RUN apt-get update && apt-get install -y wget curl gnupg && \
-    wget -q -O - https://pkg.cloudflare.com/cloudflare-main.gpg | apt-key add - && \
-    echo "deb http://pkg.cloudflare.com/cloudflared bullseye main" | tee /etc/apt/sources.list.d/cloudflared.list && \
-    apt-get update && apt-get install -y cloudflared && \
+# 2. 필수 패키지 및 Cloudflare Tunnel 클라이언트 직접 설치 (안정적인 방식)
+RUN apt-get update && apt-get install -y wget curl && \
+    curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb && \
+    dpkg -i cloudflared.deb && \
+    rm cloudflared.deb && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # 3. 환경 설정
