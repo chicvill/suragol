@@ -106,6 +106,42 @@ header {
     border: 1px solid rgba(241, 196, 15, 0.3);
 }
 
+.call-staff-btn {
+    background: var(--secondary-color);
+    color: var(--bg-dark);
+    border: none;
+    padding: 6px 14px;
+    border-radius: 15px;
+    font-weight: 900;
+    font-size: 0.8rem;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    transition: all 0.2s;
+}
+.call-staff-btn:active { transform: scale(0.95); }
+
+.service-opt-btn {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    color: white;
+    padding: 15px 10px;
+    border-radius: 12px;
+    font-size: 0.95rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+.service-opt-btn:active {
+    background: var(--secondary-color);
+    color: var(--bg-dark);
+    transform: scale(0.98);
+}
+
 .tabs {
     display: flex;
     overflow-x: auto;
@@ -246,6 +282,25 @@ header {
 
 .modal-overlay.show .modal-content {
     transform: translateX(0);
+}
+
+/* Bottom Sheet Modal */
+.modal-bottom .modal-content {
+    top: auto;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    transform: translateY(100%);
+    border-right: none;
+    border-top: 1px solid var(--glass-border);
+    border-radius: 24px 24px 0 0;
+}
+
+.modal-overlay.show.modal-bottom .modal-content {
+    transform: translateY(0);
 }
 
 @keyframes slideIn {

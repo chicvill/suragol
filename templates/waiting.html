@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>수라골 참숯갈비 - 웨이팅 등록</title>
+    <title>{% if store.id == 'MQ-cafe' %}수라골 참숯갈비 통합 웨이팅{% else %}{{ store.name }} - 웨이팅 등록{% endif %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <style>
@@ -159,8 +159,7 @@
 <body>
     <header style="justify-content: center;">
         <div class="brand-box" style="align-items: center;">
-            <div class="brand-chinese">水剌</div>
-            <div class="brand-korean">수라골 참숯갈비 웨이팅</div>
+            <div class="brand-korean">{{ store.name }} 웨이팅</div>
         </div>
     </header>
 
@@ -258,12 +257,13 @@
 
     <script>
         const socket = io();
-        let myWaitId = localStorage.getItem('wang_gung_wait_id');
+        let myWaitId = localStorage.getItem('wang_gung_wait_id_{{ store.id }}');
 
         // 접속 시 서버에 화면이 켜져있음을 알림 (SMS 전송 생략 목적)
         socket.on('connect', () => {
+            socket.emit('join', { store_id: '{{ store.id }}' });
             if (myWaitId) {
-                socket.emit('customer_online', { wait_id: myWaitId });
+                socket.emit('customer_online', { store_id: '{{ store.id }}', wait_id: myWaitId });
             }
         });
 
@@ -316,7 +316,7 @@
         }
 
         function finishEntry() {
-            localStorage.removeItem('wang_gung_wait_id');
+            localStorage.removeItem('wang_gung_wait_id_{{ store.id }}');
             // 브라우저 창 닫기 시도 (카카오톡, 삼성인터넷 등 일부 브라우저 지원)
             if (window.close) {
                 window.close();
@@ -332,10 +332,16 @@
             `;
         }
 
-        function cancelAndReregister() {
+        async function cancelAndReregister() {
             if (confirm('현재 대기를 취소하고 인원 변경 등을 위해 새로 등록하시겠습니까?\n(기존 대기 순서는 사라지고 맨 뒤로 이동합니다.)')) {
-                localStorage.removeItem('wang_gung_wait_id');
-                location.reload();
+                try {
+                    await fetch(`/api/{{ store.id }}/waiting/cancel/${myWaitId}`, { method: 'POST' });
+                    localStorage.removeItem('wang_gung_wait_id_{{ store.id }}');
+                    location.reload();
+                } catch (e) {
+                    console.error("Cancel Error:", e);
+                    alert("취소 중 오류가 발생했습니다.");
+                }
             }
         }
 
@@ -349,7 +355,7 @@
             }
 
             try {
-                const res = await fetch('/api/waiting', {
+                const res = await fetch('/api/{{ store.id }}/waiting', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ phone: finalPhone, people })
@@ -358,8 +364,8 @@
                 
                 if (data.status === 'success') {
                     myWaitId = data.wait_id;
-                    localStorage.setItem('wang_gung_wait_id', myWaitId);
-                    socket.emit('customer_online', { wait_id: myWaitId }); // 바로 온라인 알림 설정
+                    localStorage.setItem('wang_gung_wait_id_{{ store.id }}', myWaitId);
+                    socket.emit('customer_online', { store_id: '{{ store.id }}', wait_id: myWaitId }); // 바로 온라인 알림 설정
                     showStatus();
                 } else {
                     customAlert('등록 실패: ' + data.message);
@@ -375,7 +381,7 @@
             if (!myWaitId || isEntryAlerted) return;
             
             try {
-                const res = await fetch(`/api/waiting/status/${myWaitId}`);
+                const res = await fetch(`/api/{{ store.id }}/waiting/status/${myWaitId}`);
                 const data = await res.json();
 
                 if (data.status === 'entered') {
@@ -416,5 +422,10 @@
             e.target.value = val;
         });
     </script>
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <script>alert("{{ messages[0] }}");</script>
+      {% endif %}
+    {% endwith %}
 </body>
 </html>

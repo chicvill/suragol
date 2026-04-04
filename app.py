@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import os
 import sys
 import json
@@ -6,643 +7,667 @@ import socket
 import random
 import uuid
 from datetime import datetime, timedelta, timezone
-from flask import Flask, render_template, request, jsonify, redirect, url_for, session
+from flask import Flask, render_template, request, jsonify, redirect, url_for, session, flash
 from flask_socketio import SocketIO, emit
 from sqlalchemy import func, desc, text
 from werkzeug.middleware.proxy_fix import ProxyFix
+from werkzeug.security import generate_password_hash, check_password_hash
+from functools import wraps
 from dotenv import load_dotenv
+import threading
 
-# .env 파일에서 환경변수 로드
+# 환경변수 로드
 load_dotenv()
-
-# 로컬 MQutils 임포트 (가상환경 배포 최적화)
-import os
-import sys
-
-# 현재 파일이 위치한 디렉토리를 최우선 탐색 경로로 추가
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-if BASE_DIR not in sys.path:
-    sys.path.insert(0, BASE_DIR)
 
-try:
-    # 로컬 폴더(C:\Users\USER\Dev\왕궁중화요리\MQutils)에서 임포트 시도
-    from MQutils import SolapiMessenger, get_local_ip
-except (ImportError, ModuleNotFoundError) as e:
-    print(f"[Warning] Local MQutils not found in {BASE_DIR}. Trying fallback. ({str(e)})")
-    # Fallback 로직
-    from socket import gethostname
-    import socket
-    get_local_ip = lambda: socket.gethostbyname(gethostname())
-    class SolapiMessenger: 
-        def __init__(self, *args, **kwargs): pass
-        def send_sms(self, *args): print("[Sim] SMS disabled (MQutils missing)")
-
-from models import db, Order, OrderItem, Waiting
-
+# ---------------------------------------------------------
+# Flask 앱 초기화 및 설정
+# ---------------------------------------------------------
 app = Flask(__name__, static_folder='static', static_url_path='/static')
-app.config['SECRET_KEY'] = 'suragol-secret!'
-# Supabase PostgreSQL 및 기본 SQLite 지원
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1) # HTTPS 프록시 헤더 처리
+app.config['SECRET_KEY'] = 'suragol-secret-key-2026'
+app.url_map.strict_slashes = False # URL 끝 슬래시(/) 유무에 상관없이 접속 허용
+app.config['UPLOAD_FOLDER'] = os.path.join(BASE_DIR, 'static', 'images')
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+# DB 연결
 db_url = os.environ.get('DATABASE_URL', 'sqlite:///suragol.db')
 if db_url.startswith("postgres://"):
     db_url = db_url.replace("postgres://", "postgresql://", 1)
 app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# 프록시 설정 (Cloudflare Tunnel의 HTTPS 연결을 올바르게 인식하도록 함)
-app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1, x_prefix=1)
-
-# 메신저 서비스 초기화
-# .env에 등록된 정보를 사용하거나 수동으로 키를 입력할 수 있습니다.
-messenger = SolapiMessenger()
-
-# DB 초기화 및 이미지 자동 복사 (마이그레이션 용도)
-try:
-    import glob, shutil
-    artifact_dir = r"C:\Users\USER\.gemini\antigravity\brain\a12b6296-2531-461a-80a0-70328ad88362"
-    static_img_dir = os.path.join(BASE_DIR, "static", "images")
-    os.makedirs(static_img_dir, exist_ok=True)
-    for t in ['pork', 'beef', 'noodle', 'stew', 'meal', 'egg', 'soju', 'beer', 'makgeolli', 'cola', 'cider']:
-        files = glob.glob(os.path.join(artifact_dir, f"{t}_*.png"))
-        if files:
-            latest_file = max(files, key=os.path.getctime)
-            dest = os.path.join(static_img_dir, f"{t}.png")
-            shutil.copy(latest_file, dest)
-            print(f"[자동복사] {t}.png 이미지 업데이트 완료!")
-except Exception as img_e:
-    print(f"[자동복사 오류] {img_e}")
-
+from models import db, Order, OrderItem, Waiting, Store, User, SystemConfig, TaxInvoice, ServiceRequest, Customer, PointTransaction
 db.init_app(app)
-with app.app_context():
-    db.create_all()
-    try:
-        db.session.execute(text("ALTER TABLE orders ADD COLUMN session_id TEXT"))
-        db.session.commit()
-    except:
-        db.session.rollback()
-    
-    # Waiting 테이블 migration: updated_at 컬럼 추가
-    try:
-        db.session.execute(text("ALTER TABLE waiting ADD COLUMN updated_at DATETIME"))
-        db.session.commit()
-        print("[Info] Added updated_at column to waiting table.")
-    except:
-        db.session.rollback()
-
-    # Waiting 테이블 migration: waiting_no 필드 추가
-    try:
-        db.session.execute(text("ALTER TABLE waiting ADD COLUMN waiting_no INTEGER"))
-        db.session.commit()
-        print("[Info] Added waiting_no column to waiting table.")
-    except Exception as e:
-        db.session.rollback()
-
-# SocketIO 설정
 socketio = SocketIO(app, cors_allowed_origins="*")
 
-# 메뉴 데이터 (수라골 - 한식 고기구이)
-# 메뉴 데이터 (수라골 - 한식 고기구이)
-menu = {
-    "구이류": [
-        {"id": 1, "name": "수제 돼지양념구이", "price": 19000, "image": "/static/images/pork.png"},
-        {"id": 2, "name": "프리미엄 생삼겹살", "price": 18000, "image": "/static/images/pork.png"},
-        {"id": 3, "name": "한우 특수부위 모듬", "price": 55000, "image": "/static/images/beef.png"},
-        {"id": 4, "name": "소 양념왕갈비", "price": 38000, "image": "/static/images/beef.png"},
-    ],
-    "식사류": [
-        {"id": 5, "name": "전통 함흥냉면(물/비빔)", "price": 11000, "image": "/static/images/noodle.png"},
-        {"id": 6, "name": "한우 육회비빔밥", "price": 15000, "image": "/static/images/meal.png"},
-        {"id": 7, "name": "차돌 된장찌개", "price": 9000, "image": "/static/images/stew.png"},
-        {"id": 8, "name": "공기밥", "price": 1000, "image": "/static/images/meal.png"},
-    ],
-    "곁들임": [
-        {"id": 9, "name": "한우 신선 육회", "price": 28000, "image": "/static/images/beef.png"},
-        {"id": 10, "name": "폭탄 계란찜", "price": 5000, "image": "/static/images/egg.png"},
-    ],
-    "주류/음료": [
-        {"id": 11, "name": "소주", "price": 5000, "image": "/static/images/soju.png"},
-        {"id": 12, "name": "맥주", "price": 5000, "image": "/static/images/beer.png"},
-        {"id": 13, "name": "막걸리", "price": 4000, "image": "/static/images/makgeolli.png"},
-        {"id": 14, "name": "콜라", "price": 2000, "image": "/static/images/cola.png"},
-        {"id": 15, "name": "사이다", "price": 2000, "image": "/static/images/cider.png"},
-    ]
-}
+# MQutils Integration (Solapi SMS)
+try:
+    from MQutils import SolapiMessenger
+except ImportError:
+    class SolapiMessenger:
+        def __init__(self, *args, **kwargs): pass
+        def send_sms(self, to, msg): print(f"[SIM] Missing MQutils. SMS to {to}: {msg}")
 
-# KST (UTC+9) 헬퍼
-def get_kst_now():
-    return datetime.now(timezone(timedelta(hours=9)))
+# 템플릿 전역 변수 설정
+@app.context_processor
+def inject_globals():
+    return {'timedelta': timedelta, 'now': datetime.utcnow()}
 
-def get_today_start_kst():
-    """오늘 한국 시간 00:00:00에 해당하는 UTC datetime 반환"""
-    kst_now = get_kst_now()
-    kst_today = kst_now.replace(hour=0, minute=0, second=0, microsecond=0)
-    # KST -> UTC 변환 (9시간 차감)
-    return kst_today.astimezone(timezone.utc).replace(tzinfo=None)
+# ---------------------------------------------------------
+# 공통 유틸리티 및 권한 제어 (MQutils 모듈에서 활용)
+# ---------------------------------------------------------
+from MQutils import (
+    login_required, admin_required, staff_required, store_access_required,
+    send_waiting_sms, check_nearby_waiting
+)
 
-# 초기화 시점 관리 (persistence용 파일)
-RESET_FILE = 'last_reset.txt'
+# ---------------------------------------------------------
+# 매장별 서비스 라우트
+# ---------------------------------------------------------
 
-def get_last_reset_time():
-    if os.path.exists(RESET_FILE):
-        try:
-            with open(RESET_FILE, 'r') as f:
-                return datetime.fromisoformat(f.read().strip())
-        except:
-            pass
-    return datetime(2000, 1, 1) # 아주 먼 과거
-
-def set_last_reset_time():
-    now_utc = datetime.utcnow()
-    with open(RESET_FILE, 'w') as f:
-        f.write(now_utc.isoformat())
-    return now_utc
-
-# 테이블 선점 보관 딕셔너리 { table_id: {'uid': 'abc', 'time': 12345.0} }
-active_tables = {}
-
-class OrderWorkflow:
-    @staticmethod
-    def stage_receive(data):
-        """1단계: 주문 접수 - DB 저장 및 주방 전송 (음료는 즉시 서빙 대기 처리)"""
-        try:
-            order_id = data.get('order_id', f"ORD-{int(time.time()*1000)}")
-            session_id = data.get('session_id')
-            table_id = int(data['table_id'])
-            
-            # 테이블 이동 처리
-            if session_id:
-                active_orders = db.session.query(Order).filter_by(session_id=session_id).filter(Order.status != 'paid').all()
-                for o in active_orders:
-                    if o.table_id != table_id:
-                        print(f"Workflow Migration: Side {session_id} moved from {o.table_id} to {table_id}")
-                        o.table_id = table_id
-
-            # 음료 ID 추출 (메뉴 데이터 기준)
-            drink_ids = [int(item['id']) for item in menu.get('주류/음료', [])]
-            
-            food_items = [item for item in data['items'] if int(item['id']) not in drink_ids]
-            drink_items = [item for item in data['items'] if int(item['id']) in drink_ids]
-            
-            created_orders = []
-
-            # 1. 일반 요리 주문 (주방 등록 - pending)
-            if food_items:
-                food_order_id = order_id if not drink_items else f"{order_id}-F"
-                if not db.session.get(Order, food_order_id):
-                    food_total = sum(item['price'] * item['quantity'] for item in food_items)
-                    new_food_order = Order(
-                        id=food_order_id,
-                        table_id=table_id,
-                        total_price=food_total,
-                        status='pending',
-                        session_id=session_id
-                    )
-                    db.session.add(new_food_order)
-                    for item in food_items:
-                        db.session.add(OrderItem(
-                            order_id=food_order_id,
-                            menu_id=item['id'],
-                            name=item['name'],
-                            price=item['price'],
-                            quantity=item['quantity']
-                        ))
-                    created_orders.append(new_food_order)
-
-            # 2. 음료 전용 주문 (바로 카운터 서빙 대기 - ready)
-            if drink_items:
-                drink_order_id = order_id if not food_items else f"{order_id}-D"
-                if not db.session.get(Order, drink_order_id):
-                    drink_total = sum(item['price'] * item['quantity'] for item in drink_items)
-                    new_drink_order = Order(
-                        id=drink_order_id,
-                        table_id=table_id,
-                        total_price=drink_total,
-                        status='ready',
-                        session_id=session_id
-                    )
-                    db.session.add(new_drink_order)
-                    for item in drink_items:
-                        db.session.add(OrderItem(
-                            order_id=drink_order_id,
-                            menu_id=item['id'],
-                            name=item['name'],
-                            price=item['price'],
-                            quantity=item['quantity']
-                        ))
-                    created_orders.append(new_drink_order)
-
-            db.session.commit()
-
-            for order in created_orders:
-                print(f"Pipeline Stage 1 [Receive]: {order.id} (Table {table_id}, Status {order.status})")
-                socketio.emit('new_order', order.to_dict(), namespace='/')
-                
-            return bool(created_orders)
-        except Exception as e:
-            db.session.rollback()
-            print(f"Workflow Error [Receive]: {str(e)}")
-            return False
-
-    @staticmethod
-    def stage_ready(order_id):
-        """2단계: 조리 완료 - 상태 업데이트 및 카운터/디스플레이 전송"""
-        try:
-            order = db.session.get(Order, order_id)
-            if order:
-                order.status = 'ready'
-                db.session.commit()
-                print(f"Pipeline Stage 2 [Ready]: {order_id}")
-                socketio.emit('order_status_update', order.to_dict(), namespace='/')
-                return True
-            return False
-        except Exception as e:
-            db.session.rollback()
-            return False
-
-    @staticmethod
-    def stage_serve(table_id, session_id=None):
-        """3단계: 서빙 완료 - 상태 업데이트 및 디스플레이 전송"""
-        try:
-            # sessionId가 'legacy-X' 형태면 legacy 주문(session_id=None)으로 취급
-            is_legacy = session_id and session_id.startswith('legacy-')
-            
-            if is_legacy:
-                table_id = int(session_id.split('-')[1])
-                orders = Order.query.filter_by(table_id=table_id, session_id=None, status='ready').all()
-            elif session_id:
-                orders = Order.query.filter_by(session_id=session_id, status='ready').all()
-            else:
-                orders = Order.query.filter_by(table_id=table_id, status='ready').all()
-            
-            for o in orders:
-                o.status = 'served'
-            db.session.commit()
-            print(f"Pipeline Stage 3 [Serve]: Session {session_id or table_id}")
-            socketio.emit('table_status_update', {'table_id': table_id, 'session_id': session_id, 'status': 'served'}, namespace='/')
-            return True
-        except Exception as e:
-            db.session.rollback()
-            print(f"Workflow Error [Serve]: {str(e)}")
-            return False
-
-    @staticmethod
-    def stage_pay(session_id, table_id=None):
-        """4단계: 결제 완료 - 최종 DB 저장 및 대시보드 클리어"""
-        try:
-            # sessionId가 'legacy-X' 형태면 legacy 주문(session_id=None)으로 취급
-            is_legacy = session_id and session_id.startswith('legacy-')
-
-            if is_legacy:
-                table_id = int(session_id.split('-')[1])
-                orders = Order.query.filter_by(table_id=table_id, session_id=None).filter(Order.status != 'paid').all()
-            elif session_id:
-                orders = Order.query.filter_by(session_id=session_id).filter(Order.status != 'paid').all()
-            else:
-                orders = Order.query.filter_by(table_id=table_id).filter(Order.status != 'paid').all()
-            
-            for o in orders:
-                if not table_id:
-                    table_id = o.table_id
-                o.status = 'paid'
-                o.paid_at = datetime.utcnow()
-            db.session.commit()
-            
-            # 테이블 선점 해제 (메모리 락 초기화)
-            if table_id in active_tables:
-                active_tables.pop(table_id, None)
-
-            print(f"Pipeline Stage 4 [Pay]: Session {session_id or table_id}")
-            socketio.emit('table_status_update', {'table_id': table_id, 'session_id': session_id, 'status': 'paid'}, namespace='/')
-            return True
-        except Exception as e:
-            db.session.rollback()
-            print(f"Workflow Error [Pay]: {str(e)}")
-            return False
-
-# 모바일 기기 접속 상태 추적 딕셔너리
-client_to_wait_id = {}
-wait_id_to_clients = {}
-
-@socketio.on('customer_online')
-def handle_customer_online(data):
-    try:
-        wait_id = str(data.get('wait_id'))
-        if wait_id and wait_id != 'null' and wait_id != 'undefined':
-            client_to_wait_id[request.sid] = wait_id
-            if wait_id not in wait_id_to_clients:
-                wait_id_to_clients[wait_id] = set()
-            wait_id_to_clients[wait_id].add(request.sid)
-            print(f"[소켓 연결] 대기 {wait_id}번 기기 화면 켜짐 (SID={request.sid})")
-    except Exception as e:
-        print(f"Error in customer_online: {e}")
-
-@socketio.on('disconnect')
-def handle_disconnect():
-    try:
-        sid = request.sid
-        if sid in client_to_wait_id:
-            wait_id = client_to_wait_id.pop(sid)
-            if wait_id in wait_id_to_clients:
-                wait_id_to_clients[wait_id].discard(sid)
-                if not wait_id_to_clients[wait_id]:
-                    del wait_id_to_clients[wait_id]
-            print(f"[소켓 종료] 대기 {wait_id}번 기기 화면 꺼짐 (SID={sid})")
-    except Exception as e:
-        pass
-
-# Socket.IO 이벤트 핸들러
-@socketio.on('place_order')
-def handle_order(data):
-    if OrderWorkflow.stage_receive(data):
-        print("Order Processed via Pipeline")
-    else:
-        emit('order_error', {'message': '주문 처리 중 오류 발생'})
-
-@socketio.on('set_ready')
-def handle_ready(data):
-    OrderWorkflow.stage_ready(data.get('order_id'))
-
-@socketio.on('set_served')
-def handle_served(data):
-    OrderWorkflow.stage_serve(data.get('table_id'), data.get('session_id'))
-
-@socketio.on('set_paid')
-def handle_paid(data):
-    OrderWorkflow.stage_pay(data.get('session_id'), data.get('table_id'))
-
-# HTTP 라우트
 @app.route('/')
-def index():
-    return render_template('index.html')
-
-@app.route('/customer/<int:table_id>')
-def customer_view(table_id):
-    if 'uid' not in session or len(str(session['uid'])) > 3:
-        session['uid'] = str(random.randint(100, 999))
-    uid = session['uid']
-
-    # 1. DB 점검: 이 테이블에 현재 결제되지 않은(진행 중인) 다른 사람의 주문이 있는지 확인
-    active_order = db.session.query(Order).filter_by(table_id=table_id).filter(Order.status != 'paid').first()
+@login_required
+def store_selection():
+    user_id = session.get('user_id')
+    user_role = session.get('role')
+    user_store_id = session.get('store_id')
     
-    if active_order:
-        # 다른 사람의 세션 아이디로 주문이 진행중이라면 차단
-        if active_order.session_id and active_order.session_id != uid:
-            return render_template('locked.html', table_id=table_id)
-        # 내 주문이면 무사 통과, 락 갱신
-        active_tables[table_id] = {'uid': uid, 'time': time.time()}
+    if user_role == 'admin':
+        # 최고 관리자는 모든 매장을 볼 수 있음
+        stores = Store.query.all()
+    elif user_role == 'staff':
+        # 직원은 본인이 담당자로 지정된 매장만 조회 가능
+        stores = Store.query.filter_by(recommended_by=user_id).all()
     else:
-        # 2. 빈 테이블일 때: 과거 점유자가 주문을 하지 않고 나갔다면, 즉시 새로운 기기(세션)의 접속을 허용합니다(무단 점유 방지)
-        active_tables[table_id] = {'uid': uid, 'time': time.time()}
+        # 매장 점주는 본인 매장만 조회 가능
+        stores = Store.query.filter_by(id=user_store_id).all() if user_store_id else []
+        
+        # 만약 담당 매장이 1개뿐이라면 즉시 해당 매장으로 리다이렉트 (UX 향상)
+        if len(stores) == 1:
+            return redirect(url_for('index', slug=stores[0].id))
+            
+    return render_template('store_selection.html', stores=stores)
 
-    return render_template('customer.html', table_id=table_id, menu=menu, session_id=uid)
-
-@app.route('/kitchen')
-def kitchen_view():
-    return render_template('kitchen.html')
-
-@app.route('/counter')
-def counter_view():
-    return render_template('counter.html')
-
-@app.route('/display')
-def display_view():
-    return render_template('display.html')
-
-@app.route('/waiting', strict_slashes=False)
-def waiting_view():
-    return render_template('waiting.html')
-
-@app.route('/qr-print', strict_slashes=False)
-def qr_print_view():
-    # 이제 수동으로 주소를 바꿀 필요 없이, 현재 접속한 도메인(Host)을 자동으로 감지합니다.
-    host_url = request.host_url
-    return render_template('qr_print.html', host_url=host_url)
-
-# 간편 주소 지원 (Redirect 포함)
-@app.route('/qr', strict_slashes=False)
-def qr_short_view():
-    return redirect(url_for('qr_print_view'))
-
-@app.route('/stats')
-def stats_view():
-    return render_template('stats.html')
-
-@app.route('/api/orders')
-def get_orders():
-    try:
-        active_orders = db.session.query(Order).filter(Order.status != 'paid').all()
-        return jsonify([o.to_dict() for o in active_orders])
+@app.route('/<slug>')
+def index(slug):
+    # 이모지는 윈도우 환경에서 인코딩 에러를 유발할 수 있어 제거했습니다.
+    print(f"--- [Domain Request] Accessing Slug: {slug} ---")
+    store = db.session.get(Store, slug)
+    if not store:
+        print(f"--- [Error] Store '{slug}' not found in DB. Redirecting to portal. ---")
+        return redirect(url_for('store_selection'))
+    
+    try: 
+        return render_template('index.html', store=store)
     except Exception as e:
-        print(f"Error in get_orders API: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+        print(f"--- [Template Error] Falling back to customer view: {e} ---")
+        return redirect(url_for('customer_view', slug=slug, table_id=1))
 
-@app.route('/api/stats')
-def get_stats():
+@app.route('/<slug>/customer/<int:table_id>')
+def customer_view(slug, table_id):
+    store = db.session.get(Store, slug)
+    if 'uid' not in session: session['uid'] = str(random.randint(100, 999))
+    return render_template('customer.html', store=store, table_id=table_id, session_id=session['uid'])
+
+@app.route('/<slug>/kitchen')
+@store_access_required
+def kitchen_view(slug):
+    store = db.session.get(Store, slug)
+    return render_template('kitchen.html', store=store)
+
+@app.route('/<slug>/counter')
+@store_access_required
+def counter_view(slug):
+    store = db.session.get(Store, slug)
+    return render_template('counter.html', store=store)
+
+@app.route('/<slug>/qr-print')
+@store_access_required
+def qr_print_view(slug):
+    store = db.session.get(Store, slug)
+    if not store: return redirect(url_for('store_selection'))
+    return render_template('qr_print.html', store=store)
+
+@app.route('/<slug>/display')
+def display_view(slug):
+    store = db.session.get(Store, slug)
+    if not store: return redirect(url_for('store_selection'))
+    return render_template('display.html', store=store)
+
+@app.route('/<slug>/stats')
+@store_access_required
+def stats_view(slug):
+    store = db.session.get(Store, slug)
+    if not store: return redirect(url_for('store_selection'))
+    return render_template('stats.html', store=store)
+
+@app.route('/api/<slug>/stats')
+@store_access_required
+def api_get_stats(slug):
+    # 기본적으로 오늘(UTC 기준)의 데이터를 가져옵니다.
+    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    
+    # 1. 오늘 총 매출
+    total_sales = db.session.query(func.sum(Order.total_price))\
+        .filter(Order.store_id == slug, Order.status == 'paid', Order.paid_at >= today_start)\
+        .scalar() or 0
+        
+    # 2. 인기 메뉴 TOP 5
+    best_items = db.session.query(OrderItem.name, func.sum(OrderItem.quantity).label('total_count'))\
+        .join(Order, Order.id == OrderItem.order_id)\
+        .filter(Order.store_id == slug, Order.status == 'paid', Order.paid_at >= today_start)\
+        .group_by(OrderItem.name)\
+        .order_by(desc('total_count'))\
+        .limit(5).all()
+    
+    best_menu = [{'name': name, 'count': int(count)} for name, count in best_items]
+    
+    return jsonify({
+        'daily_sales': int(total_sales),
+        'best_menu': best_menu,
+        'date': today_start.strftime('%Y-%m-%d')
+    })
+
+@app.route('/api/<slug>/stats/reset', methods=['POST'])
+@store_access_required
+def api_reset_stats(slug):
+    # 실제로는 데이터를 삭제하지 않고 통계 기준점을 업데이트하는 방식이 권장되지만,
+    # 여기서는 간단하게 오늘 결제된 건들의 paid_at을 어제로 변경하여 초기화 효과를 냅니다.
+    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    yesterday = today_start - timedelta(seconds=1)
+    
+    Order.query.filter(Order.store_id == slug, Order.status == 'paid', Order.paid_at >= today_start)\
+        .update({Order.paid_at: yesterday}, synchronize_session=False)
+    
+    db.session.commit()
+    return jsonify({'status': 'success'})
+
+@app.route('/<slug>/waiting')
+def waiting_view(slug):
+    store = db.session.get(Store, slug)
+    return render_template('waiting.html', store=store)
+
+@app.route('/<slug>/manual')
+def store_manual_view(slug):
+    store = db.session.get(Store, slug)
+    return render_template('admin/visual_manual.html', store=store)
+
+# ---------------------------------------------------------
+# 통합 관리자 센터 (MQnet Central)
+# ---------------------------------------------------------
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        user = User.query.filter_by(username=username).first()
+        if user and check_password_hash(user.password, password):
+            session.update({'user_id':user.id, 'username':user.username, 'role':user.role, 'store_id':user.store_id})
+            if user.role in ['admin', 'staff']: return redirect(url_for('admin_dashboard'))
+            return redirect(url_for('counter_view', slug=user.store_id))
+        flash("로그인 정보를 확인해 주세요.")
+    return render_template('login.html')
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('login'))
+
+@app.route('/admin/')
+@app.route('/admin')
+@staff_required
+def admin_dashboard():
+    stores = Store.query.all()
+    total_revenue = db.session.query(func.sum(Order.total_price)).filter(Order.status == 'paid').scalar() or 0 if session.get('role') == 'admin' else 0
+    total_orders = Order.query.count()
+    total_waiting = Waiting.query.count()
+    
+    # Calculate Commission for the current staff member (if applicable)
+    user_id = session.get('user_id')
+    my_commission = 0
+    if session.get('role') == 'staff':
+        my_stores = Store.query.filter_by(recommended_by=user_id, payment_status='paid').all()
+        now = datetime.utcnow()
+        for s in my_stores:
+            delta = now - s.created_at
+            # Rule: -1 month for free, -1 month for first paid month = -2 months
+            paid_months = max(0, (delta.days // 30) - 2)
+            my_commission += (paid_months * 50000 * 0.1)
+            
+    return render_template('admin/dashboard.html', stores=stores, total_revenue=total_revenue, total_orders=total_orders, total_waiting=total_waiting, my_commission=int(my_commission))
+
+@app.route('/admin/manual/staff')
+@staff_required
+def staff_manual_page():
     try:
-        # 기준 시점 = MAX(오늘 자정 KST, 마지막 수동 초기화 시점)
-        today_start = get_today_start_kst()
-        last_reset = get_last_reset_time()
-        window_start = max(today_start, last_reset)
+        with open('manuals/staff_manual.md', 'r', encoding='utf-8') as f:
+            content = f.read()
+        return render_template('admin/staff_manual_view.html', content=content)
+    except: return "매뉴얼 파일을 찾을 수 없습니다.", 404
 
-        # 일간 매출 합계 (필터 적용)
-        daily_sales = db.session.query(func.sum(Order.total_price)).filter(
-            Order.paid_at >= window_start,
-            Order.status == 'paid'
-        ).scalar() or 0
+@app.route('/admin/stores')
+@staff_required
+def admin_stores():
+    user_id = session.get('user_id')
+    role = session.get('role')
+    if role == 'admin':
+        stores = Store.query.order_by(Store.created_at.desc()).all()
+    else:
+        # 직원은 본인이 담당한 매장만 리스팅
+        stores = Store.query.filter_by(recommended_by=user_id).order_by(Store.created_at.desc()).all()
+    return render_template('admin/stores.html', stores=stores)
+
+@app.route('/admin/stores/<slug>/config', methods=['GET', 'POST'])
+@staff_required
+def admin_store_config(slug):
+    store = db.session.get(Store, slug)
+    user_id = session.get('user_id')
+    role = session.get('role')
+
+    # 보안 체크: 일반 직원이 본인 담당이 아닌 매장에 접근할 경우 차단
+    if role == 'staff' and store.recommended_by != user_id:
+        flash("해당 업소에 대한 관리 권한이 없습니다.")
+        return redirect(url_for('admin_stores'))
+    
+    if request.method == 'POST':
+        # Now we allow STAFF to update menus, but NOT the manager assignment
+        store.name = request.form.get('name')
+        store.business_no = request.form.get('business_no')
+        store.ceo_name = request.form.get('ceo_name')
+        store.business_email = request.form.get('business_email')
         
-        # 인기 메뉴 (필터 적용)
-        best_menu = db.session.query(
-            OrderItem.name, func.sum(OrderItem.quantity).label('total_qty')
-        ).join(Order).filter(
-            Order.paid_at >= window_start,
-            Order.status == 'paid'
-        ).group_by(OrderItem.name).order_by(desc('total_qty')).limit(5).all()
+        # Responsible Staff (recommended_by) and Monthly Fee is ONLY changeable by Admin
+        if session.get('role') == 'admin':
+            store.recommended_by = request.form.get('recommended_by')
+            store.monthly_fee = int(request.form.get('monthly_fee', 50000))
         
-        return jsonify({
-            'daily_sales': daily_sales,
-            'best_menu': [{'name': m[0], 'count': m[1]} for m in best_menu]
+        store.menu_data = json.loads(request.form.get('menu_data', '{}'))
+        db.session.commit()
+        flash(f"{store.name}의 설정이 저장되었습니다.")
+        return redirect(url_for('admin_stores'))
+    staffs = User.query.filter_by(role='staff').all()
+    return render_template('admin/store_config.html', store=store, staffs=staffs)
+
+@app.route('/admin/performance')
+@staff_required
+def admin_performance():
+    user_id = session.get('user_id')
+    role = session.get('role')
+    performance_data = []
+    staffs = User.query.filter_by(role='staff').all() if role == 'admin' else User.query.filter_by(id=user_id).all()
+    
+    for staff in staffs:
+        stores = Store.query.filter_by(recommended_by=staff.id).all()
+        total_rev = 0
+        now = datetime.utcnow()
+        for s in stores:
+            if s.payment_status == 'paid':
+                # First month is free, so subtract 1 from total months
+                delta = now - s.created_at
+                total_months = delta.days // 30
+                paid_months = max(0, total_months - 1) 
+                
+                # If it's the 2nd month (total_months=1) and they paid 50k, 
+                # but the user said "매출은 0으로 산출됨" for that first 50k after free month.
+                # So it means we only start counting revenue from total_months >= 2?
+                # "첫달은 무료로 사용하고 다음달 26일 5만원이 입금되었을때 매출은 0으로 산출됨"
+                # This implies:
+                # Month 0: Free (Revenue 0)
+                # Month 1: 50k paid (Revenue still 0 for staff?)
+                # Month 2: 50k paid (Revenue starts here?)
+                # Let's subtract 2 months to be safe based on "매출은 0으로 산출됨" for the first paid month.
+                commissionable_months = max(0, total_months - 2) 
+                total_rev += (commissionable_months * (s.monthly_fee or 50000))
+        
+        performance_data.append({
+            'staff_name': staff.username, 'id': staff.id, 'store_count': len(stores),
+            'paid_count': len([s for s in stores if s.payment_status == 'paid']),
+            'revenue': total_rev, 
+            'commission': int(total_rev * 0.1), # 10% Commission
+            'stores': stores
         })
-    except Exception as e:
-        print(f"Error in get_stats API: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+    return render_template('admin/performance.html', data=performance_data, role=role)
 
-@app.route('/api/stats/reset', methods=['POST'])
-def reset_stats():
-    try:
-        set_last_reset_time()
-        print(f"[Info] Daily stats reset at {datetime.utcnow()}")
-        return jsonify({"status": "success", "message": "매출 통계가 초기화되었습니다."})
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+@app.route('/admin/users', methods=['GET', 'POST'])
+@admin_required
+def admin_users():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        role = request.form.get('role', 'owner')
+        sid = request.form.get('store_id')
+        if User.query.filter_by(username=username).first(): flash("이미 존재하는 아이디입니다.")
+        else:
+            new_user = User(username=username, password=generate_password_hash(password), role=role, store_id=sid if sid != 'null' else None)
+            db.session.add(new_user)
+            db.session.commit()
+            flash(f"{username} 계정이 생성 및 승격되었습니다.")
+        return redirect(url_for('admin_users'))
+    users = User.query.all()
+    stores = Store.query.all()
+    return render_template('admin/users.html', users=users, stores=stores)
 
-# 대기열 API
-@app.route('/api/waiting', methods=['POST'])
-def register_waiting():
-    try:
-        data = request.json
-        phone = data['phone']
-        
-        # [핵심 로직] 동일한 번호로 이미 대기 중인 건이 있다면 자동으로 취소 처리 (재등록 허용)
-        # 단, 전화번호 미입력(현장대기) 손님은 중복 처리에서 제외합니다.
-        if phone != "미입력(화면대기)":
-            today_start = get_today_start_kst()
-            existing_waiting = db.session.query(Waiting).filter(
-                Waiting.phone == phone,
-                Waiting.status == 'waiting',
-                Waiting.created_at >= today_start
-            ).first()
+@app.route('/admin/users/<int:user_id>/delete', methods=['POST'])
+@admin_required
+def admin_user_delete(user_id):
+    user = db.session.get(User, user_id)
+    if user:
+        if user.username == session.get('username'): flash("본인 계정은 삭제할 수 없습니다.")
+        else:
+            db.session.delete(user)
+            db.session.commit()
+            flash("계정이 삭제되었습니다.")
+    return redirect(url_for('admin_users'))
 
-            if existing_waiting:
-                existing_waiting.status = 'cancelled'
-                db.session.commit()
-                print(f"[Info] Duplicate phone ({phone}) re-registered. Old entry ({existing_waiting.id}) cancelled.")
+@app.route('/admin/billing')
+@admin_required
+def admin_billing():
+    stores = Store.query.all()
+    unpaid = Store.query.filter_by(payment_status='unpaid').count()
+    sus = Store.query.filter_by(status='suspended').count()
+    return render_template('admin/billing.html', stores=stores, unpaid_count=unpaid, suspended_count=sus, total_stores=len(stores))
 
-        # 3자리 난수 대기 번호 생성
-        new_wait = Waiting(
-            phone=phone,
-            people=int(data['people']),
-            waiting_no=random.randint(100, 999),
-            status='waiting'
-        )
-        db.session.add(new_wait)
+@app.route('/admin/settings', methods=['GET', 'POST'])
+@admin_required
+def admin_settings():
+    config = SystemConfig.query.first()
+    if request.method == 'POST':
+        if not config:
+            config = SystemConfig()
+            db.session.add(config)
+        config.site_name = request.form.get('site_name', 'MQnet Central')
+        config.maintenance_mode = 'maintenance_mode' in request.form
+        db.session.commit()
+        flash("시스템 설정이 저장되었습니다.")
+        return redirect(url_for('admin_settings'))
+    return render_template('admin/settings.html', config=config)
+
+@app.route('/api/admin/billing/toggle', methods=['POST'])
+@admin_required
+def api_billing_toggle():
+    data = request.json
+    sid = data.get('store_id')
+    store = db.session.get(Store, sid)
+    if store:
+        store.payment_status = 'paid' if store.payment_status == 'unpaid' else 'unpaid'
+        if store.payment_status == 'paid':
+            now = datetime.utcnow()
+            if not store.expires_at or store.expires_at < now: store.expires_at = now + timedelta(days=30)
+        db.session.commit()
+        return jsonify({'status': 'success', 'new_status': store.payment_status})
+    return jsonify({'status': 'error'}), 404
+
+@app.route('/api/admin/upload', methods=['POST'])
+@staff_required
+def api_upload_image():
+    file = request.files.get('file')
+    if not file: return jsonify({'error': 'No file'}), 400
+    filename = str(uuid.uuid4())[:12] + "_" + file.filename
+    file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+    return jsonify({'status': 'success', 'url': f'/static/images/{filename}'})
+
+@app.route('/api/<slug>/service_request', methods=['POST'])
+def api_create_service_request(slug):
+    data = request.json
+    content = data.get('content')
+    table_id = data.get('table_id')
+    if not content or not table_id: return jsonify({'error': 'Missing data'}), 400
+    
+    new_req = ServiceRequest(store_id=slug, table_id=table_id, content=content)
+    db.session.add(new_req)
+    db.session.commit()
+    
+    # Notify staff via SocketIO
+    socketio.emit('new_service_request', new_req.to_dict(), room=slug)
+    return jsonify({'status': 'success', 'request': new_req.to_dict()})
+
+@app.route('/api/<slug>/service_requests')
+@store_access_required
+def api_get_service_requests(slug):
+    reqs = ServiceRequest.query.filter_by(store_id=slug, status='pending').order_by(ServiceRequest.created_at.desc()).all()
+    return jsonify([r.to_dict() for r in reqs])
+
+@app.route('/api/<slug>/service_request/<int:req_id>/complete', methods=['POST'])
+@store_access_required
+def api_complete_service_request(slug, req_id):
+    req = db.session.get(ServiceRequest, req_id)
+    if req and req.store_id == slug:
+        req.status = 'completed'
+        db.session.commit()
+        socketio.emit('service_request_completed', {'id': req_id}, room=slug)
+        return jsonify({'status': 'success'})
+    return jsonify({'error': 'Not found'}), 404
+
+# ---------------------------------------------------------
+# 웨이팅(예약) 시스템 API
+# ---------------------------------------------------------
+
+@app.route('/api/<slug>/waiting', methods=['POST'])
+def api_create_waiting(slug):
+    data = request.json
+    phone = data.get('phone', '010-0000-0000')
+    people = int(data.get('people', 1))
+    
+    # 오늘 접수된 대기 팀 수 계산 (대기 번호 부여용)
+    now_local = datetime.now()
+    count = Waiting.query.filter_by(store_id=slug).filter(Waiting.created_at >= datetime(now_local.year, now_local.month, now_local.day)).count()
+    
+    new_wait = Waiting(store_id=slug, phone=phone, people=people, waiting_no=count+1)
+    db.session.add(new_wait)
+    db.session.commit()
+    
+    socketio.emit('waiting_update', room=slug)
+
+    # 신규 등록 후에도 3팀 체크 (혹시 바로 3번째일 수도 있음)
+    check_nearby_waiting(app, slug)
+    
+    return jsonify({'status': 'success', 'wait_id': new_wait.id})
+
+@app.route('/api/<slug>/waiting/list')
+@store_access_required
+def api_get_waiting_list(slug):
+    waits = Waiting.query.filter_by(store_id=slug, status='waiting').order_by(Waiting.created_at.asc()).all()
+    return jsonify([w.to_dict() for w in waits])
+
+@app.route('/api/<slug>/waiting/status/<int:wait_id>')
+def api_get_waiting_status(slug, wait_id):
+    w = db.session.get(Waiting, wait_id)
+    if not w: return jsonify({'status': 'not_found'})
+    
+    # 내 앞에 몇 팀 있는지 계산
+    rank = Waiting.query.filter_by(store_id=slug, status='waiting').filter(Waiting.created_at < w.created_at).count()
+    
+    res = w.to_dict()
+    res['rank'] = rank
+    res['created_at_fixed'] = w.created_at.strftime('%H:%M')
+    return jsonify(res)
+
+@app.route('/api/<slug>/waiting/notify/<int:wait_id>', methods=['POST'])
+@store_access_required
+def api_notify_waiting_manual(slug, wait_id):
+    """수동으로 근사 알림(상황별 알림)을 다시 보냅니다."""
+    w = db.session.get(Waiting, wait_id)
+    if w and w.store_id == slug:
+        # 수동 발송 시에도 백그라운드 스레드로 발송
+        threading.Thread(target=send_waiting_sms, args=(app, wait_id, 'nearby')).start()
+        return jsonify({'status': 'success'})
+    return jsonify({'status': 'error', 'message': '대기 정보를 찾을 수 없습니다.'}), 404
+
+@app.route('/api/<slug>/waiting/enter/<int:wait_id>', methods=['POST'])
+@store_access_required
+def api_enter_waiting(slug, wait_id):
+    w = db.session.get(Waiting, wait_id)
+    if w and w.store_id == slug:
+        w.status = 'entered'
         db.session.commit()
         
-        # 실시간 업데이트 (카운터용)
-        socketio.emit('waiting_update', namespace='/')
+        # 고객 화면 실시간 업데이트 신호
+        socketio.emit('waiting_status_update', {'wait_id': wait_id, 'status': 'entered'}, room=slug)
+        socketio.emit('waiting_update', room=slug)
         
-        return jsonify({"status": "success", "wait_id": new_wait.id, "waiting_no": new_wait.waiting_no})
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
-
-@app.route('/api/waiting/status/<int:wait_id>')
-def get_waiting_status(wait_id):
-    try:
-        wait = db.session.get(Waiting, wait_id)
-        if not wait: return jsonify({"status": "not_found"}), 404
+        # 입장 알림 발송 (백그라운드)
+        threading.Thread(target=send_waiting_sms, args=(app, wait_id, 'enter')).start()
         
-        today_start = get_today_start_kst()
-        if wait.created_at < today_start:
-            return jsonify({"status": "expired"}), 200
-        
-        if wait.status == 'entered':
-            # 입장 완료 후 30분 초과 시 만료 처리 (Stale Session 방지)
-            now = datetime.utcnow()
-            diff = now - (wait.updated_at or wait.created_at)
-            if diff.total_seconds() > 1800: # 30분이 지난 경우
-                return jsonify({"status": "expired"}), 200
+        # 대기열이 한 칸씩 당겨졌으므로 새로운 상위 고객 체크 (자동 알림)
+        check_nearby_waiting(app, slug)
             
-        if wait.status != 'waiting': 
-            return jsonify({"status": wait.status, "waiting_no": wait.waiting_no}), 200
+        return jsonify({'status': 'success'})
+    return jsonify({'error': 'Not found', 'message': '대기 정보를 찾을 수 없습니다.'}), 404
+
+@app.route('/api/<slug>/waiting/cancel/<int:wait_id>', methods=['POST'])
+def api_cancel_waiting(slug, wait_id):
+    """대기 취소 처리를 수행합니다 (고객 본인 또는 직원)."""
+    w = db.session.get(Waiting, wait_id)
+    if w and w.store_id == slug:
+        w.status = 'canceled'
+        db.session.commit()
         
-        # 내 앞에 몇 명이나 있나? (id 순서대로 체크)
-        rank = db.session.query(Waiting).filter(
-            Waiting.status == 'waiting',
-            Waiting.id < wait_id,
-            Waiting.created_at >= today_start
-        ).count()
+        # 취소 시에도 당연히 대기열이 당겨지므로 전체 업데이트 및 다음 근접팀 알림 체크
+        socketio.emit('waiting_status_update', {'wait_id': wait_id, 'status': 'canceled'}, room=slug)
+        socketio.emit('waiting_update', room=slug)
         
-        kst_created = wait.created_at + timedelta(hours=9)
-        ampm = "오후" if kst_created.hour >= 12 else "오전"
-        hour12 = kst_created.hour % 12 or 12
-        created_str = f"{ampm} {hour12}:{kst_created.minute:02d}:{kst_created.second:02d}"
+        # 새로운 상위 고객 체크하여 알림 발송
+        check_nearby_waiting(app, slug)
+        
+        return jsonify({'status': 'success'})
+    return jsonify({'error': 'Not found', 'message': '취소할 수 있는 대기 정보를 찾을 수 없습니다.'}), 404
 
-        return jsonify({
-            "status": "waiting",
-            "wait_id": wait.id,
-            "waiting_no": wait.waiting_no,
-            "rank": rank,
-            "created_at_fixed": created_str
-        })
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/api/waiting/list')
-def get_waiting_list():
-    try:
-        active_waiting = db.session.query(Waiting).filter(Waiting.status == 'waiting').all()
-        return jsonify([w.to_dict() for w in active_waiting])
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/api/waiting/enter/<int:wait_id>', methods=['POST'])
-def enter_waiting(wait_id):
-    try:
-        wait = db.session.get(Waiting, wait_id)
-        if wait:
-            wait.status = 'entered'
-            wait.updated_at = datetime.utcnow()
+@app.route('/api/<slug>/customer', methods=['POST'])
+def api_get_or_create_customer(slug):
+    data = request.json
+    phone = data.get('phone')
+    if not phone: return jsonify({'error': 'No phone'}), 400
+    
+    cust = Customer.query.filter_by(store_id=slug, phone=phone).first()
+    if not cust:
+        cust = Customer(store_id=slug, phone=phone, points=0)
+        db.session.add(cust)
+        db.session.commit()
+    else:
+        # Check Expiration (Final accumulation + 1 year)
+        if cust.last_accumulation_at and cust.last_accumulation_at < datetime.utcnow() - timedelta(days=365):
+            cust.points = 0
             db.session.commit()
             
-            # 브라우저를 닫은 손님인지 확인 (화면이 켜져있으면 SMS 생략)
-            is_client_online = str(wait_id) in wait_id_to_clients
-            if is_client_online:
-                print(f"[알림톡 스킵] {wait.waiting_no}번({wait.phone}) 손님은 현재 화면을 켜두고 있어 소켓으로만 입장 신호를 보냅니다.")
-            else:
-                enter_msg = f"[수라골] 대기 번호 {wait.waiting_no}번 손님! 지금 즉시 식당으로 입장해주세요!\n\n▶ 입장권 열기(매장 직원 제시용)\nhttps://wang.chicvill.store/waiting"
-                try:
-                    messenger.send_sms(wait.phone, enter_msg)
-                    print(f"[알림톡] {wait.phone} 님에게 입장 호출 발송 완료")
-                except Exception as e:
-                    print(f"[알림톡] 발송 실패: {e}")
-            
-            # 알림 로직 (대기 순서가 당겨진 뒷사람들에게 안내)
-            trigger_notifications()
-            
-            # 실시간 업데이트 (카운터 목록 제어용)
-            socketio.emit('waiting_update', namespace='/')
-            
-            # 특정 손님 핸드폰에 전송할 "입장 신호" (보안을 위해 id 포함)
-            socketio.emit('waiting_status_update', {
-                'wait_id': wait_id,
-                'status': 'entered'
-            }, namespace='/')
-            
-            return jsonify({"status": "success"})
-        return jsonify({"status": "error", "message": "Not found"}), 404
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    return jsonify(cust.to_dict())
 
-def trigger_notifications():
-    """대기 순서가 3번 이내인 사람들에게 알림 전송"""
-    try:
-        waiting_list = db.session.query(Waiting).filter(Waiting.status == 'waiting').order_by(Waiting.id).all()
-        for i, w in enumerate(waiting_list):
-            if i < 3 and not w.notified:
-                w.notified = True
-                
-                is_client_online = str(w.id) in wait_id_to_clients
-                if is_client_online:
-                    print(f"[알림톡 스킵] 대기 {w.waiting_no}번({w.phone}) - 3팀 이내 진입, 현재 접속 중")
-                else:
-                    remains = i
-                    msg = f"[수라골] 대기 번호 {w.waiting_no}번 손님! 내 앞에 대기 {remains}팀 남았습니다. 매장 근처에서 준비해주세요!\n\n▶ 내 대기 상태 보기\nhttps://wang.chicvill.store/waiting"
-                    try:
-                        messenger.send_sms(w.phone, msg)
-                        print(f"[알림톡] {w.phone} 님에게 대기 3팀 이내 경고 발송 완료")
-                    except Exception as sms_e:
-                        print(f"[알림톡] 발송 실패: {sms_e}")
-                        
-                db.session.commit()
-    except Exception as e:
-        print(f"[Error] trigger_notifications: {e}")
+@socketio.on('join')
+def on_join(data):
+    sid = data.get('store_id')
+    if sid:
+        from flask_socketio import join_room
+        join_room(sid)
 
-@app.after_request
-def add_header(response):
-    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
-    response.headers['Pragma'] = 'no-cache'
-    return response
+@socketio.on('place_order')
+def on_place_order(data):
+    slug = data.get('store_id')
+    items = data.get('items')
+    table_id = data.get('table_id')
+    session_id = data.get('session_id')
+    total_price = data.get('total_price')
+    phone = data.get('phone') # Point accumulation phone
+
+    order_id = str(uuid.uuid4())[:8]
+    new_order = Order(id=order_id, store_id=slug, table_id=table_id, session_id=session_id, total_price=total_price, phone=phone)
+    db.session.add(new_order)
+    
+    for item in items:
+        oi = OrderItem(order_id=order_id, menu_id=item['id'], name=item['name'], price=item['price'], quantity=item['quantity'])
+        db.session.add(oi)
+    
+    db.session.commit()
+    socketio.emit('new_order', new_order.to_dict(), room=slug)
+
+@socketio.on('set_ready')
+def on_set_ready(data):
+    oid = data.get('order_id')
+    order = db.session.get(Order, oid)
+    if order:
+        order.status = 'ready'
+        db.session.commit()
+        socketio.emit('order_status_update', order.to_dict(), room=order.store_id)
+
+@socketio.on('set_served')
+def on_set_served(data):
+    sid = data.get('session_id')
+    slug = data.get('store_id')
+    orders = Order.query.filter_by(store_id=slug, session_id=sid, status='ready').all()
+    for o in orders:
+        o.status = 'served'
+    db.session.commit()
+    socketio.emit('table_status_update', {'store_id': slug, 'session_id': sid, 'status': 'served'}, room=slug)
+
+@socketio.on('set_paid')
+def on_set_paid(data):
+    slug = data.get('store_id')
+    sid = data.get('session_id')
+    phone = data.get('phone')
+    use_points = data.get('use_points', 0)
+    
+    orders = Order.query.filter_by(store_id=slug, session_id=sid, status='served').all()
+    if not orders: return
+    
+    total_sum = sum(o.total_price for o in orders)
+    
+    if phone:
+        cust = Customer.query.filter_by(store_id=slug, phone=phone).first()
+        if cust:
+            # Check Expiration (Final accumulation + 1 year)
+            if cust.last_accumulation_at and cust.last_accumulation_at < datetime.utcnow() - timedelta(days=365):
+                cust.points = 0
+            
+            # Point Usage (Check >= 10,000 condition in UI, but enforce here)
+            if use_points > 0 and cust.points >= 10000:
+                actual_use = min(cust.points, use_points)
+                cust.points -= actual_use
+                db.session.add(PointTransaction(customer_id=cust.id, store_id=slug, amount=-actual_use, description="포인트 사용 포인트 감면"))
+            
+            # Point Accumulation (1% of total)
+            acc_amount = int(total_sum * 0.01)
+            cust.points += acc_amount
+            cust.visit_count += 1
+            cust.total_spent += total_sum
+            cust.last_accumulation_at = datetime.utcnow()
+            db.session.add(PointTransaction(customer_id=cust.id, store_id=slug, amount=acc_amount, description="식비 적립"))
+    
+    for o in orders:
+        o.status = 'paid'
+        o.paid_at = datetime.utcnow()
+    
+    db.session.commit()
+    socketio.emit('table_status_update', {'store_id': slug, 'session_id': sid, 'status': 'paid'}, room=slug)
 
 if __name__ == '__main__':
-    # 서버 실행 시 도메인 주소 안내 (보안 인증 적용)
+    with app.app_context(): 
+        db.create_all()
+        # Migration for existing DB
+        try:
+            db.session.execute(text("ALTER TABLE orders ADD COLUMN phone VARCHAR(20)"))
+            db.session.commit()
+            print("🚀 Migrated: Added 'phone' to 'orders'")
+        except: db.session.rollback()
+
+        try:
+            db.session.execute(text("ALTER TABLE stores ADD COLUMN monthly_fee INTEGER DEFAULT 50000"))
+            db.session.commit()
+            print("🚀 Migrated: Added 'monthly_fee' to 'stores'")
+        except: db.session.rollback()
+
+        try:
+            db.session.execute(text("ALTER TABLE waiting ADD COLUMN nearby_notified BOOLEAN DEFAULT FALSE"))
+            db.session.execute(text("ALTER TABLE waiting ADD COLUMN enter_notified BOOLEAN DEFAULT FALSE"))
+            db.session.commit()
+            print("🚀 Migrated: Added columns to 'waiting'")
+        except: db.session.rollback()
+
+        try:
+            db.session.execute(text("ALTER TABLE customers ADD COLUMN visit_count INTEGER DEFAULT 0"))
+            db.session.execute(text("ALTER TABLE customers ADD COLUMN total_spent INTEGER DEFAULT 0"))
+            db.session.commit()
+            print("🚀 Migrated: Added columns to 'customers'")
+        except: db.session.rollback()
+
     port = int(os.environ.get('PORT', 8888))
-    domain = "wang.chicvill.store"
-    
-    print("\n" + "="*60)
-    print(" [서버 시작] 수라골 참숯갈비 통합 관리 시스템 (도메인 모드)")
-    print(f" * 카운터 주소: http://localhost:{port}/counter")
-    print(f" * 고객 대기 주소: https://{domain}/waiting")
-    print(f" * QR 출력 페이지: https://{domain}/qr-print")
-    print("="*60 + "\n")
-    print("[상상] 보안 터널(Cloudflare)을 통해 'https' 보안 연결이 활성화되었습니다.")
-    
-    # SSL 설정을 제외하고 순수 HTTP로 실행 (터널이 HTTPS 처리를 함)
-    socketio.run(app, debug=True, host='0.0.0.0', port=port, allow_unsafe_werkzeug=True)
+    socketio.run(app, host='0.0.0.0', port=port, debug=True, allow_unsafe_werkzeug=True)

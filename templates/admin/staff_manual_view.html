@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MQnet Central | 직원 교육 매뉴얼</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+        :root {
+            --bg: #0f172a; --card: #1e293b; --border: #334155; --primary: #3b82f6; --text: #f1f5f9;
+        }
+        body { background: var(--bg); color: var(--text); font-family: 'Pretendard', sans-serif; display: flex; margin: 0; min-height: 100vh; }
+        
+        .sidebar { width: 260px; background: var(--card); border-right: 1px solid var(--border); padding: 2rem 1.5rem; display: flex; flex-direction: column; }
+        .logo { font-size: 1.5rem; font-weight: 900; background: linear-gradient(135deg, var(--primary), #10b981); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 3rem; }
+        .nav-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 12px; text-decoration: none; color: #94a3b8; margin-bottom: 8px; font-weight: 600; transition: 0.2s; }
+        .nav-item:hover { background: #334155; color: white; }
+
+        .main-content { flex: 1; padding: 3rem; overflow-y: auto; }
+        .manual-container { max-width: 800px; margin: 0 auto; background: var(--card); border: 1px solid var(--border); border-radius: 24px; padding: 3rem; line-height: 1.8; }
+        
+        /* Markdown Styling */
+        #manual-content h1 { color: var(--primary); border-bottom: 2px solid var(--border); padding-bottom: 15px; }
+        #manual-content h2 { margin-top: 2rem; color: #f1f5f9; }
+        #manual-content table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        #manual-content th, #manual-content td { border: 1px solid var(--border); padding: 12px; text-align: left; }
+        #manual-content th { background: #334155; }
+        #manual-content code { background: #0f172a; padding: 2px 6px; border-radius: 4px; color: #3b82f6; }
+        
+        .btn-back { display: inline-flex; align-items: center; gap: 6px; color: #94a3b8; text-decoration: none; margin-bottom: 2rem; font-weight: 600; }
+        .btn-back:hover { color: white; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="logo">MQnet Central</div>
+        <a href="/admin" class="nav-item"><i data-lucide="layout-dashboard"></i> 대시보드</a>
+        <a href="/admin/stores" class="nav-item"><i data-lucide="store"></i> 업소 관리</a>
+        <a href="/admin/manual/staff" class="nav-item" style="background:#334155; color:white;"><i data-lucide="book-open"></i> 직원 매뉴얼</a>
+        <div style="margin-top:auto;"><a href="/logout" class="nav-item" style="color:#ef4444;"><i data-lucide="log-out"></i> 로그아웃</a></div>
+    </div>
+
+    <div class="main-content">
+        <div class="manual-container">
+            <a href="/admin" class="btn-back"><i data-lucide="chevron-left" size="18"></i> 대시보드로 돌아가기</a>
+            <div id="manual-content">
+                <!-- Markdown content rendered here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+        const rawContent = `{{ content | safe }}`;
+        document.getElementById('manual-content').innerHTML = marked.parse(rawContent);
+    </script>
+</body>
+</html>

@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MQnet Central | 빌링 및 구독 관리</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+        :root {
+            --primary: #3b82f6; --accent: #10b981; --warning: #f59e0b; --danger: #ef4444;
+            --bg: #0f172a; --sidebar: #1e293b; --card: #1e293b; --border: #334155;
+            --text-main: #f1f5f9; --text-dim: #94a3b8;
+        }
+        body { background: var(--bg); color: var(--text-main); font-family: 'Pretendard', sans-serif; display: flex; min-height: 100vh; margin: 0; }
+        
+        .sidebar { width: 260px; background: var(--sidebar); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 2rem 1.5rem; }
+        .logo { font-size: 1.5rem; font-weight: 900; background: linear-gradient(135deg, var(--primary), var(--accent)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 3rem; }
+        
+        .nav-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 12px; text-decoration: none; color: var(--text-dim); margin-bottom: 8px; font-weight: 600; transition: 0.2s; }
+        .nav-item:hover, .nav-item.active { background: #334155; color: white; }
+
+        .user-info-box { margin-top: auto; background: #0f172a55; padding: 15px; border-radius: 16px; border: 1px solid var(--border); }
+        .user-tag { background: var(--primary); color: white; font-size: 0.65rem; padding: 2px 8px; border-radius: 4px; font-weight: 900; margin-bottom: 5px; display: inline-block; }
+        .user-name { font-weight: 800; font-size: 0.95rem; display: block; }
+
+        .main-content { flex: 1; padding: 3rem; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3rem; }
+        
+        .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-bottom: 2.5rem; }
+        .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 1.5rem; display: flex; justify-content: space-between; align-items: center; }
+        
+        .table-card { background: var(--card); border: 1px solid var(--border); border-radius: 24px; overflow: hidden; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #334155; color: var(--text-dim); text-align: left; padding: 15px 20px; font-size: 0.8rem; }
+        td { padding: 20px; border-bottom: 1px solid var(--border); }
+
+        .toggle-btn { background: #334155; color: white; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 0.8rem; font-weight: 800; transition: 0.2s; }
+        .toggle-btn.active { background: var(--accent); }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="logo">MQnet Central Hub</div>
+        <a href="/admin" class="nav-item"><i data-lucide="layout-dashboard"></i> 통합 대시보드</a>
+        <a href="/admin/performance" class="nav-item"><i data-lucide="line-chart"></i> 실적 분석 보드</a>
+        <a href="/admin/stores" class="nav-item"><i data-lucide="store"></i> 업소 관리</a>
+        <a href="/admin/users" class="nav-item"><i data-lucide="users"></i> 사용자 계정 제어</a>
+        <a href="/admin/billing" class="nav-item active"><i data-lucide="credit-card"></i> 빌링 및 구독 관리</a>
+        <a href="/admin/settings" class="nav-item"><i data-lucide="settings"></i> 전체 시스템 설정</a>
+        
+        <div class="user-info-box">
+            <span class="user-tag">{{ session['role'].upper() }}</span>
+            <span class="user-name">{{ session['username'] }} 님 로그인 중</span>
+            <a href="/logout" style="color:var(--danger); font-size:0.75rem; text-decoration:none; display:block; margin-top:10px; font-weight:700;">로그아웃</a>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="header"><h1>구독 현황 및 수납 관리</h1></div>
+
+        <div class="stats-grid">
+            <div class="stat-card"><div><div style="color:var(--text-dim);font-size:0.85rem;">전체 관리 업소</div><div style="font-size:1.8rem;font-weight:900;">{{ total_stores }}곳</div></div><i data-lucide="hash" style="color:var(--text-dim);"></i></div>
+            <div class="stat-card"><div><div style="color:var(--danger);font-size:0.85rem;">구독료 미결제</div><div style="font-size:1.8rem;font-weight:900;color:var(--danger);">{{ unpaid_count }}곳</div></div><i data-lucide="alert-triangle" style="color:var(--danger);"></i></div>
+            <div class="stat-card"><div><div style="color:var(--warning);font-size:0.85rem;">구독 정지 일람</div><div style="font-size:1.8rem;font-weight:900;color:var(--warning);">{{ suspended_count }}곳</div></div><i data-lucide="pause-circle" style="color:var(--warning);"></i></div>
+        </div>
+
+        <div class="table-card">
+            <table>
+                <thead><tr><th>업소 정보</th><th>사업자 번호</th><th>구독 만료일</th><th>수납 승인 제어</th></tr></thead>
+                <tbody>
+                    {% for store in stores %}
+                    <tr>
+                        <td><div style="font-weight:800;">{{ store.name }}</div><div style="font-size:0.8rem;color:var(--text-dim);">@{{ store.id }}</div></td>
+                        <td>{{ store.business_no or '-' }}</td>
+                        <td style="font-weight:700; color:{% if store.payment_status == 'paid' %}var(--accent){% else %}var(--danger){% endif %}">
+                            {{ store.expires_at.strftime('%Y-%m-%d') if store.expires_at else '만료됨/정보없음' }}
+                        </td>
+                        <td>
+                            <button class="toggle-btn {% if store.payment_status == 'paid' %}active{% endif %}" onclick="toggleBilling('{{ store.id }}')">
+                                {% if store.payment_status == 'paid' %}수납 완료 (활성){% else %}미수납 (정지){% endif %}
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+        async function toggleBilling(sid) {
+            const r = await fetch('/api/admin/billing/toggle', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({store_id: sid})
+            });
+            const d = await r.json();
+            if(d.status === 'success') location.reload();
+        }
+    </script>
+</body>
+</html>

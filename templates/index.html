@@ -160,25 +160,25 @@
     <div class="dashboard-container">
         <div class="hero-section">
             <span class="brand-badge">PREMIUM MANAGEMENT HUB</span>
-            <h1>수라골 참숯갈비</h1>
-            <div class="hero-subtitle">Integrate & Manage Everything</div>
+            <h1>{{ store.name }}</h1>
+            <div class="hero-subtitle">Integrated Management Hub</div>
         </div>
 
         <div class="section-title">
             <span>손님 접객 및 서비스 (Service Hub)</span>
         </div>
         <div class="flex-center-layout">
-            <a href="/customer/1" class="card">
+            <a href="/{{ store.id }}/customer/1" class="card" target="_blank">
                 <div class="card-icon"><i data-lucide="smartphone" size="48"></i></div>
                 <h2>메뉴판 보기</h2>
                 <p>손님들이 보시는 주문창입니다.<br>테이블 1번 기준으로 미리보기 가능.</p>
             </a>
-            <a href="/waiting" class="card">
+            <a href="/{{ store.id }}/waiting" class="card" target="_blank">
                 <div class="card-icon"><i data-lucide="bell" size="48"></i></div>
                 <h2>대기 등록</h2>
                 <p>입구 태블릿 전용 화면입니다.<br>손님이 직접 대기표를 받습니다.</p>
             </a>
-            <a href="/qr-print" class="card">
+            <a href="/{{ store.id }}/qr-print" class="card" target="_blank">
                 <div class="card-icon"><i data-lucide="printer" size="48"></i></div>
                 <h2>QR 코드 인쇄</h2>
                 <p>테이블 주문용 QR을 생성합니다.<br>대기 안내 QR도 출력이 가능합니다.</p>
@@ -189,25 +189,30 @@
             <span>매장 운영 및 분석 (Operations Hub)</span>
         </div>
         <div class="flex-center-layout">
-            <a href="/kitchen" class="card">
+            <a href="/{{ store.id }}/kitchen" class="card" target="_blank">
                 <div class="card-icon"><i data-lucide="chef-hat" size="48"></i></div>
                 <h2>주방 오더</h2>
                 <p>주방 조리용 태블릿 전용입니다.<br>실시간 주문 접수 및 완료 처리.</p>
             </a>
-            <a href="/display" class="card">
+            <a href="/{{ store.id }}/display" class="card" target="_blank">
                 <div class="card-icon"><i data-lucide="megaphone" size="48"></i></div>
                 <h2>조리완료 알림</h2>
                 <p>배식구 탭/모니터 전용입니다.<br>완료 번호를 크게 보여줍니다.</p>
             </a>
-            <a href="/counter" class="card">
+            <a href="/{{ store.id }}/counter" class="card" target="_blank">
                 <div class="card-icon"><i data-lucide="wallet" size="48"></i></div>
                 <h2>카운터 결제</h2>
                 <p>전체 주문 내역 확인 및 정산.<br>테이블 현황을 한눈에 관리합니다.</p>
             </a>
-            <a href="/stats" class="card">
+            <a href="/{{ store.id }}/stats" class="card" target="_blank">
                 <div class="card-icon"><i data-lucide="bar-chart-3" size="48"></i></div>
                 <h2>매출 및 통계</h2>
                 <p>인기 메뉴 및 매출 분석 리포트.<br>데이터 기반의 경영을 돕습니다.</p>
+            </a>
+            <a href="/{{ store.id }}/manual" class="card" target="_blank">
+                <div class="card-icon"><i data-lucide="book-open" size="48"></i></div>
+                <h2>사용자 매뉴얼</h2>
+                <p>시스템 사용 방법 안내.<br>기능별 상세 가이드를 제공합니다.</p>
             </a>
         </div>
         

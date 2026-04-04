@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>수라골 참숯갈비 - 주방</title>
+    <title>{{ store.name }} - 주방</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ range(1, 9999) | random }}">
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <style>
@@ -69,8 +69,8 @@
 </head>
 <body>
     <header>
-        <h1 style="color: #f1c40f;">주방 대시보드 (KITCHEN)</h1>
-        <div id="connection-status" style="font-size: 0.8rem; color: #2ecc71;">● 서버 연결됨</div>
+        <h1 style="color: #f1c40f;">주방 대시보드 - {{ store.name }}</h1>
+        <div id="connection-status" style="font-size: 0.8rem; color: #2ecc71;">● 서버 연결됨 (상점: {{ store.id }})</div>
     </header>
 
     <div class="container" style="padding: 15px;">
@@ -90,7 +90,8 @@
 
         socket.on('connect', () => {
             console.log('Kitchen Socket Connected!');
-            loadOrders();
+            socket.emit('join', { store_id: '{{ store.id }}' });
+            loadInitialOrders();
         });
 
         socket.on('connect_error', (error) => {
@@ -135,7 +136,7 @@
         // 초기 데이터 로드
         async function loadInitialOrders() {
             try {
-                const res = await fetch('/api/orders');
+                const res = await fetch('/api/{{ store.id }}/orders');
                 const data = await res.json();
                 orders = data.filter(o => o.status === 'pending');
                 renderOrders();

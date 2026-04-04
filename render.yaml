@@ -1,9 +1,18 @@
 services:
   - type: web
-    name: free-order
-    env: docker
-    plan: free # Render 무료 요금제 사용 시
-    branch: main
+    name: mqr-saas-platform
+    runtime: docker
+    plan: free # 무료 티어 또는 유료(starter) 선택 가능
     envVars:
       - key: DATABASE_URL
-        sync: false # Supabase에서 발급받은 URI를 Render 대시보드에 직접 입력하세요
+        # SQLite 파일을 사용하려면 디스크 서비스가 필요하거나, Render에 환경 변수로 DB URL을 넣으세요.
+        # SQLite 대신 Supabase나 Render PostgreSQL 사용 시 여기에 주소를 넣으세요.
+        value: sqlite:///suragol.db
+      - key: CLOUDFLARE_TUNNEL_TOKEN
+        # Render 대시보드 "Environment" 메뉴에서 실제 토큰을 추가해 주어야 작동합니다.
+        sync: false
+    # 디스크 보존 설정 (무료 티어는 재배포 시 SQLite 파일이 초기화됨. 영구 저장은 'Disk' 서비스 추천)
+    disk:
+      name: suragol-storage
+      mountPath: /app/data
+      sizeGB: 1

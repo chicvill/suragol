@@ -1,0 +1,30 @@
+C:\Users\USER\Dev\FreeOrder\.venv\Lib\site-packages\engineio\async_drivers\eventlet.py:1: EventletDeprecationWarning: 
+Eventlet is deprecated. It is currently being maintained in bugfix mode, and
+we strongly recommend against using it for new projects.
+
+If you are already using Eventlet, we recommend migrating to a different
+framework.  For more detail see
+https://eventlet.readthedocs.io/en/latest/asyncio/migration.html
+
+  from eventlet.green.threading import Event
+ * Restarting with stat
+C:\Users\USER\Dev\FreeOrder\.venv\Lib\site-packages\engineio\async_drivers\eventlet.py:1: EventletDeprecationWarning: 
+Eventlet is deprecated. It is currently being maintained in bugfix mode, and
+we strongly recommend against using it for new projects.
+
+If you are already using Eventlet, we recommend migrating to a different
+framework.  For more detail see
+https://eventlet.readthedocs.io/en/latest/asyncio/migration.html
+
+  from eventlet.green.threading import Event
+ * Debugger is active!
+ * Debugger PIN: 125-466-426
+(4700) wsgi starting up on http://0.0.0.0:8888
+(4700) accepted ('127.0.0.1', 2625)
+C:\Users\USER\Dev\FreeOrder\app.py:55: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  return {'timedelta': timedelta, 'now': datetime.utcnow()}
+125.250.222.77,127.0.0.1 - - [04/Apr/2026 23:17:47] "GET / HTTP/1.1" 200 5998 0.412954
+125.250.222.77,127.0.0.1 - - [04/Apr/2026 23:18:00] "GET /logout HTTP/1.1" 302 465 0.000646
+125.250.222.77,127.0.0.1 - - [04/Apr/2026 23:18:00] "GET /login HTTP/1.1" 200 2536 0.001950
+125.250.222.77,127.0.0.1 - - [04/Apr/2026 23:18:11] "POST /login HTTP/1.1" 302 525 0.482403
+125.250.222.77,127.0.0.1 - - [04/Apr/2026 23:18:12] "GET /admin HTTP/1.1" 200 12021 0.837601

@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MQnet Central Admin | 업소 관리</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+        :root {
+            --primary: #3b82f6; --accent: #10b981; --warning: #f59e0b; --danger: #ef4444;
+            --bg: #0f172a; --sidebar: #1e293b; --card: #1e293b; --border: #334155;
+            --text-main: #f1f5f9; --text-dim: #94a3b8;
+        }
+        body { background: var(--bg); color: var(--text-main); font-family: 'Pretendard', sans-serif; display: flex; min-height: 100vh; margin: 0; }
+        
+        .sidebar { width: 260px; background: var(--sidebar); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 2rem 1.5rem; }
+        .logo { font-size: 1.5rem; font-weight: 900; background: linear-gradient(135deg, var(--primary), var(--accent)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 3rem; }
+        
+        .nav-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 12px; text-decoration: none; color: var(--text-dim); margin-bottom: 8px; font-weight: 600; transition: 0.2s; }
+        .nav-item:hover, .nav-item.active { background: #334155; color: white; }
+
+        .user-info-box { margin-top: auto; background: #0f172a55; padding: 15px; border-radius: 16px; border: 1px solid var(--border); }
+        .user-tag { background: var(--primary); color: white; font-size: 0.65rem; padding: 2px 8px; border-radius: 4px; font-weight: 900; margin-bottom: 5px; display: inline-block; }
+        .user-name { font-weight: 800; font-size: 0.95rem; display: block; }
+
+        .main-content { flex: 1; padding: 3rem; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3rem; }
+        .header h1 { margin: 0; font-size: 2rem; font-weight: 800; }
+
+        .card { background: var(--card); border: 1px solid var(--border); border-radius: 24px; padding: 2rem; margin-bottom: 2rem; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr 100px 120px; gap: 15px; align-items: flex-end; }
+        input, select { background: #0f172a; border: 1px solid var(--border); color: white; padding: 12px; border-radius: 10px; width: 100%; box-sizing: border-box; }
+        .btn-add { background: var(--primary); color: white; border: none; padding: 12px; border-radius: 10px; font-weight: 700; cursor: pointer; }
+
+        .table-card { background: var(--card); border: 1px solid var(--border); border-radius: 24px; overflow: hidden; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #334155; color: var(--text-dim); text-align: left; padding: 15px 20px; font-size: 0.8rem; text-transform: uppercase; }
+        td { padding: 20px; border-bottom: 1px solid var(--border); }
+        .badge { padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; }
+        .badge-active { background: #10b98122; color: #10b981; }
+        .badge-unpaid { background: #ef444422; color: #ef4444; }
+        .btn-accent { background: var(--primary); color: white; text-decoration: none; padding: 8px 16px; border-radius: 8px; font-size: 0.85rem; display: flex; align-items: center; gap: 6px; font-weight: 600; }
+        .btn-icon { background: #334155; color: white; border: none; border-radius: 8px; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="logo">MQnet Central Hub</div>
+        <a href="/admin" class="nav-item"><i data-lucide="layout-dashboard"></i> 통합 대시보드</a>
+        <a href="/admin/performance" class="nav-item"><i data-lucide="line-chart"></i> 실적 분석 보드</a>
+        <a href="/admin/stores" class="nav-item active"><i data-lucide="store"></i> 업소 관리</a>
+        {% if session['role'] == 'admin' %}
+        <a href="/admin/users" class="nav-item"><i data-lucide="users"></i> 사용자 관리</a>
+        <a href="/admin/billing" class="nav-item"><i data-lucide="credit-card"></i> 빌링 관리</a>
+        <a href="/admin/settings" class="nav-item"><i data-lucide="settings"></i> 전체 설정</a>
+        {% endif %}
+        <div class="user-info-box">
+            <span class="user-tag">{{ session['role'].upper() }}</span>
+            <span class="user-name">{{ session['username'] }} 님</span>
+            <a href="/logout" style="color:var(--danger); font-size:0.75rem; text-decoration:none; display:block; margin-top:10px; font-weight:700;">로그아웃</a>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="header">
+            <h1>업소 인스턴스 마스터</h1>
+            <div style="color:var(--text-dim); font-size:0.9rem;">전체 {{ stores | length }}개의 업소가 구동 중입니다.</div>
+        </div>
+
+        {% if session['role'] == 'admin' %}
+        <div class="card">
+            <h3 style="margin-top:0; margin-bottom:1.5rem; color:var(--text-dim);"><i data-lucide="plus-circle" size="18"></i> 신규 업소 인스턴스 생성</h3>
+            <form action="/admin/stores" method="POST" class="form-grid">
+                <div class="form-group"><label style="display:block;margin-bottom:8px;font-size:0.85rem;color:var(--text-dim);">업소 ID</label><input type="text" name="id" placeholder="burger-king" required></div>
+                <div class="form-group"><label style="display:block;margin-bottom:8px;font-size:0.85rem;color:var(--text-dim);">업소 명칭</label><input type="text" name="name" placeholder="버거킹 강남점" required></div>
+                <div class="form-group"><label style="display:block;margin-bottom:8px;font-size:0.85rem;color:var(--text-dim);">테이블수</label><input type="number" name="tables" value="20"></div>
+                <button type="submit" class="btn-add">생성 및 구성</button>
+            </form>
+        </div>
+        {% endif %}
+
+        <div class="table-card">
+            <table>
+                <thead>
+                    <tr>
+                        <th>업소 정보</th>
+                        <th>담당자</th>
+                        <th>상태</th>
+                        <th>구독 정보</th>
+                        <th>매장 관리</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for store in stores %}
+                    <tr>
+                        <td>
+                            <div style="font-weight:800; font-size:1.05rem;">{{ store.name }}</div>
+                            <div style="color:var(--primary); font-size:0.85rem; font-weight:600;">@{{ store.id }}</div>
+                        </td>
+                        <td>
+                            <div style="font-weight:700;">{{ store.manager.username if store.manager else '미지정' }}</div>
+                        </td>
+                        <td><span class="badge badge-active">{{ store.status.upper() }}</span></td>
+                        <td>
+                            <span class="badge {% if store.payment_status == 'paid' %}badge-active{% else %}badge-unpaid{% endif %}">
+                                {% if store.payment_status == 'paid' %}정상 구독 중{% else %}이용료 미납{% endif %}
+                            </span>
+                        </td>
+                        <td>
+                            <div style="display:flex; gap:8px;">
+                                <a href="/admin/stores/{{ store.id }}/config" class="btn-accent"><i data-lucide="settings" size="14"></i> 구성 설정</a>
+                                <a href="/{{ store.id }}/counter" target="_blank" class="btn-icon" title="카운터"><i data-lucide="desktop-cw" size="16"></i></a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <script>lucide.createIcons();</script>
+</body>
+</html>

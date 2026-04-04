@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MQnet Central | 실적 분석 보드</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+        :root {
+            --primary: #3b82f6; --accent: #10b981; --warning: #f59e0b; --danger: #ef4444;
+            --bg: #0f172a; --sidebar: #1e293b; --card: #1e293b; --border: #334155;
+            --text-main: #f1f5f9; --text-dim: #94a3b8;
+        }
+        body { background: var(--bg); color: var(--text-main); font-family: 'Pretendard', sans-serif; display: flex; min-height: 100vh; margin: 0; }
+        
+        .sidebar { width: 260px; background: var(--sidebar); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 2rem 1.5rem; }
+        .logo { font-size: 1.5rem; font-weight: 900; background: linear-gradient(135deg, var(--primary), var(--accent)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 3rem; }
+        
+        .nav-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 12px; text-decoration: none; color: var(--text-dim); margin-bottom: 8px; font-weight: 600; transition: 0.2s; }
+        .nav-item:hover, .nav-item.active { background: #334155; color: white; }
+
+        .user-info-box { margin-top: auto; background: #0f172a55; padding: 15px; border-radius: 16px; border: 1px solid var(--border); }
+        .user-tag { background: var(--primary); color: white; font-size: 0.65rem; padding: 2px 8px; border-radius: 4px; font-weight: 900; margin-bottom: 5px; display: inline-block; }
+        .user-name { font-weight: 800; font-size: 0.95rem; display: block; }
+
+        .main-content { flex: 1; padding: 3rem; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3rem; }
+        .performance-card { background: var(--card); border: 1px solid var(--border); border-radius: 24px; padding: 2rem; margin-bottom: 2rem; }
+        .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 2rem; }
+        .stat-box { background: #0f172a; padding: 20px; border-radius: 16px; text-align: center; border: 1px solid var(--border); }
+        .table-box { width: 100%; border-collapse: collapse; }
+        th { text-align: left; font-size: 0.75rem; color: var(--text-dim); padding: 12px; background: #334155; }
+        td { padding: 15px; border-bottom: 1px solid var(--border); font-size: 0.95rem; }
+        .badge { padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; }
+        .badge-paid { background: rgba(16, 185, 129, 0.2); color: var(--accent); }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="logo">MQnet Central Hub</div>
+        <a href="/admin" class="nav-item"><i data-lucide="layout-dashboard"></i> 통합 대시보드</a>
+        <a href="/admin/performance" class="nav-item active"><i data-lucide="line-chart"></i> 실적 분석 보드</a>
+        <a href="/admin/stores" class="nav-item"><i data-lucide="store"></i> 업소 관리</a>
+        {% if session['role'] == 'admin' %}
+        <a href="/admin/users" class="nav-item"><i data-lucide="users"></i> 사용자 계정 제어</a>
+        <a href="/admin/billing" class="nav-item"><i data-lucide="credit-card"></i> 빌링 및 구독 관리</a>
+        <a href="/admin/settings" class="nav-item"><i data-lucide="settings"></i> 전체 시스템 설정</a>
+        {% endif %}
+        <div class="user-info-box">
+            <span class="user-tag">{{ session['role'].upper() }}</span>
+            <span class="user-name">{{ session['username'] }} 님 로그인 중</span>
+            <a href="/logout" style="color:var(--danger); font-size:0.75rem; text-decoration:none; display:block; margin-top:10px; font-weight:700;">로그아웃</a>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="header"><h1>전사 실적 분석 결과</h1></div>
+
+        {% for staff in data %}
+        <div class="performance-card">
+            <div style="display:flex; align-items:center; gap:12px; margin-bottom:2rem;">
+                <div style="background:var(--primary); width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:white; font-weight:900;">{{ staff.staff_name[:1].upper() }}</div>
+                <h3 style="margin:0;">{{ staff.staff_name }} 님의 영업 실적 상세</h3>
+            </div>
+            <div class="stats-row">
+                <div class="stat-box"><label style="display:block;margin-bottom:5px;font-size:0.8rem;color:var(--text-dim);">총 유치 업소</label><div style="font-size:1.5rem;font-weight:800;color:var(--primary);">{{ staff.store_count }}곳</div></div>
+                <div class="stat-box"><label style="display:block;margin-bottom:5px;font-size:0.8rem;color:var(--text-dim);">구독 활성(완납)</label><div style="font-size:1.5rem;font-weight:800;color:var(--accent);">{{ staff.paid_count }}곳</div></div>
+                <div class="stat-box"><label style="display:block;margin-bottom:5px;font-size:0.8rem;color:var(--text-dim);">누적 월 예상 수입</label><div style="font-size:1.5rem;font-weight:800;">{{ "{:,.0f}".format(staff.revenue) }}원</div></div>
+            </div>
+            <table class="table-box">
+                <thead><tr><th>가맹점명</th><th>가입일</th><th>결제 상태</th><th>만료 예정일</th></tr></thead>
+                <tbody>
+                    {% for store in staff.stores %}
+                    <tr>
+                        <td style="font-weight:700;">{{ store.name }} (@{{ store.id }})</td>
+                        <td>{{ store.created_at.strftime('%Y-%m-%d') }}</td>
+                        <td><span class="badge {% if store.payment_status == 'paid' %}badge-paid{% else %}badge-unpaid{% endif %}">{% if store.payment_status == 'paid' %}정상 구독{% else %}미납/정지{% endif %}</span></td>
+                        <td>{{ store.expires_at.strftime('%Y-%m-%d') if store.expires_at else '-' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endfor %}
+    </div>
+    <script>lucide.createIcons();</script>
+</body>
+</html>

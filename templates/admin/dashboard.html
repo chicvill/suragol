@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MQnet Central Admin | 대시보드</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+        :root {
+            --primary: #3b82f6; --accent: #10b981; --warning: #f59e0b; --danger: #ef4444;
+            --bg: #0f172a; --sidebar: #1e293b; --card: #1e293b; --border: #334155;
+            --text-main: #f1f5f9; --text-dim: #94a3b8;
+        }
+        body { background: var(--bg); color: var(--text-main); font-family: 'Pretendard', sans-serif; display: flex; min-height: 100vh; margin: 0; }
+        
+        /* Sidebar */
+        .sidebar { width: 260px; background: var(--sidebar); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 2rem 1.5rem; }
+        .logo { font-size: 1.5rem; font-weight: 900; background: linear-gradient(135deg, var(--primary), var(--accent)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 3rem; }
+        .nav-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 12px; text-decoration: none; color: var(--text-dim); margin-bottom: 8px; transition: 0.2s; font-weight: 600; }
+        .nav-item:hover, .nav-item.active { background: #334155; color: white; }
+        .nav-item i { width: 20px; }
+
+        /* User Info Box in Sidebar */
+        .user-info-box { margin-top: auto; background: #0f172a55; padding: 15px; border-radius: 16px; border: 1px solid var(--border); }
+        .user-tag { background: var(--primary); color: white; font-size: 0.65rem; padding: 2px 8px; border-radius: 4px; font-weight: 900; margin-bottom: 5px; display: inline-block; }
+        .user-name { font-weight: 800; font-size: 0.95rem; display: block; }
+        
+        .main-content { flex: 1; padding: 3rem; background: radial-gradient(circle at top right, #1e293b55, transparent); }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3rem; }
+        .header h1 { margin: 0; font-size: 2rem; font-weight: 800; }
+
+        .btn-manual { background: #dcfce7; color: #166534; border: none; padding: 10px 18px; border-radius: 12px; font-weight: 800; cursor: pointer; display: flex; align-items: center; gap: 8px; text-decoration: none; font-size: 0.95rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        .btn-manual:hover { background: #bbf7d0; transform: translateY(-2px); }
+
+        /* Stats Cards */
+        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; margin-bottom: 3rem; }
+        .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 24px; padding: 1.5rem; display: flex; align-items: center; gap: 20px; }
+        .stat-icon { width: 56px; height: 56px; border-radius: 16px; display: flex; align-items: center; justify-content: center; }
+        .stat-info h4 { margin: 0; font-size: 0.85rem; color: var(--text-dim); }
+        .stat-info div { font-size: 1.5rem; font-weight: 800; margin-top: 5px; }
+
+        /* Store List */
+        .section-card { background: var(--card); border: 1px solid var(--border); border-radius: 24px; padding: 2rem; }
+        .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+        .store-item { display: flex; justify-content: space-between; align-items: center; padding: 20px; border-bottom: 1px solid var(--border); transition: 0.2s; }
+        .store-item:hover { background: #33415555; }
+        
+        .badge { padding: 4px 12px; border-radius: 8px; font-size: 0.75rem; font-weight: 800; text-transform: uppercase; }
+        .badge-success { background: #10b98122; color: #10b981; }
+        .badge-warning { background: #f59e0b22; color: #f59e0b; }
+        
+        .btn-config { background: var(--primary); color: white; text-decoration: none; padding: 8px 16px; border-radius: 10px; font-size: 0.9rem; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="logo">MQnet Central Hub</div>
+        <a href="/admin" class="nav-item active"><i data-lucide="layout-dashboard"></i> 통합 대시보드</a>
+        <a href="/admin/performance" class="nav-item"><i data-lucide="line-chart"></i> 실적 분석 보드</a>
+        <a href="/admin/stores" class="nav-item"><i data-lucide="store"></i> 업소 관리</a>
+        
+        {% if session['role'] == 'admin' %}
+        <a href="/admin/users" class="nav-item"><i data-lucide="users"></i> 사용자 계정 제어</a>
+        <a href="/admin/billing" class="nav-item"><i data-lucide="credit-card"></i> 빌링 및 구독 관리</a>
+        <a href="/admin/settings" class="nav-item"><i data-lucide="settings"></i> 전체 시스템 설정</a>
+        {% endif %}
+
+        <div class="user-info-box">
+            <span class="user-tag">{{ session['role'].upper() }}</span>
+            <span class="user-name">{{ session['username'] }} 님 로그인 중</span>
+            <a href="/logout" style="color:var(--danger); font-size:0.75rem; text-decoration:none; display:block; margin-top:10px; font-weight:700;">로그아웃</a>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="header">
+            <h1>운영 요약 브리핑</h1>
+            <div style="display:flex; align-items:center; gap:15px;">
+                {% if session['role'] == 'staff' %}
+                <button onclick="checkCommission()" class="btn-manual" style="background:#fef3c7; color:#92400e;">
+                    <i data-lucide="wallet"></i> 수당 확인
+                </button>
+                {% endif %}
+                <a href="/admin/manual/staff" class="btn-manual"><i data-lucide="graduation-cap"></i> 직원 교육 매뉴얼</a>
+                <button onclick="location.reload()" style="background:#334155; border:none; border-radius:10px; padding:8px; cursor:pointer; color:white;"><i data-lucide="refresh-cw" size="18"></i></button>
+            </div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon" style="background:#3b82f622; color:var(--primary);"><i data-lucide="bar-chart-3"></i></div>
+                <div class="stat-info"><h4>누적 총 매출액</h4><div>{{ "{:,.0f}".format(total_revenue) }}원</div></div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon" style="background:#10b98122; color:var(--accent);"><i data-lucide="shopping-cart"></i></div>
+                <div class="stat-info"><h4>총 주문 수량</h4><div>{{ total_orders }}건</div></div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon" style="background:#f59e0b22; color:var(--warning);"><i data-lucide="users-round"></i></div>
+                <div class="stat-info"><h4>전체 대기 인원</h4><div>{{ total_waiting }}명</div></div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon" style="background:#ef444422; color:var(--danger);"><i data-lucide="alert-circle"></i></div>
+                <div class="stat-info"><h4>미결제/정지 업소</h4><div>{{ stores | selectattr('payment_status', 'equalto', 'unpaid') | list | length }}곳</div></div>
+            </div>
+        </div>
+
+        <div class="section-card">
+            <div class="section-header">
+                <h3 style="margin:0;">실시간 매장 운영 현황</h3>
+                <a href="/admin/stores" style="color:var(--primary); text-decoration:none; font-size:0.9rem;">전체보기 ></a>
+            </div>
+            <div class="store-list">
+                {% for store in stores %}
+                <div class="store-item">
+                    <div style="display:flex; align-items:center; gap:15px;">
+                        <div style="background:#334155; width:48px; height:48px; border-radius:14px; display:flex; align-items:center; justify-content:center; color:white; font-weight:800;">{{ store.id[:1].upper() }}</div>
+                        <div>
+                            <div style="font-weight:700; font-size:1.1rem;">{{ store.name }}</div>
+                            <div style="color:var(--text-dim); font-size:0.85rem;">@{{ store.id }}</div>
+                        </div>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:25px;">
+                        <span class="badge {% if store.status == 'active' %}badge-success{% else %}badge-warning{% endif %}">{{ store.status }}</span>
+                        <div style="text-align:right; width:120px;">
+                            <div style="font-size:0.75rem; color:var(--text-dim);">구독 상태</div>
+                            <div style="font-weight:700; color:{% if store.payment_status == 'paid' %}var(--accent){% else %}var(--danger){% endif %}">
+                                {% if store.payment_status == 'paid' %}완납{% else %}미납{% endif %}
+                            </div>
+                        </div>
+                        <a href="/admin/stores/{{ store.id }}/config" class="btn-config"><i data-lucide="settings-2" size="16"></i> 제어</a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    <script>
+        lucide.createIcons();
+        function checkCommission() {
+            const myComm = {{ my_commission | default(0) }};
+            alert(`[나의 수당 확인]\n\n총 지급 예정 수당: ${myComm.toLocaleString()}원\n정기 지급일: 매월 25일\n\n* 첫 달 무료 및 다음 달 첫 결제분(운영 지원비)을 제외한 실 결제 기간에 대한 10% 수당입니다.`);
+        }
+    </script>
+</body>
+</html>

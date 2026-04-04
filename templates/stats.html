@@ -2,14 +2,14 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>수라골 참숯갈비 - 매출 통계</title>
+    <title>{% if store.id == 'MQ-cafe' %}수라골 참숯갈비 매출 통계{% else %}{{ store.name }} - 매출 통계{% endif %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ range(1, 9999) | random }}">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <header style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; padding: 15px 25px; gap: 15px;">
         <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
-            <h1 style="color: #f1c40f; margin: 0; font-size: clamp(1.2rem, 4vw, 1.8rem);">매출 통계 센터</h1>
+            <h1 style="color: #f1c40f; margin: 0; font-size: clamp(1.2rem, 4vw, 1.8rem);">{% if store.id == 'MQ-cafe' %}수라골 참숯갈비{% else %}{{ store.name }}{% endif %} 매출 통계</h1>
             <button onclick="resetStats()" style="background: #e74c3c; color: white; border: none; padding: 6px 12px; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 0.75rem;">일일 매출 초기화</button>
         </div>
         <a href="/" style="color: white; text-decoration: none; font-size: 0.9rem; border: 1px solid rgba(255,255,255,0.2); padding: 5px 12px; border-radius: 4px;">홈으로</a>
@@ -45,7 +45,7 @@
             if (!confirm('정말 오늘 매출 통계를 초기화하시겠습니까? (DB 데이터는 삭제되지 않으며, 오늘 집계에서만 제외됩니다)')) return;
             
             try {
-                const res = await fetch('/api/stats/reset', { method: 'POST' });
+                const res = await fetch('/api/{{ store.id }}/stats/reset', { method: 'POST' });
                 const data = await res.json();
                 if (data.status === 'success') {
                     alert('초기화되었습니다.');
@@ -60,7 +60,7 @@
 
         async function loadStats() {
             try {
-                const res = await fetch('/api/stats');
+                const res = await fetch('/api/{{ store.id }}/stats');
                 const data = await res.json();
                 
                 // 매출 업데이트

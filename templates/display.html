@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>수라골 참숯갈비 - 주문 현황</title>
+    <title>{% if store.id == 'MQ-cafe' %}수라골 참숯갈비 준비 현황{% else %}{{ store.name }} - 주문 현황{% endif %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ range(1, 9999) | random }}">
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <style>
@@ -42,7 +42,7 @@
 <body style="background-color: #000; overflow: hidden; display: flex; flex-direction: column; height: 100vh;">
     <header style="padding: 20px 40px; justify-content: space-between; background: #000; border: none;">
         <h1 style="font-size: 2.2rem; color: #f1c40f; font-weight: 900; letter-spacing: -1px; text-shadow: 0 0 15px rgba(241, 196, 15, 0.4);">
-            수라골 <span style="font-size: 1.5rem; opacity: 0.8;">참숯갈비</span>
+            {% if store.id == 'MQ-cafe' %}수라골 참숯갈비{% else %}{{ store.name }}{% endif %}
         </h1>
         <div style="color: #fff; font-size: 1.2rem; font-weight: bold; padding: 5px 20px; border: 2px solid var(--secondary-color); border-radius: 30px;">
             음식 나오는 곳
@@ -69,6 +69,12 @@
         const socket = io({
             transports: ['websocket', 'polling'],
             upgrade: true
+        });
+
+        socket.on('connect', () => {
+            console.log('Display Socket Connected!');
+            socket.emit('join', { store_id: '{{ store.id }}' });
+            loadInitialData();
         });
 
         // readyOrders: orderId -> { session_id, table_id }
@@ -114,7 +120,7 @@
 
         async function loadInitialData() {
             try {
-                const res = await fetch('/api/orders');
+                const res = await fetch('/api/{{ store.id }}/orders');
                 const data = await res.json();
                 readyOrders.clear();
                 data.forEach(order => {
