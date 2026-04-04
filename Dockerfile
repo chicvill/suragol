@@ -1,11 +1,9 @@
-# 1. Base Image
-FROM python:3.11-slim
+# 1단계: Cloudflare 공식 이미지에서 실행 파일 복사
+FROM cloudflare/cloudflared:latest as cloudflared_source
 
-# 2. 필수 패키지 및 Cloudflare Tunnel 클라이언트 바이너리 직접 설치
-RUN apt-get update && apt-get install -y wget curl && \
-    curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o /usr/local/bin/cloudflared && \
-    chmod +x /usr/local/bin/cloudflared && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
+# 2단계: 실제 운영용 Python 이미지
+FROM python:3.11-slim
+COPY --from=cloudflared_source /usr/local/bin/cloudflared /usr/local/bin/cloudflared
 
 # 3. 환경 설정
 ENV PYTHONDONTWRITEBYTECODE 1
