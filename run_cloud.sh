@@ -1,11 +1,12 @@
 #!/bin/bash
 
-# 1. 8888번 포트로 Flask 서버 실행 (Background)
-echo "🚀 [Step 1/2] SaaS 웹 서버를 가동 중입니다..."
-python app.py &
+# 1. 8888번 포트로 Flask 서버 실행 (로그가 보이도록 처리)
+echo "🚀 [Step 1/2] SaaS 웹 서버(Port: 8888)를 가동합니다..."
+python app.py 2>&1 | tee server_run.log &
 
-# 2. 서버가 뜰 때까지 잠시 대기 (5초)
-sleep 5
+# 2. 서버가 완전히 뜰 때까지 충분히 대기 (10초)
+echo "⏳ 서버 초기화 중... (10초 대기)"
+sleep 10
 
 # 3. Cloudflare Tunnel 가동 (Foreground)
 # .env 또는 Render 환경 변수 대시보드에 CLOUDFLARE_TUNNEL_TOKEN이 담겨 있어야 합니다.
