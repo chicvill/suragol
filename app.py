@@ -669,5 +669,5 @@ if __name__ == '__main__':
             print("🚀 Migrated: Added columns to 'customers'")
         except: db.session.rollback()
 
-    port = int(os.environ.get('PORT', 8888))
-    socketio.run(app, host='0.0.0.0', port=port, debug=True, allow_unsafe_werkzeug=True)
+    # 배포 환경에서는 debug=False로 설정하여 리로더에 의한 포트 충돌을 방지합니다.
+    socketio.run(app, debug=False, host='0.0.0.0', port=int(os.environ.get('PORT', 8888)), allow_unsafe_werkzeug=True)

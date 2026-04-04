@@ -3,7 +3,10 @@ services:
     name: mqr-saas-platform
     runtime: docker
     plan: free # 무료 티어 또는 유료(starter) 선택 가능
+    # Render가 사용할 포트를 명시적으로 8888로 고정
     envVars:
+      - key: PORT
+        value: 8888
       - key: DATABASE_URL
         # SQLite 파일을 사용하려면 디스크 서비스가 필요하거나, Render에 환경 변수로 DB URL을 넣으세요.
         # SQLite 대신 Supabase나 Render PostgreSQL 사용 시 여기에 주소를 넣으세요.
