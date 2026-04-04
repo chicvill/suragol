@@ -669,5 +669,5 @@ if __name__ == '__main__':
             print("🚀 Migrated: Added columns to 'customers'")
         except: db.session.rollback()
 
-    # 배포 환경에서는 debug=False로 설정하여 리로더에 의한 포트 충돌을 방지합니다.
-    socketio.run(app, debug=False, host='0.0.0.0', port=int(os.environ.get('PORT', 8888)), allow_unsafe_werkzeug=True)
+    # Render의 기본 포트(10000)를 무시하고 호스트인 Cloudflare 터널과 약속된 8888 포트로 고정합니다.
+    socketio.run(app, debug=False, host='0.0.0.0', port=8888, allow_unsafe_werkzeug=True)
