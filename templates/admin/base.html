@@ -77,13 +77,7 @@
     <!-- Top Navigation Bar (Always Visible) -->
     <header class="top-navbar">
         <div style="display: flex; align-items: center; gap: 30px;">
-            <a href="/admin" class="nav-logo">MQnet Hub</a>
-            <div class="nav-center-actions">
-                <a href="/admin" class="nav-btn-home">
-                    <i data-lucide="layout-dashboard" size="18"></i>
-                    <span>종합 대시보드</span>
-                </a>
-            </div>
+            <a href="/admin/performance" class="nav-logo">MQnet Hub</a>
         </div>
         
         <div class="nav-user-info">
@@ -100,10 +94,6 @@
 
     <!-- Bottom Navigation Bar (Mobile Only) -->
     <nav class="bottom-nav" style="display: none;">
-        <a href="/admin" class="bottom-nav-item {% if active_page == 'dashboard' %}active{% endif %}">
-            <i data-lucide="layout-dashboard"></i>
-            <span>대시보드</span>
-        </a>
         <a href="/admin/performance" class="bottom-nav-item {% if active_page == 'performance' %}active{% endif %}">
             <i data-lucide="line-chart"></i>
             <span>통계</span>

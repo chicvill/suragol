@@ -13,65 +13,75 @@
             --bg: #0b1121; --card: #161c2d; --border: rgba(255,255,255,0.08); --text: #f1f5f9;
         }
         body { background: var(--bg); color: var(--text); font-family: 'Pretendard', sans-serif; margin: 0; min-height: 100vh; }
-        .portal-container { max-width: 1200px; margin: 0 auto; padding: 15px 10px; } /* 여백 대폭 축소 */
+        .portal-container { max-width: 1300px; margin: 0 auto; padding: 15px; }
         
         .top-nav { 
             display: flex; justify-content: space-between; align-items: center; 
-            margin-bottom: 15px; padding: 12px 20px; /* 여백/패딩 축소 */
+            margin-bottom: 20px; padding: 12px 25px;
             background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(15px);
             border-radius: 15px; border: 1px solid var(--border);
         }
-        .user-summary { display: flex; align-items: center; gap: 10px; }
+        .user-summary { display: flex; align-items: center; gap: 15px; }
         .role-badge { 
-            background: linear-gradient(135deg, var(--primary), #1e40af); 
-            color: white; padding: 5px 14px; border-radius: 50px; 
-            font-size: 0.8rem; font-weight: 900; text-transform: uppercase;
+            background: var(--primary); color: white; padding: 3px 10px; border-radius: 50px; 
+            font-size: 0.75rem; font-weight: 950;
         }
 
-        /* [핵심] 통합 매장 카드 스타일 */
-        .store-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 12px; }
-        .store-card {
-            background: var(--card); border: 2px solid var(--border); border-radius: 20px; padding: 18px; /* 패딩 축소 */
-            transition: all 0.2s; position: relative; overflow: hidden;
+        .section-header { 
+            font-size: 0.9rem; font-weight: 950; letter-spacing: 1px; color: #4b5563; 
+            margin: 25px 0 15px; text-transform: uppercase; border-left: 5px solid var(--primary); padding-left: 12px;
         }
-        .store-card:hover { border-color: var(--primary); transform: translateY(-3px); }
-        .store-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-        .store-card-title { font-size: 1.7rem; font-weight: 900; color: #fff; margin: 0; letter-spacing: -1px; }
-        .store-card-slug { font-size: 0.9rem; color: #64748b; font-weight: 700; font-family: monospace; }
-        
-        .action-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 15px; }
-        .action-item {
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            padding: 12px 5px; border-radius: 15px; background: rgba(59, 130, 246, 0.05);
-            border: 1px solid var(--border); color: #fff; text-decoration: none; transition: 0.1s;
-            gap: 5px;
+
+        .global-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; margin-bottom: 25px; }
+        .global-card {
+            background: rgba(59, 130, 246, 0.05); border: 1px solid rgba(59, 130, 246, 0.2);
+            padding: 15px 25px; border-radius: 15px; display: flex; align-items: center; gap: 20px;
+            text-decoration: none; color: #fff; transition: 0.2s;
         }
-        .action-item:hover { background: var(--primary); border-color: var(--primary); transform: scale(1.03); }
-        .action-item i { width: 26px; height: 26px; } /* 아이콘 확대 */
-        .action-label { font-size: 0.9rem; font-weight: 900; } /* 글자 확대 */
+        .global-card:hover { background: var(--primary); transform: translateY(-2px); }
+        .global-card span { font-size: 1.1rem; font-weight: 800; }
 
-        .action-label { font-size: 0.9rem; font-weight: 900; }
-
-        /* [탭 스타일] */
-        .store-tabs { display: flex; gap: 6px; overflow-x: auto; margin-bottom: 12px; padding-bottom: 5px; }
+        /* [스마트 탭] 1개일 때도 유지, 영문 Slug 강조 */
+        .store-tabs { display: flex; gap: 10px; overflow-x: auto; margin-bottom: 12px; }
         .store-tab-btn {
             background: rgba(255,255,255,0.03); border: 1px solid var(--border); color: #64748b;
-            padding: 14px 28px; border-radius: 12px; font-weight: 900; font-size: 1.1rem; cursor: pointer; white-space: nowrap; transition: 0.15s;
+            padding: 10px 25px; border-radius: 12px; font-weight: 950; font-size: 1.1rem; cursor: pointer; white-space: nowrap; transition: 0.2s;
+            text-transform: lowercase; font-family: monospace;
         }
-        .store-tab-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4); }
-        .store-pane { display: none; }
-        .store-pane.active { display: block; animation: fadeIn 0.2s ease; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        .store-tab-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+        .store-tab-btn .tab-ko { font-size: 0.7rem; font-weight: 700; display: block; opacity: 0.6; margin-top: -3px; font-family: 'Pretendard'; }
+
+        /* [매장 카드] 군더더기 제거 */
+        .store-card {
+            background: var(--card); border: 2px solid var(--border); border-radius: 20px; padding: 25px;
+            transition: all 0.3s;
+        }
+        .store-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        /* 큰 가게명 제거하고 매장 전체 이름 작게 표시 */
+        .store-meta { font-size: 1.1rem; font-weight: 900; color: var(--primary); }
+        
+        .action-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .action-item {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            padding: 22px 5px; border-radius: 15px; background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border); color: #94a3b8; text-decoration: none; transition: 0.2s;
+            gap: 12px;
+        }
+        .action-item:hover { background: var(--primary); color: #fff; border-color: var(--primary); transform: scale(1.03); }
+        .action-item i { width: 44px; height: 44px; stroke-width: 2.5px; } 
+        .action-label { font-size: 1rem; font-weight: 950; }
 
         .worker-panel { 
             background: linear-gradient(145deg, #1e293b, #0f172a); 
-            border-radius: 25px; padding: 30px; margin-bottom: 20px; border: 1px solid var(--border);
+            border-radius: 25px; padding: 30px; margin-bottom: 25px; border: 1px solid var(--border);
         }
-        .status-badge { display: inline-block; padding: 8px 18px; border-radius: 50px; font-weight: 900; font-size: 1rem; }
+        .status-badge { display: inline-block; padding: 6px 15px; border-radius: 50px; font-weight: 950; font-size: 0.85rem; }
         .status-working { background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); }
         .status-home { background: rgba(148, 163, 184, 0.1); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.2); }
-        .loading-spin { animation: spin 2s linear infinite; }
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        .store-pane { display: none; }
+        .store-pane.active { display: block; animation: fadeIn 0.3s ease; }
     </style>
 </head>
 <body>
@@ -79,44 +89,44 @@
     {% macro store_management_card(s, current_role) %}
     <div class="store-card">
         <div class="store-card-header">
-            <div>
-                <h3 class="store-card-title">{{ s.name }}</h3>
-                <span class="store-card-slug">{{ s.id }}</span>
+            <div class="store-meta">
+                <i data-lucide="info" size="16" style="vertical-align: middle;"></i> 
+                {{ s.name }} ({{ s.id }})
             </div>
-            <div style="background: rgba(16, 185, 129, 0.1); color: #10b981; padding: 6px 12px; border-radius: 50px; font-size: 0.8rem; font-weight: 950;">ACTIVE</div>
+            <div style="background: rgba(16, 185, 129, 0.1); color: #10b981; padding: 6px 12px; border-radius: 8px; font-size: 0.8rem; font-weight: 950; border: 1px solid rgba(16, 185, 129, 0.3);">ACTIVE</div>
         </div>
         
         <div class="action-bar">
-            <a href="/{{ s.id }}/counter" class="action-item" title="카운터">
+            <a href="/{{ s.id }}/counter" class="action-item">
                 <i data-lucide="monitor"></i>
                 <span class="action-label">카운터</span>
             </a>
-            <a href="/{{ s.id }}/kitchen" class="action-item" title="주방">
+            <a href="/{{ s.id }}/kitchen" class="action-item">
                 <i data-lucide="chef-hat"></i>
                 <span class="action-label">주방</span>
             </a>
-            <a href="/{{ s.id }}/display" class="action-item" title="전광판" target="_blank">
+            <a href="/{{ s.id }}/display" class="action-item" target="_blank">
                 <i data-lucide="tv"></i>
                 <span class="action-label">전광판</span>
             </a>
-            <a href="/{{ s.id }}/stats" class="action-item" title="통계">
+            <a href="/{{ s.id }}/stats" class="action-item">
                 <i data-lucide="bar-chart-3"></i>
                 <span class="action-label">통계</span>
             </a>
-            <a href="/admin/staff?slug={{ s.id }}" class="action-item" title="근태">
+            <a href="/admin/staff?slug={{ s.id }}" class="action-item">
                 <i data-lucide="users"></i>
                 <span class="action-label">근태/급여</span>
             </a>
-            <a href="/{{ s.id }}/qr-print" class="action-item" title="QR코드" target="_blank">
+            <a href="/{{ s.id }}/qr-print" class="action-item" target="_blank">
                 <i data-lucide="printer"></i>
-                <span class="action-label">QR</span>
+                <span class="action-label">QR 인쇄</span>
             </a>
-            <a href="/{{ s.id }}" class="action-item" title="고객주문" style="color: var(--primary);">
+            <a href="/{{ s.id }}" class="action-item" style="color: var(--accent); background: rgba(16, 185, 129, 0.05); border-color: rgba(16, 185, 129, 0.2);">
                 <i data-lucide="shopping-bag"></i>
-                <span class="action-label">주문</span>
+                <span class="action-label">주문판</span>
             </a>
-            {% if current_role|lower == 'admin' %}
-            <a href="/admin/stores/{{ s.id }}/config" class="action-item" title="설정">
+            {% if current_role == 'admin' %}
+            <a href="/admin/stores/{{ s.id }}/config" class="action-item">
                 <i data-lucide="settings"></i>
                 <span class="action-label">설정</span>
             </a>
@@ -127,103 +137,96 @@
 
     <div class="portal-container">
         {% if not logged_in %}
-            <!-- [로그인 전 화면] -->
             <div style="text-align: center; padding: 100px 0;">
-                <h1 style="font-size: 4rem; font-weight: 950; margin-bottom: 5px;">MQNET <span style="color:var(--primary);">Central</span></h1>
-                <p style="color:#64748b; margin-bottom: 50px; font-size: 1.3rem;">지능형 매장 자동화 포털</p>
-                <div style="max-width: 420px; margin: 0 auto; background: var(--card); padding: 40px; border-radius: 30px; border: 2px solid var(--border);">
+                <h1 style="font-size: 3.5rem; font-weight: 950; margin-bottom: 10px;">MQNET <span style="color:var(--primary);">Central</span></h1>
+                <p style="color:#64748b; margin-bottom: 40px; font-size: 1.2rem; font-weight: 700;">지능형 매장 자동화 포털</p>
+                <div style="max-width: 400px; margin: 0 auto; background: var(--card); padding: 40px; border-radius: 25px; border: 1px solid var(--border);">
                     <form action="/login" method="POST">
-                        <input type="text" name="username" placeholder="ID" required style="width:100%; padding:20px; font-size:1.2rem; margin-bottom:15px; border-radius:15px; background:#0b1121; border:1px solid var(--border); color:#fff; box-sizing:border-box;">
-                        <input type="password" name="password" placeholder="PW" required style="width:100%; padding:20px; font-size:1.2rem; margin-bottom:25px; border-radius:15px; background:#0b1121; border:1px solid var(--border); color:#fff; box-sizing:border-box;">
-                        <button type="submit" style="width:100%; padding:22px; border-radius:15px; background:var(--primary); color:white; border:none; font-weight:950; font-size:1.3rem; cursor:pointer;">로그인</button>
+                        <input type="text" name="username" placeholder="ID" required style="width:100%; padding:18px; margin-bottom:15px; border-radius:15px; background:#0b1121; border:1px solid var(--border); color:#fff; box-sizing:border-box; font-size: 1rem;">
+                        <input type="password" name="password" placeholder="PW" required style="width:100%; padding:18px; margin-bottom:25px; border-radius:15px; background:#0b1121; border:1px solid var(--border); color:#fff; box-sizing:border-box; font-size: 1rem;">
+                        <button type="submit" style="width:100%; padding:20px; border-radius:15px; background:var(--primary); color:white; border:none; font-weight:900; font-size: 1.1rem; cursor:pointer;">로그인</button>
                     </form>
                 </div>
             </div>
         {% else %}
-            <!-- [로그인 후 화면] -->
             <div class="top-nav">
                 <div class="user-summary">
-                    <span class="role-badge">{{ role.upper() }}</span>
-                    <span style="font-weight: 950; font-size: 1.4rem;">{{ user.full_name or user.username }}</span>
+                    <span class="role-badge">{{ session.get('role', 'USER')|upper }}</span>
+                    <span style="font-weight: 950; font-size: 1.5rem;">{{ user.full_name or user.username }}</span>
                 </div>
-                <a href="/logout" style="color:var(--danger); text-decoration:none; font-size:1rem; font-weight:950; display: flex; align-items: center; gap: 8px;">
-                    종료 <i data-lucide="log-out" size="20"></i>
+                <a href="/logout" style="color:var(--danger); text-decoration:none; font-size:1.1rem; font-weight:950; display: flex; align-items: center; gap: 8px;">
+                    종료 <i data-lucide="log-out" size="22"></i>
                 </a>
             </div>
 
             {% if role == 'worker' %}
-                <!-- [1. 현장 근로자 대시보드] -->
                 <div class="worker-panel">
-                    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 30px;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 25px;">
                         <div>
                             <div id="worker-status-tag" class="status-badge status-home">상태 확인 중</div>
-                            <h2 style="margin: 10px 0 0; font-size: 3rem; font-weight: 950;" id="worker-clock">00:00:00</h2>
-                            <p id="worker-date" style="color: #64748b; margin: 5px 0; font-size: 1.2rem; font-weight:700;">2026.04.07 (화)</p>
+                            <h2 style="margin: 10px 0 0; font-size: 3.5rem; font-weight: 950;" id="worker-clock">00:00:00</h2>
+                            <p id="worker-date" style="color: #64748b; margin: 5px 0; font-weight: 900;">2026.04.07 (화)</p>
                         </div>
                         <div style="text-align: right;">
-                            <span style="font-size: 0.9rem; color: #64748b; text-transform: uppercase; font-weight:800;">정산 예정</span>
-                            <div id="worker-monthly-wage" style="font-size: 2rem; font-weight: 950; color: var(--primary);">0원</div>
+                            <span style="font-size: 1rem; color: #64748b; font-weight: 950; text-transform: uppercase;">정산 예정</span>
+                            <div id="worker-monthly-wage" style="font-size: 2.5rem; font-weight: 950; color: var(--primary);">0원</div>
                         </div>
                     </div>
-
-                    <div id="worker-active-timer" style="margin-bottom: 25px; display:none; padding: 20px; background: rgba(245, 158, 11, 0.1); border-radius: 20px; color: var(--warning); font-size:1.2rem; font-weight: 950; text-align: center;">
-                        <i data-lucide="zap" size="24" style="vertical-align: middle;"></i> 업무 중 (<span id="worker-minutes-count">0</span>분 경과)
+                    <div id="worker-active-timer" style="margin-bottom: 25px; display:none; padding: 15px; background: rgba(16,185,129,0.1); border-radius: 15px; color: var(--accent); font-weight: 950; text-align: center; border: 1px solid var(--accent);">
+                        업무 진행 중 (<span id="worker-minutes-count">0</span>분)
                     </div>
-
                     <div id="worker-action-area">
-                        <button id="worker-btn-in" onclick="workerCheckIn()" style="width: 100%; border: none; cursor: pointer; display: none; padding: 35px; border-radius: 25px; background: var(--primary); color: white; font-weight: 950; font-size: 1.8rem; box-shadow: 0 10px 20px rgba(59, 130, 246, 0.3);">출근</button>
-                        <button id="worker-btn-out" onclick="workerCheckOut()" style="width: 100%; border: none; cursor: pointer; display: none; padding: 35px; border-radius: 25px; background: var(--danger); color: white; font-weight: 950; font-size: 1.8rem; box-shadow: 0 10px 20px rgba(239, 68, 68, 0.3);">퇴근</button>
+                        <button id="worker-btn-in" onclick="workerCheckIn()" style="width: 100%; border: none; cursor: pointer; display: none; padding: 35px; border-radius: 20px; background: var(--primary); color: white; font-weight: 950; font-size: 1.8rem;">출근하기</button>
+                        <button id="worker-btn-out" onclick="workerCheckOut()" style="width: 100%; border: none; cursor: pointer; display: none; padding: 35px; border-radius: 20px; background: var(--danger); color: white; font-weight: 950; font-size: 1.8rem;">퇴근하기</button>
                     </div>
                 </div>
             {% else %}
-                <!-- [2. 관리자/점주 통합 대시보드] -->
+                {% if role == 'admin' %}
+                    <div class="section-header">Global Infrastructure</div>
+                    <div class="global-grid">
+                        <a href="/admin/performance" class="global-card">
+                            <i data-lucide="bar-chart-2" style="color:var(--primary);"></i> <span>종합 데이터 분석</span>
+                        </a>
+                        <a href="/admin/users" class="global-card">
+                            <i data-lucide="user-cog" style="color:var(--accent);"></i> <span>사용자 권한 관리</span>
+                        </a>
+                        <a href="/admin/billing" class="global-card">
+                            <i data-lucide="mail-check" style="color:var(--warning);"></i> <span>가맹 정산 및 과금</span>
+                        </a>
+                    </div>
+                {% endif %}
+
+                <div class="section-header">Managed Instances</div>
                 
                 {% set store_list = [] %}
                 {% if store %}{% do store_list.append(store) %}{% endif %}
-                {% if stores %}{% for s in stores %}{% do store_list.append(s) %}{% endfor %}{% endif %}
+                {% if stores %}{% for s in stores %}{% if s not in store_list %}{% do store_list.append(s) %}{% endif %}{% endfor %}{% endif %}
 
-                {% if store_list|length > 1 %}
-                    <!-- [멀티 매장용 탭 시스템] -->
-                    <div class="store-tabs">
-                        {% for s in store_list %}
-                            <button class="store-tab-btn {% if loop.first %}active{% endif %}" onclick="switchStoreTab('{{ s.id }}', this)">
-                                {{ s.name }}
-                            </button>
-                        {% endfor %}
-                    </div>
-                    
-                    <div class="store-tab-content">
-                        {% for s in store_list %}
-                            <div id="tab-pane-{{ s.id }}" class="store-pane {% if loop.first %}active{% endif %}">
-                                {{ store_management_card(s, role) }}
-                            </div>
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    <!-- [단일 매장용 일반 그리드] -->
-                    <div class="store-grid">
-                        {% for s in store_list %}
+                <div class="store-tabs">
+                    {% for s in store_list %}
+                        <button class="store-tab-btn {% if loop.first %}active{% endif %}" onclick="switchStoreTab('{{ s.id }}', this)">
+                            {{ s.id }}
+                            <span class="tab-ko">{{ s.name }}</span>
+                        </button>
+                    {% endfor %}
+                </div>
+                <div class="store-tab-content">
+                    {% for s in store_list %}
+                        <div id="tab-pane-{{ s.id }}" class="store-pane {% if loop.first %}active{% endif %}">
                             {{ store_management_card(s, role) }}
-                        {% endfor %}
-                    </div>
-                {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
             {% endif %}
         {% endif %}
-        
-        <div style="text-align: center; margin: 40px 0; color: #334155; font-size: 0.8rem; font-weight: 900; opacity: 0.3;">
-            MQNET CENTRAL CORE v3.1
-        </div>
     </div>
 
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script>
         lucide.createIcons();
-
-        // [멀티 매장 전환 로직]
         function switchStoreTab(storeId, btn) {
             document.querySelectorAll('.store-pane').forEach(p => p.classList.remove('active'));
             document.querySelectorAll('.store-tab-btn').forEach(b => b.classList.remove('active'));
-            
             document.getElementById('tab-pane-' + storeId).classList.add('active');
             btn.classList.add('active');
         }
@@ -265,12 +268,9 @@
             try {
                 const res = await fetch(`/api/${slug}/attendance/staff-status`);
                 const data = await res.json();
-                
                 const wageEl = document.getElementById('worker-monthly-wage');
                 if(wageEl) wageEl.innerText = (data.current_wage || 0).toLocaleString() + '원';
-                
                 const tag = document.getElementById('worker-status-tag');
-                const actionArea = document.getElementById('worker-action-area');
                 const activeTimer = document.getElementById('worker-active-timer');
                 const btnIn = document.getElementById('worker-btn-in');
                 const btnOut = document.getElementById('worker-btn-out');
@@ -290,17 +290,16 @@
         }
 
         async function workerCheckIn() {
-            if(!confirm('출근 내용을 기록하시겠습니까?')) return;
+            if(!confirm('출근 처리하시겠습니까?')) return;
             await fetch(`/api/${slug}/attendance/check-in`, { method: 'POST' });
             loadWorkerStatus();
         }
 
         async function workerCheckOut() {
-            if(!confirm('퇴근 내용을 기록하시겠습니까?')) return;
+            if(!confirm('퇴근 처리하시겠습니까?')) return;
             await fetch(`/api/${slug}/attendance/check-out`, { method: 'POST' });
             loadWorkerStatus();
         }
-
         loadWorkerStatus(); updateWorkerClock();
     </script>
     {% endif %}

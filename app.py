@@ -284,85 +284,8 @@ def logout():
 @app.route('/admin')
 @login_required
 def admin_dashboard():
-    """역할별 맞춤형 대시보드 동적 서빙"""
-    role = session.get('role', 'worker')
-    print(f"\n📢 [DASHBOARD ACCESS] User: {session.get('username')}, Role: {role}")
-    
-    now = datetime.now()
-    start_date = now.strftime('%Y-%m-%d')
-    end_date = now.strftime('%Y-%m-%d')
-    user_id = session.get('user_id')
-    store_id = session.get('store_id')
-    
-    # 1. 통계 데이터 초기화
-    stores = []
-    total_revenue = 0
-    total_orders = 0
-    total_waiting = 0
-    my_commission = 0
-    
-    # 2. 역할별 데이터 필터링
-    if role == 'admin':
-        stores = Store.query.all()
-        total_revenue = db.session.query(func.sum(Order.total_price)).filter(Order.status == 'paid').scalar() or 0
-        total_orders = Order.query.count()
-        total_waiting = Waiting.query.count()
-        return render_template('admin/dashboard_admin.html', stores=stores, total_revenue=total_revenue, total_orders=total_orders, total_waiting=total_waiting, now=now)
-    elif role == 'staff':
-        stores = Store.query.filter_by(recommended_by=user_id).all()
-        store_ids = [s.id for s in stores]
-        if store_ids:
-            total_revenue = db.session.query(func.sum(Order.total_price)).filter(Order.store_id.in_(store_ids), Order.status == 'paid').scalar() or 0
-            total_orders = Order.query.filter(Order.store_id.in_(store_ids)).count()
-            total_waiting = Waiting.query.filter(Waiting.store_id.in_(store_ids)).count()
-        
-        # 수당 계산 (MQutils 활용)
-        now = datetime.now()
-        for s in stores:
-            my_commission += calculate_commission(s, now)
-        return render_template('admin/dashboard_staff.html', stores=stores, total_revenue=total_revenue, my_commission=my_commission, now=now)
-    elif store_id:
-        # 가맹점주(Owner) 및 점장(Manager)
-        stores = Store.query.filter_by(id=store_id).all()
-        total_revenue = db.session.query(func.sum(Order.total_price)).filter(Order.store_id == store_id, Order.status == 'paid').scalar() or 0
-        selected_store = stores[0] if stores else None
-        # 리스트 반환
-        worker_reports = []
-        partner_reports = []
-        
-        if selected_store:
-            # 해당 매장 소속 Worker 명단 추출
-            workers = User.query.filter_by(store_id=selected_store.id, role='worker').all()
-            for w in workers:
-                worker_reports.append({
-                    'user': w,
-                    'hours': 0, # 근태 데이터 미연동 시 0처리
-                    'expected_wage': 0
-                })
-                
-            if selected_store.recommended_by:
-                partner = User.query.get(selected_store.recommended_by)
-                if partner:
-                    partner_reports.append({
-                        'user': partner,
-                        'period_sales': 0, 
-                        'commission': 0
-                    })
-        
-        print(f"📊 [STAFF MGMT] Found {len(worker_reports)} workers for Store: {selected_store.id if selected_store else 'NONE'}")
-
-        return render_template('admin/staff_mgmt.html', 
-                               selected_store=selected_store,
-                               selected_slug=selected_store.id if selected_store else None,
-                               store=selected_store,
-                               worker_reports=worker_reports,
-                               partner_reports=partner_reports,
-                               stores=Store.query.all() if role == 'admin' else [],
-                               start_date=start_date,
-                               end_date=end_date,
-                               now=now)
-    
-    return redirect(url_for('index'))
+    """종합 대시보드 대신 실적 분석 페이지로 즉시 이동"""
+    return redirect(url_for('admin_performance'))
 
 @app.route('/admin/manual/staff')
 @staff_required
