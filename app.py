@@ -815,6 +815,17 @@ def api_get_stats(slug):
         'start_date': start_date.strftime('%Y-%m-%d')
     })
 
+@app.route('/api/<slug>/customers')
+@store_access_required
+def api_get_store_customers(slug):
+    custs = Customer.query.filter_by(store_id=slug).order_by(desc(Customer.total_spent)).all()
+    return jsonify([{
+        'phone': c.phone,
+        'visit_count': c.visit_count,
+        'total_spent': c.total_spent,
+        'points': c.points
+    } for c in custs])
+
 @app.route('/api/<slug>/stats/reset', methods=['POST'])
 @store_access_required
 def api_reset_stats(slug):
@@ -1180,14 +1191,6 @@ def api_update_staff_wage(user_id):
         db.session.commit()
         return jsonify({'status': 'success'})
     return jsonify({'error': 'User not found'}), 404
-
-@app.route('/api/<slug>/customers')
-@store_access_required
-def api_get_store_customers(slug):
-    """현재 매장의 모든 고객 리스트와 포인트 현황을 반환합니다."""
-    customers = Customer.query.filter_by(store_id=slug).order_by(Customer.visit_count.desc()).all()
-    return jsonify([c.to_dict() for c in customers])
-
 # ---------------------------------------------------------
 # 웨이팅(예약) 시스템 API
 # ---------------------------------------------------------
