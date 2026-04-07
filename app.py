@@ -1427,5 +1427,8 @@ if __name__ == '__main__':
             print(f"⚠️ [DB 경고] 데이터베이스 점검 중 오류 발생: {e}")
 
     # [3단계] 서버 실행
-    print(f"🚀 [최종 시스템 가동] 이제 접속이 가능합니다 (포트 {port})")
-    socketio.run(app, debug=True, host='0.0.0.0', port=port, allow_unsafe_werkzeug=True)
+    is_render = 'RENDER' in os.environ
+    debug_mode = not is_render  # Render가 아닐 때만 디버그 모드 활성
+    
+    print(f"🚀 [최종 시스템 가동] 접속 가능 (포트: {port}, 디버그: {debug_mode})")
+    socketio.run(app, debug=debug_mode, host='0.0.0.0', port=port)
