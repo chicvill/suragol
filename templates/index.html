@@ -101,6 +101,13 @@
             transition: 0.3s;
         }
         .big-action-btn:hover { transform: scale(1.02) translateY(-5px); }
+
+        /* [추가] 직원 출퇴근용 상태 스타일 */
+        .status-badge { display: inline-block; padding: 8px 20px; border-radius: 50px; font-weight: 800; font-size: 1rem; }
+        .status-working { background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); }
+        .status-home { background: rgba(148, 163, 184, 0.1); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.2); }
+        .loading-spin { animation: spin 2s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
@@ -137,13 +144,44 @@
             </div>
 
             {% if role == 'worker' %}
-                <!-- [1. 현장 근로자 전용] -->
-                <div style="padding: 40px 0;">
-                    <a href="/{{ user.store_id }}/attendance" class="big-action-btn">
-                        <i data-lucide="alarm-clock" size="64" style="margin-bottom: 25px;"></i>
-                        <h2 style="margin:0; font-size: 2.3rem; font-weight: 900;">출퇴근 기록하기</h2>
-                        <p style="margin: 12px 0 0 0; opacity: 0.9; font-size: 1.1rem;">근무 시작과 종료를 QR로 간편하게 기록하세요.</p>
-                    </a>
+                <!-- [1. 현장 근로자 통합 대시보드] -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; margin-top: 20px;">
+                    <!-- 누적 정산 카드 -->
+                    <div style="background: linear-gradient(135deg, #1e293b, #0f172a); padding: 20px; border-radius: 25px; border: 1px solid rgba(255,255,255,0.05); text-align: center;">
+                        <span style="font-size: 0.7rem; color: #64748b; text-transform: uppercase; letter-spacing: 1px;">이번 달 정산 예정액</span>
+                        <div id="worker-monthly-wage" style="font-size: 1.2rem; font-weight: 800; color: #94a3b8; margin: 5px 0;">0원</div>
+                        <p style="font-size: 0.65rem; color: #475569; margin: 0;">(시급: {{ "{:,}".format(user.hourly_rate or 10000) }}원)</p>
+                    </div>
+
+                    <!-- 출퇴근 간편 제어 카드 -->
+                    <div style="background: var(--card); padding: 30px; border-radius: 25px; border: 1px solid var(--border); text-align: center; display: flex; flex-direction: column; justify-content: center;">
+                        <div id="worker-status-tag" class="status-badge status-home" style="margin: 0 auto 12px; font-size: 0.7rem; padding: 3px 10px;">상태 확인 중...</div>
+                        <div id="worker-date" style="font-size: 0.85rem; color: #64748b; margin-bottom: 5px;">2026.04.07 (화)</div>
+                        <div id="worker-clock" style="font-size: 2.8rem; font-weight: 900; font-variant-numeric: tabular-nums; color: #fff; line-height: 1.2;">00:00:00</div>
+                        <div id="worker-active-timer" style="font-size: 0.85rem; color: var(--warning); margin-top: 8px; display: none; font-weight: 700;">
+                            <i data-lucide="zap" size="14" style="vertical-align: middle;"></i> 실시간 업무 중 (<span id="worker-minutes-count">0</span>분)
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 25px;" id="worker-action-area">
+                    <button id="worker-btn-in" class="big-action-btn" style="width: 100%; border: none; cursor: pointer; display: none;" onclick="workerCheckIn()">
+                        <i data-lucide="play" size="24" style="margin-bottom: 5px;"></i>
+                        <div style="font-size: 1.5rem; font-weight: 900;">지금 출근하기</div>
+                    </button>
+                    <button id="worker-btn-out" class="big-action-btn" style="width: 100%; border: none; cursor: pointer; background: linear-gradient(135deg, var(--danger), #991b1b); filter: drop-shadow(0 10px 20px rgba(239, 68, 68, 0.4)); display: none;" onclick="workerCheckOut()">
+                        <i data-lucide="square" size="24" style="margin-bottom: 5px;"></i>
+                        <div style="font-size: 1.5rem; font-weight: 900;">지금 퇴근하기</div>
+                    </button>
+                    <div id="worker-pending-msg" style="display: none; padding: 35px; background: rgba(245, 158, 11, 0.05); border-radius: 25px; border: 1px solid rgba(245, 158, 11, 0.3); text-align: center;">
+                        <i data-lucide="loader-2" class="loading-spin" style="color: var(--warning); margin-bottom: 15px;"></i>
+                        <div style="font-size: 1.2rem; font-weight: 900; color: var(--warning);">승인 대기 중입니다.</div>
+                        <p style="margin: 5px 0 0 0; font-size: 0.9rem; color: #94a3b8;">관리자가 확인 후 처리해 드립니다.</p>
+                    </div>
+                </div>
+
+                <div style="text-align: center; margin-top: 20px;">
+                    <a href="/{{ user.store_id }}/attendance" style="font-size: 0.8rem; color: #475569; text-decoration: none;">전용 출퇴근 페이지로 이동 (QR용) →</a>
                 </div>
 
             {% elif role == 'owner' or role == 'manager' %}
@@ -244,6 +282,99 @@
             SECURE ACCESS CORE v2.9 | MQNET CLOUD PRO
         </div>
     </div>
-    <script>lucide.createIcons();</script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script>
+        lucide.createIcons();
+    </script>
+
+    {% if role == 'worker' %}
+    <script>
+        // [Worker Dashboard Logic]
+        const socket = io();
+        let checkInTime = null;
+        const slug = "{{ user.store_id }}";
+        const currentUserId = Number('{{ user.id }}');
+
+        socket.on('connect', () => { if(slug) socket.emit('join', { store_id: slug }); });
+        socket.on('attendance_approved', (data) => {
+            if (data.bulk || data.user_id === currentUserId) {
+                loadWorkerStatus();
+            }
+        });
+
+        function updateWorkerClock() {
+            const now = new Date();
+            const clockEl = document.getElementById('worker-clock');
+            if(clockEl) clockEl.innerText = now.toLocaleTimeString('ko-KR', { hour12: false });
+            
+            const dateEl = document.getElementById('worker-date');
+            if(dateEl) {
+                const options = { year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'short' };
+                dateEl.innerText = now.toLocaleDateString('ko-KR', options);
+            }
+
+            if (checkInTime) {
+                const diff = Math.floor((new Date() - checkInTime) / 60000);
+                const countEl = document.getElementById('worker-minutes-count');
+                if(countEl) countEl.innerText = diff;
+            }
+        }
+        setInterval(updateWorkerClock, 1000);
+
+        async function loadWorkerStatus() {
+            if(!slug) return;
+            try {
+                const res = await fetch(`/api/${slug}/attendance/staff-status`);
+                const data = await res.json();
+                
+                const wageEl = document.getElementById('worker-monthly-wage');
+                if(wageEl) wageEl.innerText = (data.current_wage || 0).toLocaleString() + '원';
+                
+                const tag = document.getElementById('worker-status-tag');
+                const actionArea = document.getElementById('worker-action-area');
+                const pendingMsg = document.getElementById('worker-pending-msg');
+                const activeTimer = document.getElementById('worker-active-timer');
+                const btnIn = document.getElementById('worker-btn-in');
+                const btnOut = document.getElementById('worker-btn-out');
+
+                if (data.status === 'working') {
+                    checkInTime = new Date(data.check_in_at);
+                    tag.innerText = '실시간 근무 중'; tag.className = 'status-badge status-working';
+                    btnIn.style.display = 'none';
+                    btnOut.style.display = 'block';
+                    pendingMsg.style.display = 'none';
+                    activeTimer.style.display = 'block';
+                } else if (data.status && data.status.startsWith('pending')) {
+                    tag.innerText = '승인 대기 중'; tag.className = 'status-badge status-home';
+                    btnIn.style.display = 'none';
+                    btnOut.style.display = 'none';
+                    pendingMsg.style.display = 'block';
+                    activeTimer.style.display = 'none';
+                } else {
+                    checkInTime = null;
+                    tag.innerText = '업무 대기'; tag.className = 'status-badge status-home';
+                    btnIn.style.display = 'block';
+                    btnOut.style.display = 'none';
+                    pendingMsg.style.display = 'none';
+                    activeTimer.style.display = 'none';
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        async function workerCheckIn() {
+            if(!confirm('출근 승인을 요청하시겠습니까?')) return;
+            await fetch(`/api/${slug}/attendance/check-in`, { method: 'POST' });
+            loadWorkerStatus();
+        }
+
+        async function workerCheckOut() {
+            if(!confirm('퇴근 승인을 요청하시겠습니까?')) return;
+            await fetch(`/api/${slug}/attendance/check-out`, { method: 'POST' });
+            loadWorkerStatus();
+        }
+
+        loadWorkerStatus(); updateWorkerClock();
+    </script>
+    {% endif %}
 </body>
 </html>
