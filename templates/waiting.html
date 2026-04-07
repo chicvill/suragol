@@ -159,7 +159,7 @@
 <body>
     <header style="justify-content: center;">
         <div class="brand-box" style="align-items: center;">
-            <div class="brand-korean">{{ store.name }} 웨이팅</div>
+            <div class="brand-korean">{{ store.name }}</div>
         </div>
     </header>
 
@@ -168,8 +168,7 @@
         <div class="modal-content">
             <div id="modal-body" style="word-break: keep-all;">
                 <!-- 메시지 내용이 여기에 들어갑니다 -->
-                기다려 주셔서 감사합니다.<br>
-                입장해주세요!
+                입장하세요!
             </div>
             <button id="modal-ok-btn" class="modal-btn">확인</button>
         </div>
@@ -178,7 +177,7 @@
     <div class="container" style="max-width: 500px; margin: 0 auto; padding: 15px;">
         <div id="wait-form-container">
             <div class="waiting-box">
-                <h2 style="margin-bottom: 30px;">대기 등록</h2>
+                <h2 style="margin-bottom: 30px;">대기</h2>
                 <div class="form-group">
                     <label>휴대폰 번호 (선택)</label>
                     <div style="font-size: 0.85rem; color: #aaa; margin-bottom: 12px; line-height: 1.5; word-break: keep-all; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px;">
@@ -195,19 +194,19 @@
                         {% endfor %}
                     </select>
                 </div>
-                <button class="submit-btn" onclick="registerWait()">등록하기</button>
+                <button class="submit-btn" onclick="registerWait()">등록</button>
             </div>
         </div>
 
         <div id="wait-status-container" style="display: none;">
             <div class="waiting-box">
-                <div style="font-size: 1.1rem; color: var(--text-muted);">나의 대기 번호</div>
+                <div style="font-size: 1.1rem; color: var(--text-muted);">대기 번호</div>
                 <div id="my-wait-id" class="status-badge">--</div>
-                <div id="msg-congrats" style="color: var(--secondary-color); font-weight: bold; margin-bottom: 20px;">대기 등록이 완료되었습니다.</div>
+                <div id="msg-congrats" style="color: var(--secondary-color); font-weight: bold; margin-bottom: 20px;">등록 완료</div>
                 
                 <div class="info-grid">
                     <div class="info-card">
-                        <span style="font-size: 0.85rem; color: var(--text-muted);">현재 대기</span>
+                        <span style="font-size: 0.85rem; color: var(--text-muted);">실시간 대기</span>
                         <span id="current-rank" class="info-val">--팀</span>
                     </div>
                     <div class="info-card">
@@ -223,10 +222,10 @@
 
                 <div style="margin-top:25px; display:flex; flex-direction:column; gap:12px;">
                     <button class="submit-btn" onclick="cancelAndReregister()" style="background: #e67e22; box-shadow: 0 10px 20px rgba(230, 126, 34, 0.3); font-size: 0.95rem;">
-                        인원 변경 또는 다시 등록하기
+                        변경/다시 등록
                     </button>
                     <button class="submit-btn" onclick="location.reload()" style="background: #34495e; box-shadow: 0 10px 20px rgba(52, 73, 94, 0.2); font-size: 0.95rem;">
-                        내 순번 확인 (새로고침)
+                        새로고침
                     </button>
                 </div>
 
@@ -241,12 +240,11 @@
         <div id="wait-entry-container">
             <div class="entry-card">
                 <div class="entry-title">
-                    기다려 주셔서 감사합니다!<br>
-                    지금 입장해 주세요.
+                    지금 입장하세요
                 </div>
                 <p class="entry-msg">도착하셔서 직원에게<br>이 화면을 보여주세요.</p>
                 <button class="submit-btn" onclick="finishEntry()" style="background: #2ecc71; box-shadow: 0 10px 20px rgba(46, 204, 113, 0.3);">
-                    입장 확인 및 창 닫기
+                    확인
                 </button>
             </div>
         </div>

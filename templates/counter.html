@@ -139,9 +139,9 @@
             border-radius: 50px;
             font-weight: 800;
         }
-        .status-pending { background: #34495e; color: #fff; } /* 조리중 */
-        .status-ready { background: var(--royal-gold); color: #000; animation: pulse 2s infinite; } /* 서빙대기 */
-        .status-served { background: #27ae60; color: #fff; } /* 결제대상 */
+        .status-pending { background: #34495e; color: #fff; } /* 조리 */
+        .status-ready { background: var(--royal-gold); color: #000; animation: pulse 2s infinite; } /* 서빙 */
+        .status-served { background: #27ae60; color: #fff; } /* 결제 */
 
         .table-card h3 {
             font-size: 1.8rem;
@@ -770,20 +770,20 @@
 
         function statusToText(s) {
             switch(s) {
-                case 'pending': return '조리중';
-                case 'ready': return '서빙 대기';
-                case 'served': return '식사중';
-                default: return '진행중';
+                case 'pending': return '조리';
+                case 'ready': return '서빙';
+                case 'served': return '식사';
+                default: return '진행';
             }
         }
 
         function renderActionBtn(sid, status) {
             if (status === 'ready') {
-                return `<button class="action-btn btn-serve" id="btn-serve-${sid}" onclick="executeServe('${sid}')"><i data-lucide="check-circle"></i> 서빙 완료</button>`;
+                return `<button class="action-btn btn-serve" id="btn-serve-${sid}" onclick="executeServe('${sid}')"><i data-lucide="check-circle"></i> 서빙</button>`;
             } else if (status === 'served') {
-                return `<button class="action-btn btn-pay" id="btn-pay-${sid}" onclick="executePay('${sid}')"><i data-lucide="credit-card"></i> 결제 및 퇴장</button>`;
+                return `<button class="action-btn btn-pay" id="btn-pay-${sid}" onclick="executePay('${sid}')"><i data-lucide="credit-card"></i> 결제</button>`;
             } else {
-                return `<button class="action-btn btn-waiting" disabled><i data-lucide="clock"></i> 주방 조리 중...</button>`;
+                return `<button class="action-btn btn-waiting" disabled><i data-lucide="clock"></i> 조리 중</button>`;
             }
         }
 

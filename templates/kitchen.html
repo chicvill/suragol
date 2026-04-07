@@ -180,7 +180,7 @@
                 card.className = 'table-card';
                 card.innerHTML = `
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                        <div class="status-badge status-pending">조리중</div>
+                        <div class="status-badge status-pending">조리</div>
                         <div class="elapsed-timer" data-start="${order.created_at}">-분 경과</div>
                     </div>
                     
@@ -200,7 +200,7 @@
                     </div>
                     
                     <button class="action-btn" onclick="completeOrder('${order.id}')">
-                        조리 완료 전송
+                        전송
                     </button>
                 `;
                 container.appendChild(card);
