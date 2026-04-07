@@ -13,72 +13,61 @@
             --bg: #0b1121; --card: #161c2d; --border: rgba(255,255,255,0.08); --text: #f1f5f9;
         }
         body { background: var(--bg); color: var(--text); font-family: 'Pretendard', sans-serif; margin: 0; min-height: 100vh; }
-        .portal-container { max-width: 1200px; margin: 0 auto; padding: 30px 20px; }
+        .portal-container { max-width: 1200px; margin: 0 auto; padding: 15px 10px; } /* 여백 대폭 축소 */
         
         .top-nav { 
             display: flex; justify-content: space-between; align-items: center; 
-            margin-bottom: 30px; padding: 20px 30px; 
+            margin-bottom: 15px; padding: 12px 20px; /* 여백/패딩 축소 */
             background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(15px);
-            border-radius: 20px; border: 1px solid var(--border);
+            border-radius: 15px; border: 1px solid var(--border);
         }
-        .user-summary { display: flex; align-items: center; gap: 12px; }
+        .user-summary { display: flex; align-items: center; gap: 10px; }
         .role-badge { 
             background: linear-gradient(135deg, var(--primary), #1e40af); 
-            color: white; padding: 4px 12px; border-radius: 50px; 
-            font-size: 0.65rem; font-weight: 900; text-transform: uppercase;
+            color: white; padding: 5px 14px; border-radius: 50px; 
+            font-size: 0.8rem; font-weight: 900; text-transform: uppercase;
         }
 
         /* [핵심] 통합 매장 카드 스타일 */
-        .store-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 20px; }
+        .store-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 12px; }
         .store-card {
-            background: var(--card); border: 1px solid var(--border); border-radius: 24px; padding: 25px;
-            transition: all 0.3s; position: relative; overflow: hidden;
+            background: var(--card); border: 2px solid var(--border); border-radius: 20px; padding: 18px; /* 패딩 축소 */
+            transition: all 0.2s; position: relative; overflow: hidden;
         }
-        .store-card:hover { border-color: var(--primary); transform: translateY(-5px); box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
-        .store-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
-        .store-card-title { font-size: 1.3rem; font-weight: 900; color: #fff; margin: 0; }
-        .store-card-slug { font-size: 0.75rem; color: #64748b; font-family: monospace; }
+        .store-card:hover { border-color: var(--primary); transform: translateY(-3px); }
+        .store-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .store-card-title { font-size: 1.7rem; font-weight: 900; color: #fff; margin: 0; letter-spacing: -1px; }
+        .store-card-slug { font-size: 0.9rem; color: #64748b; font-weight: 700; font-family: monospace; }
         
-        .action-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 20px; }
+        .action-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 15px; }
         .action-item {
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            padding: 12px 5px; border-radius: 12px; background: rgba(255,255,255,0.03);
-            border: 1px solid var(--border); color: #94a3b8; text-decoration: none; transition: 0.2s;
-            gap: 8px;
+            padding: 12px 5px; border-radius: 15px; background: rgba(59, 130, 246, 0.05);
+            border: 1px solid var(--border); color: #fff; text-decoration: none; transition: 0.1s;
+            gap: 5px;
         }
-        .action-item:hover { background: var(--primary); color: #fff; border-color: var(--primary); transform: scale(1.05); }
-        .action-item i { width: 22px; height: 22px; }
-        .action-label { font-size: 0.65rem; font-weight: 700; }
+        .action-item:hover { background: var(--primary); border-color: var(--primary); transform: scale(1.03); }
+        .action-item i { width: 26px; height: 26px; } /* 아이콘 확대 */
+        .action-label { font-size: 0.9rem; font-weight: 900; } /* 글자 확대 */
 
-        .global-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; margin-bottom: 30px; }
-        .global-card {
-            background: rgba(59, 130, 246, 0.05); border: 1px solid rgba(59, 130, 246, 0.2);
-            padding: 20px; border-radius: 18px; display: flex; align-items: center; gap: 15px;
-            text-decoration: none; color: #fff; transition: 0.2s;
-        }
-        .global-card:hover { background: var(--primary); transform: translateX(5px); }
-        
-        .section-header { 
-            font-size: 0.8rem; font-weight: 900; letter-spacing: 2px; color: #4b5563; 
-            margin: 40px 0 20px; text-transform: uppercase; border-left: 4px solid var(--primary); padding-left: 12px;
-        }
+        .action-label { font-size: 0.9rem; font-weight: 900; }
 
         /* [탭 스타일] */
-        .store-tabs { display: flex; gap: 8px; overflow-x: auto; margin-bottom: 25px; padding-bottom: 5px; }
+        .store-tabs { display: flex; gap: 6px; overflow-x: auto; margin-bottom: 12px; padding-bottom: 5px; }
         .store-tab-btn {
             background: rgba(255,255,255,0.03); border: 1px solid var(--border); color: #64748b;
-            padding: 12px 24px; border-radius: 12px; font-weight: 800; cursor: pointer; white-space: nowrap; transition: 0.2s;
+            padding: 14px 28px; border-radius: 12px; font-weight: 900; font-size: 1.1rem; cursor: pointer; white-space: nowrap; transition: 0.15s;
         }
         .store-tab-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4); }
         .store-pane { display: none; }
-        .store-pane.active { display: block; animation: fadeIn 0.3s ease; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .store-pane.active { display: block; animation: fadeIn 0.2s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
         .worker-panel { 
             background: linear-gradient(145deg, #1e293b, #0f172a); 
-            border-radius: 30px; padding: 40px; margin-bottom: 30px; border: 1px solid var(--border);
+            border-radius: 25px; padding: 30px; margin-bottom: 20px; border: 1px solid var(--border);
         }
-        .status-badge { display: inline-block; padding: 6px 15px; border-radius: 50px; font-weight: 800; font-size: 0.8rem; }
+        .status-badge { display: inline-block; padding: 8px 18px; border-radius: 50px; font-weight: 900; font-size: 1rem; }
         .status-working { background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); }
         .status-home { background: rgba(148, 163, 184, 0.1); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.2); }
         .loading-spin { animation: spin 2s linear infinite; }
@@ -94,7 +83,7 @@
                 <h3 class="store-card-title">{{ s.name }}</h3>
                 <span class="store-card-slug">{{ s.id }}</span>
             </div>
-            <div style="background: rgba(16, 185, 129, 0.1); color: #10b981; padding: 4px 10px; border-radius: 6px; font-size: 0.6rem; font-weight: 900;">ACTIVE</div>
+            <div style="background: rgba(16, 185, 129, 0.1); color: #10b981; padding: 6px 12px; border-radius: 50px; font-size: 0.8rem; font-weight: 950;">ACTIVE</div>
         </div>
         
         <div class="action-bar">
@@ -116,7 +105,7 @@
             </a>
             <a href="/admin/staff?slug={{ s.id }}" class="action-item" title="근태">
                 <i data-lucide="users"></i>
-                <span class="action-label">근태</span>
+                <span class="action-label">근태/급여</span>
             </a>
             <a href="/{{ s.id }}/qr-print" class="action-item" title="QR코드" target="_blank">
                 <i data-lucide="printer"></i>
@@ -126,7 +115,7 @@
                 <i data-lucide="shopping-bag"></i>
                 <span class="action-label">주문</span>
             </a>
-            {% if current_role == 'admin' %}
+            {% if current_role|lower == 'admin' %}
             <a href="/admin/stores/{{ s.id }}/config" class="action-item" title="설정">
                 <i data-lucide="settings"></i>
                 <span class="action-label">설정</span>
@@ -140,13 +129,13 @@
         {% if not logged_in %}
             <!-- [로그인 전 화면] -->
             <div style="text-align: center; padding: 100px 0;">
-                <h1 style="font-size: 3.5rem; font-weight: 900; margin-bottom: 10px;">MQNET <span style="color:var(--primary);">Central</span></h1>
-                <p style="color:#64748b; margin-bottom: 50px; font-size: 1.1rem;">지능형 매장 자동화 포털</p>
-                <div style="max-width: 400px; margin: 0 auto; background: var(--card); padding: 40px; border-radius: 30px; border: 1px solid var(--border);">
+                <h1 style="font-size: 4rem; font-weight: 950; margin-bottom: 5px;">MQNET <span style="color:var(--primary);">Central</span></h1>
+                <p style="color:#64748b; margin-bottom: 50px; font-size: 1.3rem;">지능형 매장 자동화 포털</p>
+                <div style="max-width: 420px; margin: 0 auto; background: var(--card); padding: 40px; border-radius: 30px; border: 2px solid var(--border);">
                     <form action="/login" method="POST">
-                        <input type="text" name="username" placeholder="ID" required style="width:100%; padding:18px; margin-bottom:15px; border-radius:15px; background:#0b1121; border:1px solid var(--border); color:#fff; box-sizing:border-box;">
-                        <input type="password" name="password" placeholder="PW" required style="width:100%; padding:18px; margin-bottom:25px; border-radius:15px; background:#0b1121; border:1px solid var(--border); color:#fff; box-sizing:border-box;">
-                        <button type="submit" style="width:100%; padding:20px; border-radius:15px; background:var(--primary); color:white; border:none; font-weight:900; cursor:pointer;">로그인</button>
+                        <input type="text" name="username" placeholder="ID" required style="width:100%; padding:20px; font-size:1.2rem; margin-bottom:15px; border-radius:15px; background:#0b1121; border:1px solid var(--border); color:#fff; box-sizing:border-box;">
+                        <input type="password" name="password" placeholder="PW" required style="width:100%; padding:20px; font-size:1.2rem; margin-bottom:25px; border-radius:15px; background:#0b1121; border:1px solid var(--border); color:#fff; box-sizing:border-box;">
+                        <button type="submit" style="width:100%; padding:22px; border-radius:15px; background:var(--primary); color:white; border:none; font-weight:950; font-size:1.3rem; cursor:pointer;">로그인</button>
                     </form>
                 </div>
             </div>
@@ -155,10 +144,10 @@
             <div class="top-nav">
                 <div class="user-summary">
                     <span class="role-badge">{{ role.upper() }}</span>
-                    <span style="font-weight: 800; font-size: 1.15rem;">{{ user.full_name or user.username }}</span>
+                    <span style="font-weight: 950; font-size: 1.4rem;">{{ user.full_name or user.username }}</span>
                 </div>
-                <a href="/logout" style="color:var(--danger); text-decoration:none; font-size:0.9rem; font-weight:800; display: flex; align-items: center; gap: 8px;">
-                    로그아웃 <i data-lucide="log-out" size="16"></i>
+                <a href="/logout" style="color:var(--danger); text-decoration:none; font-size:1rem; font-weight:950; display: flex; align-items: center; gap: 8px;">
+                    종료 <i data-lucide="log-out" size="20"></i>
                 </a>
             </div>
 
@@ -168,42 +157,26 @@
                     <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 30px;">
                         <div>
                             <div id="worker-status-tag" class="status-badge status-home">상태 확인 중</div>
-                            <h2 style="margin: 10px 0 0; font-size: 2.5rem; font-weight: 900;" id="worker-clock">00:00:00</h2>
-                            <p id="worker-date" style="color: #64748b; margin: 5px 0;">2026.04.07 (화)</p>
+                            <h2 style="margin: 10px 0 0; font-size: 3rem; font-weight: 950;" id="worker-clock">00:00:00</h2>
+                            <p id="worker-date" style="color: #64748b; margin: 5px 0; font-size: 1.2rem; font-weight:700;">2026.04.07 (화)</p>
                         </div>
                         <div style="text-align: right;">
-                            <span style="font-size: 0.75rem; color: #64748b; text-transform: uppercase;">정산 예정</span>
-                            <div id="worker-monthly-wage" style="font-size: 1.5rem; font-weight: 900; color: var(--primary);">0원</div>
+                            <span style="font-size: 0.9rem; color: #64748b; text-transform: uppercase; font-weight:800;">정산 예정</span>
+                            <div id="worker-monthly-wage" style="font-size: 2rem; font-weight: 950; color: var(--primary);">0원</div>
                         </div>
                     </div>
 
-                    <div id="worker-active-timer" style="margin-bottom: 25px; display:none; padding: 15px; background: rgba(245, 158, 11, 0.1); border-radius: 15px; color: var(--warning); font-weight: bold; text-align: center;">
-                        <i data-lucide="zap" size="18" style="vertical-align: middle;"></i> 업무 중 (<span id="worker-minutes-count">0</span>분 경과)
+                    <div id="worker-active-timer" style="margin-bottom: 25px; display:none; padding: 20px; background: rgba(245, 158, 11, 0.1); border-radius: 20px; color: var(--warning); font-size:1.2rem; font-weight: 950; text-align: center;">
+                        <i data-lucide="zap" size="24" style="vertical-align: middle;"></i> 업무 중 (<span id="worker-minutes-count">0</span>분 경과)
                     </div>
 
                     <div id="worker-action-area">
-                        <button id="worker-btn-in" onclick="workerCheckIn()" style="width: 100%; border: none; cursor: pointer; display: none; padding: 30px; border-radius: 25px; background: var(--primary); color: white; font-weight: 900; font-size: 1.4rem; box-shadow: 0 10px 20px rgba(59, 130, 246, 0.3);">출근</button>
-                        <button id="worker-btn-out" onclick="workerCheckOut()" style="width: 100%; border: none; cursor: pointer; display: none; padding: 30px; border-radius: 25px; background: var(--danger); color: white; font-weight: 900; font-size: 1.4rem; box-shadow: 0 10px 20px rgba(239, 68, 68, 0.3);">퇴근</button>
+                        <button id="worker-btn-in" onclick="workerCheckIn()" style="width: 100%; border: none; cursor: pointer; display: none; padding: 35px; border-radius: 25px; background: var(--primary); color: white; font-weight: 950; font-size: 1.8rem; box-shadow: 0 10px 20px rgba(59, 130, 246, 0.3);">출근</button>
+                        <button id="worker-btn-out" onclick="workerCheckOut()" style="width: 100%; border: none; cursor: pointer; display: none; padding: 35px; border-radius: 25px; background: var(--danger); color: white; font-weight: 950; font-size: 1.8rem; box-shadow: 0 10px 20px rgba(239, 68, 68, 0.3);">퇴근</button>
                     </div>
                 </div>
             {% else %}
                 <!-- [2. 관리자/점주 통합 대시보드] -->
-                {% if role == 'admin' %}
-                    <div class="section-header">Global Master Control</div>
-                    <div class="global-grid">
-                        <a href="/admin/performance" class="global-card">
-                            <i data-lucide="bar-chart-2"></i> <span>종합 실적</span>
-                        </a>
-                        <a href="/admin/users" class="global-card">
-                            <i data-lucide="user-cog"></i> <span>유저 관리</span>
-                        </a>
-                        <a href="/admin/billing" class="global-card">
-                            <i data-lucide="mail-check"></i> <span>정산/과금</span>
-                        </a>
-                    </div>
-                {% endif %}
-
-                <div class="section-header">Managed Stores</div>
                 
                 {% set store_list = [] %}
                 {% if store %}{% do store_list.append(store) %}{% endif %}
@@ -237,8 +210,8 @@
             {% endif %}
         {% endif %}
         
-        <div style="text-align: center; margin: 60px 0; color: #334155; font-size: 0.7rem; font-weight: 700; opacity: 0.4;">
-            SECURE ACCESS CORE v3.0 | MQNET CENTRAL
+        <div style="text-align: center; margin: 40px 0; color: #334155; font-size: 0.8rem; font-weight: 900; opacity: 0.3;">
+            MQNET CENTRAL CORE v3.1
         </div>
     </div>
 

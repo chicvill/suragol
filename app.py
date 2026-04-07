@@ -605,7 +605,13 @@ def admin_billing():
     stores = Store.query.all()
     unpaid = Store.query.filter_by(payment_status='unpaid').count()
     sus = Store.query.filter_by(status='suspended').count()
-    return render_template('admin/billing.html', stores=stores, unpaid_count=unpaid, suspended_count=sus, total_stores=len(stores))
+    return render_template('admin/billing.html', 
+                           stores=stores, 
+                           unpaid_count=unpaid, 
+                           suspended_count=sus, 
+                           total_stores=len(stores),
+                           role=session.get('role'),
+                           now=datetime.utcnow())
 
 # ---------------------------------------------------------
 # 제휴 파트너 정산 보조 기능 (매월 25일 정산용 인쇄 페이지)
@@ -676,6 +682,19 @@ def api_billing_toggle():
             if not store.expires_at or store.expires_at < now: store.expires_at = now + timedelta(days=30)
         db.session.commit()
         return jsonify({'status': 'success', 'new_status': store.payment_status})
+    return jsonify({'status': 'error'}), 404
+
+@app.route('/api/admin/store/status-toggle', methods=['POST'])
+@admin_required
+def api_status_toggle():
+    data = request.json
+    sid = data.get('store_id')
+    store = db.session.get(Store, sid)
+    if store:
+        # 'active'면 'unregistered'로, 그 외엔 'active'로 토글
+        store.status = 'unregistered' if store.status == 'active' else 'active'
+        db.session.commit()
+        return jsonify({'status': 'success', 'new_status': store.status})
     return jsonify({'status': 'error'}), 404
 
 @app.route('/api/admin/upload', methods=['POST'])
