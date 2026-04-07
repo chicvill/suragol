@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ store.name }} - 직원 출퇴근 체크</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root {
+            --attend-bg: #0f0f0f;
+            --attend-card: #1a1a1a;
+            --btn-in: #2ecc71;
+            --btn-out: #e74c3c;
+        }
+        body { background: var(--attend-bg); color: #fff; display: flex; flex-direction: column; align-items: center; min-height: 100vh; padding: 20px; }
+        .attendance-container { width: 100%; max-width: 450px; margin-top: 50px; }
+        .status-card {
+            background: var(--attend-card);
+            border-radius: 20px;
+            padding: 40px 20px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.05);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+        .clock-icon { color: var(--royal-gold); margin-bottom: 20px; }
+        .time-now { font-size: 3rem; font-weight: 900; margin-bottom: 5px; }
+        .date-now { color: #888; margin-bottom: 30px; }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 8px 20px;
+            border-radius: 50px;
+            font-weight: 800;
+            margin-bottom: 40px;
+            font-size: 1.1rem;
+        }
+        .status-working { background: rgba(46, 204, 113, 0.15); color: #2ecc71; border: 1px solid #2ecc71; }
+        .status-home { background: rgba(255,255,255,0.05); color: #888; border: 1px solid #333; }
+
+        .big-button {
+            width: 100%;
+            padding: 25px;
+            border-radius: 15px;
+            font-size: 1.5rem;
+            font-weight: 900;
+            border: none;
+            cursor: pointer;
+            transition: 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .btn-checkin { background: var(--btn-in); color: #fff; box-shadow: 0 5px 20px rgba(46, 204, 113, 0.4); }
+        .btn-checkout { background: var(--btn-out); color: #fff; box-shadow: 0 5px 20px rgba(231, 76, 60, 0.4); }
+        .big-button:active { transform: scale(0.95); opacity: 0.8; }
+
+        .working-timer { font-size: 1.2rem; color: #f1c40f; margin-top: 15px; display: none; }
+    </style>
+</head>
+<body>
+    <div class="attendance-container">
+        <header style="text-align: center; margin-bottom: 40px;">
+            <h1 style="color: var(--royal-gold); font-size: 1.8rem; margin-bottom: 10px;">{{ store.name }} 파트너</h1>
+            <p style="color: #666;">안녕하세요, <strong style="color:#fff;">{{ session['username'] }}</strong> 님</p>
+        </header>
+
+        <!-- 임금 현황 보드 -->
+        <div class="status-card" style="margin-bottom: 20px; padding: 25px;">
+            <h3 style="font-size: 0.85rem; color: var(--text-dim); margin-bottom: 10px;">이번 달 누적 정산 임금</h3>
+            <div id="monthly-wage" style="font-size: 2.2rem; font-weight: 900; color: var(--accent);">0원</div>
+            <p style="font-size: 0.75rem; color: #555; margin-top: 5px;">*퇴근 승인 완료된 시간 기준</p>
+        </div>
+
+        <div class="status-card">
+            <div id="status-tag" class="status-badge status-home">상태 로딩 중...</div>
+            <div class="time-now" id="clock">00:00:00</div>
+            <div class="date-now" id="date">오늘 날짜 로딩 중...</div>
+
+            <div style="margin-top: 40px;" id="action-area">
+                <button id="btn-in" class="big-button btn-checkin" onclick="checkIn()">
+                    <i data-lucide="play"></i> 출근하기
+                </button>
+                <button id="btn-out" class="big-button btn-checkout" onclick="checkOut()" style="display:none;">
+                    <i data-lucide="square"></i> 퇴근하기
+                </button>
+            </div>
+            
+            <div id="pending-msg" style="display:none; margin-top: 30px; color: var(--warning); font-weight: 800;">
+                <i data-lucide="loader-2" class="loading-spin"></i> 관리자 승인 대기 중...
+            </div>
+
+            <div id="active-timer" class="working-timer">
+                <i data-lucide="clock" size="18" style="vertical-align: middle;"></i> 
+                근무 중 (<span id="minutes-count">0</span>분 경과)
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script>
+        const socket = io();
+        let checkInTime = null;
+        const slug = "{{ store.id }}";
+        const currentUserId = Number('{{ session.get("user_id", 0) }}');
+
+        // 방 입장
+        socket.on('connect', () => { socket.emit('join', { room: slug }); });
+
+        // 실시간 승인 처리
+        socket.on('attendance_approved', (data) => {
+            if (data.user_id === currentUserId) {
+                alert('관리자 승인이 완료되었습니다!');
+                loadStatus();
+            }
+        });
+
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('clock').innerText = now.toLocaleTimeString('ko-KR', { hour12: false });
+            document.getElementById('date').innerText = now.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
+            
+            if (checkInTime) {
+                const diff = Math.floor((new Date() - checkInTime) / 60000);
+                document.getElementById('minutes-count').innerText = diff;
+            }
+        }
+        setInterval(updateClock, 1000);
+
+        async function loadStatus() {
+            try {
+                const res = await fetch(`/api/${slug}/attendance/staff-status`);
+                const data = await res.json();
+                
+                document.getElementById('monthly-wage').innerText = (data.current_wage || 0).toLocaleString() + '원';
+                const tag = document.getElementById('status-tag');
+                const actionArea = document.getElementById('action-area');
+                const pendingMsg = document.getElementById('pending-msg');
+                const activeTimer = document.getElementById('active-timer');
+
+                if (data.status === 'working') {
+                    checkInTime = new Date(data.check_in_at);
+                    tag.innerText = '업무 중'; tag.className = 'status-badge status-working';
+                    document.getElementById('btn-in').style.display = 'none';
+                    document.getElementById('btn-out').style.display = 'flex';
+                    actionArea.style.display = 'block'; pendingMsg.style.display = 'none';
+                    activeTimer.style.display = 'block';
+                } else if (data.status.startsWith('pending')) {
+                    tag.innerText = '승인 대기'; tag.className = 'status-badge status-home';
+                    actionArea.style.display = 'none'; pendingMsg.style.display = 'block';
+                    activeTimer.style.display = 'none';
+                } else {
+                    checkInTime = null;
+                    tag.innerText = '업무 중 아님'; tag.className = 'status-badge status-home';
+                    document.getElementById('btn-in').style.display = 'flex';
+                    document.getElementById('btn-out').style.display = 'none';
+                    actionArea.style.display = 'block'; pendingMsg.style.display = 'none';
+                    activeTimer.style.display = 'none';
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        async function checkIn() {
+            if (!confirm('출근 승인을 관리자에게 요청하시겠습니까?')) return;
+            const res = await fetch(`/api/${slug}/attendance/check-in`, { method: 'POST' });
+            loadStatus();
+        }
+
+        async function checkOut() {
+            if (!confirm('퇴근 승인을 관리자에게 요청하시시겠습니까?')) return;
+            const res = await fetch(`/api/${slug}/attendance/check-out`, { method: 'POST' });
+            loadStatus();
+        }
+
+        lucide.createIcons();
+        loadStatus(); updateClock();
+    </script>
+</body>
+</html>

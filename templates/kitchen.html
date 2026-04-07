@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>수라골 참숯갈비 - 주방</title>
+    <title>{{ store.name }} - 주방</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ range(1, 9999) | random }}">
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <style>
@@ -61,6 +61,22 @@
             color: #000;
             margin-top: 10px;
         }
+        .elapsed-timer {
+            font-weight: 800;
+            font-size: 1.1rem;
+            padding: 2px 10px;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.1);
+        }
+        .timer-safe { color: #2ecc71; }
+        .timer-warning { color: #f1c40f; animation: pulse 1.5s infinite; }
+        .timer-danger { color: #e74c3c; animation: pulse 0.8s infinite; font-weight: 900; }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.4; }
+            100% { opacity: 1; }
+        }
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
@@ -69,8 +85,8 @@
 </head>
 <body>
     <header>
-        <h1 style="color: #f1c40f;">주방 대시보드 (KITCHEN)</h1>
-        <div id="connection-status" style="font-size: 0.8rem; color: #2ecc71;">● 서버 연결됨</div>
+        <h1 style="color: #f1c40f;">주방 대시보드 - {{ store.name }}</h1>
+        <div id="connection-status" style="font-size: 0.8rem; color: #2ecc71;">● 서버 연결됨 (상점: {{ store.id }})</div>
     </header>
 
     <div class="container" style="padding: 15px;">
@@ -90,7 +106,8 @@
 
         socket.on('connect', () => {
             console.log('Kitchen Socket Connected!');
-            loadOrders();
+            socket.emit('join', { store_id: '{{ store.id }}' });
+            loadInitialOrders();
         });
 
         socket.on('connect_error', (error) => {
@@ -135,7 +152,7 @@
         // 초기 데이터 로드
         async function loadInitialOrders() {
             try {
-                const res = await fetch('/api/orders');
+                const res = await fetch('/api/{{ store.id }}/orders');
                 const data = await res.json();
                 orders = data.filter(o => o.status === 'pending');
                 renderOrders();
@@ -162,7 +179,10 @@
                 const card = document.createElement('div');
                 card.className = 'table-card';
                 card.innerHTML = `
-                    <div class="status-badge status-pending">조리중</div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                        <div class="status-badge status-pending">조리중</div>
+                        <div class="elapsed-timer" data-start="${order.created_at}">-분 경과</div>
+                    </div>
                     
                     <div class="items-list" style="margin: 5px 0 15px 0; padding: 10px 0 15px 0; border-top: none; border-bottom: 2px dashed rgba(212, 175, 55, 0.4);">
                         ${order.items.map(i => `
@@ -198,6 +218,27 @@
                 renderOrders();
             }
         }
+
+        function updateTimers() {
+            document.querySelectorAll('.elapsed-timer').forEach(el => {
+                const startStr = el.dataset.start;
+                if (!startStr) return;
+                
+                const start = new Date(startStr);
+                const now = new Date();
+                const diffMins = Math.floor((now - start) / 60000);
+                
+                el.innerText = `${diffMins}분 경과`;
+                el.className = 'elapsed-timer';
+                if (diffMins < 10) el.classList.add('timer-safe');
+                else if (diffMins < 20) el.classList.add('timer-warning');
+                else el.classList.add('timer-danger');
+            });
+        }
+        setInterval(updateTimers, 10000); // 10초마다 갱신
+        setInterval(updateTimers, 1000);  // 처음 로드 시 즉시 반영을 위해 1회성 아니고 주기적으로 더 자주 돌아도 됨
+        // 하지만 렌더링 성능을 위해 10초가 적당합니다.
+        setTimeout(updateTimers, 500); // 로드 직후 1회 실행
     </script>
 </body>
 </html>

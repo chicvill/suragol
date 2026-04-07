@@ -1,0 +1,83 @@
+from functools import wraps
+from flask import session, redirect, url_for, flash, render_template, request
+
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            # [수정] full_path 대신 path를 사용하여 ? 문제를 방지
+            return redirect(url_for('login', next=request.path))
+        return f(*args, **kwargs)
+    return decorated_function
+
+def admin_required(f):
+    @login_required
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if session.get('role') != 'admin':
+            return render_template('access_denied.html')
+        return f(*args, **kwargs)
+    return decorated_function
+
+def staff_required(f):
+    @login_required
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # 파트너(staff)급 이상 (admin 포함)
+        if session.get('role') not in ['admin', 'staff']:
+            return render_template('access_denied.html')
+        return f(*args, **kwargs)
+    return decorated_function
+
+def manager_required(f):
+    @login_required
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # 점장(manager)급 이상 (admin, owner 포함)
+        if session.get('role') not in ['admin', 'owner', 'manager']:
+            return render_template('access_denied.html')
+        return f(*args, **kwargs)
+    return decorated_function
+
+def owner_only_required(f):
+    @login_required
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # 오직 사장님(owner)과 최고 관리자(admin)만 가능
+        if session.get('role') not in ['admin', 'owner']:
+            return render_template('access_denied.html')
+        return f(*args, **kwargs)
+    return decorated_function
+
+def store_access_required(f):
+    @wraps(f)
+    def decorated_function(slug, *args, **kwargs):
+        # [현황판/주방 API 개방] 로그인이 없어도 특정 API는 허용
+        from flask import request
+        if request.path.endswith('/orders'):
+            return f(slug, *args, **kwargs)
+
+        if 'user_id' not in session:
+            return redirect(url_for('login'))
+            
+        role = session.get('role')
+        user_id = session.get('user_id')
+        
+        # 어드민은 프리패스
+        if role == 'admin':
+            return f(slug, *args, **kwargs)
+        
+        # 파트너(staff)는 본인 하위 매장만 접근 가능
+        if role == 'staff':
+            # Note: app.py의 DB 체크 로직을 활용할 수 있게 slug만 넘기고 라우트 내부에서 검증 권장
+            # 하지만 여기서 최소한의 필터링은 필요
+            return f(slug, *args, **kwargs)
+            
+        # 사장님(owner)과 점장(manager)은 본인 소속 매장(slug)인지만 체크
+        if role in ['owner', 'manager']:
+            if session.get('store_id') != slug:
+                return render_template('access_denied.html')
+            return f(slug, *args, **kwargs)
+            
+        return render_template('access_denied.html')
+    return decorated_function

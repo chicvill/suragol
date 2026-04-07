@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>수라골 참숯갈비 - 통합 카운터 관제</title>
+    <title>{% if store.id == 'MQ-cafe' %}수라골 참숯갈비 통합 관제{% else %}{{ store.name }} - 통합 카운터 관제{% endif %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ range(1, 9999) | random }}">
     <!-- Socket.IO & Icons -->
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
@@ -51,12 +51,44 @@
             letter-spacing: -1px;
         }
 
-        /* 메인 레이아웃: 2분할 */
+        /* 메인 레이아웃: 가변 3분할 */
         .main-layout {
             display: grid;
-            grid-template-columns: 1fr 400px; /* 테이블 8 : 대기열 2 */
+            grid-template-columns: 0px 1fr 0px; /* 기본은 사이드바 닫힘 */
             flex: 1;
             overflow: hidden;
+            transition: grid-template-columns 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .main-layout.show-left { grid-template-columns: 350px 1fr 0px; }
+        .main-layout.show-right { grid-template-columns: 0px 1fr 400px; }
+        .main-layout.show-both { grid-template-columns: 350px 1fr 400px; }
+
+        /* 공통 사이드바 스타일 */
+        .sidebar {
+            background: #121212;
+            display: flex;
+            flex-direction: column;
+            padding: 0; /* 닫혔을 때 */
+            overflow: hidden;
+            z-index: 50;
+            transition: all 0.4s ease;
+            opacity: 0;
+            border: none;
+        }
+        .sidebar.active {
+            padding: 25px;
+            opacity: 1;
+            overflow-y: auto;
+        }
+
+        /* 좌측: 서비스 요청(호출) 사이드바 */
+        .service-sidebar.active {
+            border-right: 2px solid var(--border-gold);
+        }
+
+        /* 우측: 대기열 사이드바 */
+        .waiting-sidebar.active {
+            border-left: 2px solid var(--border-gold);
         }
 
         /* 좌측: 테이블 구역 */
@@ -71,15 +103,7 @@
             gap: 30px;
         }
 
-        /* 우측: 대기열 사이드바 */
-        .waiting-sidebar {
-            background: #121212;
-            border-left: 2px solid var(--border-gold);
-            display: flex;
-            flex-direction: column;
-            padding: 25px;
-            overflow-y: auto;
-        }
+        /* 사이드바 공통 배경 및 패딩은 상단 .sidebar 클래스에서 관리 */
         .sidebar-title {
             color: var(--royal-gold);
             font-size: 1.4rem;
@@ -233,17 +257,28 @@
         .desktop-only { display: block !important; }
         
         .waiting-toggle-btn {
-            display: none; /* Desktop hidden */
-            background: rgba(212, 175, 55, 0.15);
-            border: 1px solid var(--royal-gold);
+            background: rgba(212, 175, 55, 0.1);
+            border: 1px solid var(--border-gold);
             color: var(--royal-gold);
-            padding: 10px 18px;
-            border-radius: 30px;
+            padding: 8px 15px;
+            border-radius: 8px;
             font-weight: 800;
             cursor: pointer;
+            display: flex;
             align-items: center;
             gap: 10px;
-            position: relative;
+            transition: 0.3s;
+        }
+        .waiting-toggle-btn:hover { background: rgba(212, 175, 55, 0.2); }
+        .waiting-toggle-btn.has-content { 
+            border-color: var(--royal-gold);
+            background: rgba(212, 175, 55, 0.25);
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.2);
+        }
+        .waiting-toggle-btn.btn-call.has-content {
+            border-color: #3498db;
+            color: #3498db;
+            background: rgba(52, 152, 219, 0.15);
         }
         .wait-badge {
             background: var(--royal-red);
@@ -255,38 +290,28 @@
             text-align: center;
         }
 
-        @media (max-width: 1024px) {
-            .mobile-only { display: block !important; }
-            .desktop-only { display: none !important; }
-            
+        @media (max-width: 1280px) {
             .main-layout {
-                grid-template-columns: 1fr;
+                grid-template-columns: 300px 1fr 340px;
             }
-            .waiting-sidebar {
+        }
+
+        @media (max-width: 1024px) {
+            .main-layout {
+                grid-template-columns: 1fr !important;
+            }
+            .sidebar {
                 position: fixed;
                 top: 0;
-                right: 0;
-                transform: translateX(100%); 
-                width: 380px;
-                max-width: 95vw;
+                width: 350px !important;
+                max-width: 90vw;
                 height: 100vh;
-                z-index: 1000;
-                transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
-                box-shadow: -10px 0 30px rgba(0,0,0,0.5);
-                border-left: 1px solid var(--royal-gold);
+                z-index: 1100;
             }
-            .waiting-sidebar.active {
-                transform: translateX(0);
-            }
-            .waiting-toggle-btn {
-                display: flex;
-            }
-            /* Mobile header sizing */
-            header { padding: 10px 15px; }
-            .header-brand h1 { font-size: 1.2rem; }
-            .sync-btn { padding: 5px 10px; font-size: 0.8rem; }
-            .tables-area { padding: 20px; }
-            .tables-grid { grid-template-columns: 1fr; }
+            .service-sidebar { left: 0; transform: translateX(-100%); }
+            .waiting-sidebar { right: 0; transform: translateX(100%); }
+            .sidebar.active { transform: translateX(0); padding: 25px; }
+            .sidebar-overlay.active { display: block; opacity: 1; }
         }
 
         /* 로딩 애니메이션 및 커스텀 컨펌 모달 */
@@ -318,26 +343,44 @@
 </head>
 <body>
     <header>
-        <div class="header-brand">
-            <i data-lucide="layout-dashboard" color="#d4af37"></i>
-            <h1>수라골 통합 카운터 센터</h1>
-        </div>
+            <h1>{{ store.name }} - 통합 카운터 관제</h1>
             <div id="conn-status" style="font-size: 0.8rem; color: #2ecc71;" class="desktop-only">
                 <i data-lucide="wifi" size="16" style="vertical-align: middle;"></i> 실시간 연결됨
             </div>
-            <button onclick="toggleWaitingSidebar()" class="waiting-toggle-btn">
-                <i data-lucide="users" size="18"></i> 대기 현황
-                <span id="wait-badge-count" class="wait-badge">0</span>
-            </button>
-            <button onclick="forceReSync()" class="sync-btn" title="데이터 동기화">
-                <i data-lucide="refresh-cw" size="16"></i>
-            </button>
-            <button onclick="resetStats()" style="background:rgba(139,0,0,0.3); border:1px solid #8b0000; color:#ff4444; padding:5px 12px; border-radius:5px; cursor:pointer;" title="초기화">
-                <i data-lucide="trash-2" size="16"></i>
-            </button>
+            <div style="display: flex; gap: 12px; align-items: center;">
+                <button onclick="toggleServiceSidebar()" id="btn-toggle-service" class="waiting-toggle-btn btn-call">
+                    <i data-lucide="bell" size="18"></i> 호출
+                    <span id="call-badge-count" class="wait-badge" style="background: #3498db; display:none;">0</span>
+                </button>
+                <button onclick="toggleWaitingSidebar()" id="btn-toggle-waiting" class="waiting-toggle-btn">
+                    <i data-lucide="users" size="18"></i> 대기
+                    <span id="wait-badge-count" class="wait-badge" style="display:none;">0</span>
+                </button>
+                <div style="width: 1px; height: 24px; background: rgba(255,255,255,0.1); margin: 0 5px;"></div>
+                <button onclick="forceReSync()" class="sync-btn" title="동기화">
+                    <i data-lucide="refresh-cw" size="16"></i>
+                </button>
+            </div>
     </header>
 
     <div class="main-layout">
+        <!-- 좌측: 실시간 직원 호출(서비스 요청) -->
+        <div class="sidebar-overlay" id="service-overlay" onclick="toggleServiceSidebar()"></div>
+        <div class="sidebar service-sidebar" id="service-sidebar">
+            <div class="sidebar-title" style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <i data-lucide="bell-ring" style="color: #3498db;"></i> 호출 현황
+                </div>
+                <button onclick="toggleServiceSidebar()" style="background:none; border:none; color:#666; cursor:pointer;">
+                    <i data-lucide="x" size="20"></i>
+                </button>
+            </div>
+            
+            <div id="service-request-list" style="flex: 1; overflow-y: auto;">
+                <div style="text-align: center; color: #444; padding: 40px 0;">호출이 없습니다.</div>
+            </div>
+        </div>
+
         <!-- 메인: 테이블 현황 -->
         <div class="tables-area">
             <div class="tables-grid" id="tables-grid">
@@ -345,19 +388,26 @@
             </div>
         </div>
 
-        <!-- 사이드바: 대기 현황 -->
+        <!-- 우측: 대기 현황 -->
         <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleWaitingSidebar()"></div>
-        <div class="waiting-sidebar" id="waiting-sidebar">
-            <div class="sidebar-title" style="border-bottom: none; padding-bottom: 0;">
-                <button onclick="enterFirstWaiting()" class="enter-btn" style="background: var(--royal-gold); color: #000; font-size: 1.2rem; padding: 15px; border-radius: 8px; border: none; display: flex; align-items: center; justify-content: center; gap: 10px; flex: 1;">
-                    <i data-lucide="check-circle"></i> 다음 순서 입장
-                </button>
-                <button onclick="toggleWaitingSidebar()" class="mobile-only" style="background:none; border:none; color:var(--royal-gold); cursor:pointer; padding: 10px;">
-                    <i data-lucide="x"></i>
+        <div class="sidebar waiting-sidebar" id="waiting-sidebar">
+            <div class="sidebar-title" style="border-bottom: none; padding-bottom: 0; display: flex; justify-content: space-between; align-items: start; margin-bottom: 20px;">
+                <div style="flex: 1;">
+                    <button onclick="enterFirstWaiting()" class="enter-btn" style="background: var(--royal-gold); color: #000; font-size: 1.1rem; padding: 12px; border-radius: 8px; border: none; display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%;">
+                        <i data-lucide="check-circle"></i> 다음 입장
+                    </button>
+                </div>
+                <button onclick="toggleWaitingSidebar()" style="background:none; border:none; color:#666; cursor:pointer; margin-left: 15px; padding-top: 5px;">
+                    <i data-lucide="x" size="20"></i>
                 </button>
             </div>
-            <div id="waiting-list">
-                <div style="text-align: center; color: #444; padding: 40px 0;">대기 손님이 없습니다.</div>
+
+            <div style="padding: 10px 0; border-bottom: 1px solid var(--border-gold); font-size: 1.1rem; color: var(--royal-gold); font-weight: bold; display: flex; align-items: center; gap: 8px;">
+                <i data-lucide="users" size="18"></i> 대기 명단
+            </div>
+
+            <div id="waiting-list" style="margin-top: 15px; flex: 1; overflow-y: auto; min-height: 200px;">
+                <div style="text-align: center; color: #444; padding: 40px 0;">데이터를 불러오는 중...</div>
             </div>
         </div>
     </div>
@@ -365,14 +415,45 @@
     <!-- 알림음 -->
     <audio id="chime-new" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"></audio>
 
-    <!-- 커스텀 컨펌 모달 -->
-    <div id="confirm-modal" class="confirm-modal-overlay">
-        <div class="confirm-modal-inner">
-            <h4 id="confirm-title">입장 처리</h4>
-            <p id="confirm-message">이 손님을 입장 처리할까요?</p>
+    <!-- 결제 및 포인트 모달 -->
+    <div id="payment-modal" class="confirm-modal-overlay">
+        <div class="confirm-modal-inner" style="width: 380px;">
+            <h4 id="payment-title">결제 및 포인트 적립</h4>
+            <div style="text-align: left; margin-bottom: 20px; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 10px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                    <span>총 결제 금액:</span>
+                    <span id="payment-total-price" style="font-weight: bold; color: var(--royal-gold);">0원</span>
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; font-size: 0.8rem; color: #888; margin-bottom: 5px;">휴대폰 번호 (포인트 적립/사용)</label>
+                <input type="tel" id="cust-phone" placeholder="010-0000-0000" style="width: 100%; padding: 12px; background: #222; border: 1px solid #444; color: white; border-radius: 8px; text-align: center; font-size: 1.2rem;">
+            </div>
+
+            <div id="point-info-area" style="display: none; margin-bottom: 20px; background: rgba(212, 175, 55, 0.1); padding: 10px; border-radius: 8px; border: 1px solid var(--border-gold);">
+                <div style="display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 8px;">
+                    <span>고객 등급:</span>
+                    <span id="cust-level" style="font-weight: 900; color: var(--royal-gold);">일반 고객</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 8px;">
+                    <span>누적 방문:</span>
+                    <span id="cust-visits" style="font-weight: bold;">1회</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.9rem;">
+                    <span>보유 포인트:</span>
+                    <span id="cust-points" style="font-weight: bold;">0 P</span>
+                </div>
+                <div id="point-use-row" style="display: none; margin-top: 10px;">
+                    <button id="use-points-btn" class="cbtn cbtn-ok" style="width: 100%; background: var(--royal-gold); color: black;">10,000 P 감면 적용</button>
+                </div>
+            </div>
+
+            <p style="font-size: 0.75rem; color: #666; margin-bottom: 20px;">* 포인트는 최종 적립일로부터 1년 후 자동 소멸됩니다.</p>
+
             <div class="confirm-modal-btns">
-                <button class="cbtn cbtn-cancel" onclick="closeConfirmModal()">취소</button>
-                <button class="cbtn cbtn-ok" id="confirm-ok-btn">확인</button>
+                <button class="cbtn cbtn-cancel" onclick="closePaymentModal()">취소</button>
+                <button class="cbtn cbtn-ok" id="payment-final-btn" style="background: var(--royal-red);">결제 완료</button>
             </div>
         </div>
     </div>
@@ -387,6 +468,7 @@
         // 1. 소켓 통신 시스템
         socket.on('connect', () => {
             console.log("Counter System Connected");
+            socket.emit('join', { store_id: '{{ store.id }}' });
             forceReSync();
         });
 
@@ -399,8 +481,13 @@
             processOrder(order);
         });
 
+        socket.on('service_request', () => {
+            playAudio('new');
+            loadServiceRequests(true); // true: auto-open if needed
+        });
+
         socket.on('waiting_update', () => {
-            loadWaitingList();
+            loadWaitingList(true); // true: auto-open if needed
         });
 
         socket.on('table_status_update', (data) => {
@@ -421,59 +508,191 @@
             }
         });
 
-        // 2. 데이터 처리 엔진
-        async function forceReSync() {
-            try {
-                const res = await fetch('/api/orders');
-                const data = await res.json();
-                sessions = {};
-                data.forEach(order => processOrder(order, false));
-                render();
-                loadWaitingList();
-            } catch (err) { console.error("Sync Error:", err); }
-        }
+        socket.on('new_service_request', (req) => {
+            playAudio('new');
+            loadServiceRequests(true); // 자동 열림 인자 추가
+        });
 
-        async function loadWaitingList() {
+        socket.on('service_request_completed', () => {
+            loadServiceRequests();
+        });
+
+        // 2. 데이터 처리 엔진
+        async function loadServiceRequests(autoOpen = false) {
             try {
-                const res = await fetch('/api/waiting/list');
+                const res = await fetch(`/api/{{ store.id }}/service_requests`);
                 const list = await res.json();
                 
-                // 배지 무조건 먼저 업데이트
-                const badge = document.getElementById('wait-badge-count');
-                if (badge) badge.innerText = list.length;
-                
-                const container = document.getElementById('waiting-list');
+                const badge = document.getElementById('call-badge-count');
+                const btn = document.getElementById('btn-toggle-service');
+                const sidebar = document.getElementById('service-sidebar');
+
+                if (list.length > 0) {
+                    badge.innerText = list.length;
+                    badge.style.display = 'inline-block';
+                    btn.classList.add('has-content');
+                    // 호출이 새로 들어오면 사이드바가 닫혀있을 때 자동으로 엶
+                    if (autoOpen && !sidebar.classList.contains('active')) {
+                        toggleServiceSidebar();
+                    }
+                } else {
+                    badge.style.display = 'none';
+                    btn.classList.remove('has-content');
+                    // [기능 추가] 호출이 0명이면 자동으로 사이드바 닫기
+                    if (sidebar.classList.contains('active')) {
+                        sidebar.classList.remove('active');
+                        updateLayout();
+                    }
+                }
+
+                const container = document.getElementById('service-request-list');
+                if (!container) return;
+
                 if (list.length === 0) {
-                    container.innerHTML = '<div style="text-align: center; color: #444; padding: 40px 0;">대기 손님이 없습니다.</div>';
+                    container.innerHTML = '<div style="text-align: center; color: #444; padding: 40px 0;">호출이 없습니다.</div>';
                     return;
                 }
+                
+                container.innerHTML = list.map(req => `
+                    <div class="wait-card" style="border-left: 8px solid #3498db; padding: 20px; margin-bottom: 20px; background: #1a1a1a; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                            <span style="font-size: 1.4rem; font-weight: 900; color: #fff; letter-spacing: -0.5px;">
+                                ${req.table_name ? req.table_name : (req.table_id ? '테이블 ' + req.table_id : '테이블')}
+                            </span>
+                            <button class="cbtn cbtn-ok" style="padding: 8px 18px; font-size: 0.95rem; background: #3498db; border: none; font-weight: 800;" onclick="completeServiceRequest(${req.id})">처리완료</button>
+                        </div>
+                        <div style="margin-bottom: 15px;">
+                            <div style="font-size: 1.8rem; font-weight: 900; color: var(--royal-gold); line-height: 1.2;">
+                                ${req.content || '🔔 일반 호출'}
+                            </div>
+                        </div>
+                        <div style="font-size: 1.2rem; color: #ff6b6b; font-weight: 900; text-align: right; border-top: 1px solid #333; padding-top: 10px; margin-top: 10px;">
+                            <i data-lucide="clock" size="18" style="vertical-align: middle;"></i> 
+                            ${Math.max(0, Math.floor((new Date() - new Date(req.created_at + (req.created_at.endsWith('Z') ? '' : 'Z'))) / 60000))}분 경과
+                        </div>
+                    </div>
+                `).join('');
+                lucide.createIcons();
+            } catch (e) { console.error(e); }
+        }
+
+        async function completeServiceRequest(reqId) {
+            try {
+                await fetch(`/api/{{ store.id }}/service_request/${reqId}/complete`, { method: 'POST' });
+                loadServiceRequests();
+            } catch (e) { console.error(e); }
+        }
+
+        async function loadWaitingList(autoOpen = false) {
+            const container = document.getElementById('waiting-list');
+            if (!container) return;
+
+            try {
+                const res = await fetch('/api/{{ store.id }}/waiting/list');
+                if (!res.ok) throw new Error("API Error");
+                const list = await res.json();
+                
+                const sidebar = document.getElementById('waiting-sidebar');
+                if (list.length > 0) {
+                    badge.innerText = list.length;
+                    badge.style.display = 'inline-block';
+                    btn.classList.add('has-content');
+                    if (autoOpen && !sidebar.classList.contains('active')) {
+                        toggleWaitingSidebar();
+                    }
+                } else {
+                    badge.style.display = 'none';
+                    btn.classList.remove('has-content');
+                    // [기능 추가] 대기자가 0명이면 자동으로 사이드바 닫기
+                    if (sidebar.classList.contains('active')) {
+                        sidebar.classList.remove('active');
+                        updateLayout();
+                    }
+                }
+                
+                if (list.length === 0) {
+                    container.innerHTML = '<div style="text-align: center; color: #666; padding: 40px 0;">대기 손님이 없습니다.</div>';
+                    return;
+                }
+                
                 container.innerHTML = list.map(w => {
                     const createdDate = new Date(w.created_at + 'Z');
                     const diffMins = Math.max(0, Math.floor((new Date() - createdDate) / 60000));
                     
                     return `
-                    <div class="wait-card" style="padding: 15px;">
+                    <div class="wait-card" style="padding: 12px; border-left: 4px solid var(--royal-gold); margin-bottom: 10px;">
                         <div class="wait-no" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-                            <span>대기 ${w.waiting_no}번</span>
-                            <button class="enter-btn" style="width: auto; padding: 4px 14px; font-size: 0.85rem; border-radius: 4px;" id="btn-enter-${w.id}" onclick="executeEnter(${w.id})">입장</button>
+                            <span style="font-size: 1.1rem;">대기 ${w.waiting_no}번</span>
+                            <div style="display: flex; gap: 5px;">
+                                <button class="enter-btn" style="width: auto; padding: 3px 8px; font-size: 0.75rem;" onclick="executeNotify(${w.id})">호출</button>
+                                <button class="enter-btn" style="width: auto; padding: 3px 8px; font-size: 0.75rem; border-color: #e67e22; color: #e67e22;" onclick="executeCancel(${w.id})">취소</button>
+                                <button class="enter-btn" style="width: auto; padding: 3px 10px; font-size: 0.75rem; background: var(--royal-gold); color: black;" onclick="executeEnter(${w.id})">입장</button>
+                            </div>
                         </div>
-                        <div class="wait-info" style="margin-bottom: 0;">${w.phone} / ${w.people}명 / 경과 ${diffMins}분</div>
+                        <div class="wait-info" style="margin-bottom: 0; font-size: 0.85rem;">
+                            ${w.phone} / ${w.people}명 / <span style="color: var(--royal-gold);">${diffMins}분</span>
+                        </div>
                     </div>
                 `}).join('');
-                document.getElementById('wait-badge-count').innerText = list.length;
                 lucide.createIcons();
-            } catch (e) { console.error("Wait List Error:", e); }
+            } catch (e) { 
+                console.error("Wait List Error:", e);
+            }
         }
 
-        // 2-1. 모바일 UI 제어 로직
+        function updateLayout() {
+            if (window.innerWidth <= 1024) return; // 모바일은 별도 처리
+            const main = document.querySelector('.main-layout');
+            const leftActive = document.getElementById('service-sidebar').classList.contains('active');
+            const rightActive = document.getElementById('waiting-sidebar').classList.contains('active');
+
+            main.classList.remove('show-left', 'show-right', 'show-both');
+            if (leftActive && rightActive) main.classList.add('show-both');
+            else if (leftActive) main.classList.add('show-left');
+            else if (rightActive) main.classList.add('show-right');
+        }
+
+        async function forceReSync() {
+            try {
+                // 1. 호출/대기 목록 갱신
+                await Promise.all([loadServiceRequests(), loadWaitingList()]);
+                
+                // 2. 미결제 주문 내역(Active Sessions) 복원 로직 추가
+                const res = await fetch(`/api/{{ store.id }}/orders`);
+                const activeOrders = await res.json();
+                
+                // 로컬 세션 객체 초기화 후 재생성
+                sessions = {};
+                activeOrders.forEach(order => {
+                    processOrder(order, false); // false: Rerender 건너뛰고 누적만 함
+                });
+                
+                render();
+            } catch (e) { 
+                console.error("복구 오류:", e); 
+            }
+        }
+
+        function toggleServiceSidebar() {
+            const sidebar = document.getElementById('service-sidebar');
+            const overlay = document.getElementById('service-overlay');
+            sidebar.classList.toggle('active');
+            if (window.innerWidth <= 1024) {
+                overlay.classList.toggle('active');
+            } else {
+                updateLayout();
+            }
+        }
+
         function toggleWaitingSidebar() {
-            // 데스크톱(1024px 초과)일 때는 슬라이드 기능을 수행하지 않음
-            if (window.innerWidth > 1024) return;
-            
             const sidebar = document.getElementById('waiting-sidebar');
             const overlay = document.getElementById('sidebar-overlay');
             sidebar.classList.toggle('active');
-            overlay.classList.toggle('active');
+            if (window.innerWidth <= 1024) {
+                overlay.classList.toggle('active');
+            } else {
+                updateLayout();
+            }
         }
 
         function processOrder(order, shouldRender = true) {
@@ -576,17 +795,93 @@
                 btn.innerHTML = '<i data-lucide="loader-2" class="loading-spin"></i> 처리 중..';
                 lucide.createIcons();
             }
-            socket.emit('set_served', { session_id: sid, table_id: sessions[sid].table_id });
+            socket.emit('set_served', { store_id: '{{ store.id }}', session_id: sid, table_id: sessions[sid].table_id });
         }
 
         function executePay(sid) {
-            const btn = document.getElementById(`btn-pay-${sid}`);
-            if (btn) {
-                btn.disabled = true;
-                btn.innerHTML = '<i data-lucide="loader-2" class="loading-spin"></i> 처리 중..';
-                lucide.createIcons();
+            const session = sessions[sid];
+            if (!session) return;
+            
+            const modal = document.getElementById('payment-modal');
+            const phoneInput = document.getElementById('cust-phone');
+            const totalDisplay = document.getElementById('payment-total-price');
+            const pointArea = document.getElementById('point-info-area');
+            const useBtn = document.getElementById('use-points-btn');
+            
+            totalDisplay.innerText = session.total.toLocaleString() + '원';
+            
+            // Try to find if any order in this session had a phone number
+            const sessionOrders = Object.values(session.orders);
+            const savedPhone = sessionOrders.find(o => o.phone)?.phone || '';
+            phoneInput.value = savedPhone;
+            
+            pointArea.style.display = 'none';
+            modal.classList.add('active');
+            
+            // Trigger point lookup if phone exists
+            if (savedPhone) {
+                const event = new Event('input');
+                phoneInput.dispatchEvent(event);
             }
-            socket.emit('set_paid', { session_id: sid, table_id: sessions[sid].table_id });
+            
+            let usePoints = 0;
+            
+            phoneInput.oninput = async (e) => {
+                const val = e.target.value.replace(/[^0-9]/g, '');
+                if (val.length >= 10) {
+                    try {
+                        const res = await fetch(`/api/{{ store.id }}/customer`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ phone: val })
+                        });
+                        const cust = await res.json();
+                        if (cust.phone) {
+                            pointArea.style.display = 'block';
+                            document.getElementById('cust-visits').innerText = (cust.visit_count + 1) + '회차 방문';
+                            
+                            let level = '초보 단골';
+                            if (cust.visit_count >= 10) level = '💎 VVIP 고객';
+                            else if (cust.visit_count >= 5) level = '👑 우수 단골';
+                            else if (cust.visit_count >= 1) level = '⭐️ 단골';
+                            
+                            document.getElementById('cust-level').innerText = level;
+                            document.getElementById('cust-points').innerText = cust.points.toLocaleString() + ' P';
+                            if (cust.points >= 10000) {
+                                document.getElementById('point-use-row').style.display = 'block';
+                                useBtn.onclick = () => {
+                                    usePoints = 10000;
+                                    useBtn.innerText = '감면 적용됨 (-10,000원)';
+                                    useBtn.disabled = true;
+                                };
+                            } else {
+                                document.getElementById('point-use-row').style.display = 'none';
+                            }
+                        }
+                    } catch (err) { console.error(err); }
+                }
+            };
+
+            document.getElementById('payment-final-btn').onclick = () => {
+                const btn = document.getElementById(`btn-pay-${sid}`);
+                if (btn) {
+                    btn.disabled = true;
+                    btn.innerHTML = '<i data-lucide="loader-2" class="loading-spin"></i> 처리 중..';
+                    lucide.createIcons();
+                }
+                socket.emit('set_paid', { 
+                    store_id: '{{ store.id }}', 
+                    session_id: sid, 
+                    table_id: session.table_id,
+                    phone: phoneInput.value.replace(/[^0-9]/g, ''),
+                    use_points: usePoints
+                });
+                closePaymentModal();
+            };
+        }
+
+        function closePaymentModal() {
+            document.getElementById('payment-modal').classList.remove('active');
         }
 
         // 커스텀 모달 로직
@@ -607,6 +902,35 @@
             document.getElementById('confirm-modal').classList.remove('active');
         }
 
+        async function executeNotify(waitId) {
+            try {
+                const res = await fetch(`/api/{{ store.id }}/waiting/notify/${waitId}`, { method: 'POST' });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    alert('호출 메시지가 전송되었습니다.');
+                }
+            } catch (e) {
+                console.error(e);
+                alert('호출 중 오류가 발생했습니다.');
+            }
+        }
+
+        async function executeCancel(waitId) {
+            if (!confirm('해당 대기를 취소하시겠습니까?')) return;
+            try {
+                const res = await fetch(`/api/{{ store.id }}/waiting/cancel/${waitId}`, { method: 'POST' });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    loadWaitingList();
+                } else {
+                    alert('취소 실패: ' + data.message);
+                }
+            } catch (e) {
+                console.error(e);
+                alert('처리 중 오류가 발생했습니다.');
+            }
+        }
+
         async function executeEnter(waitId) {
             const btn = document.getElementById(`btn-enter-${waitId}`);
             let originalContent = '';
@@ -617,7 +941,7 @@
                 lucide.createIcons();
             }
             try {
-                const res = await fetch(`/api/waiting/enter/${waitId}`, { method: 'POST' });
+                const res = await fetch(`/api/{{ store.id }}/waiting/enter/${waitId}`, { method: 'POST' });
                 const data = await res.json();
                 
                 if (data.status === 'success') {
@@ -637,7 +961,7 @@
 
         async function enterFirstWaiting() {
             try {
-                const res = await fetch('/api/waiting/list');
+                const res = await fetch('/api/{{ store.id }}/waiting/list');
                 const list = await res.json();
                 if (list.length > 0) {
                     const firstWaitId = list[0].id;
@@ -673,10 +997,12 @@
 
         window.onload = () => {
             forceReSync();
+            // 30초마다 화면의 모든 경과 시간(분) 및 상태를 자동 갱신
             setInterval(() => {
                 loadWaitingList();
-                render(); // 주문 경과 시간 갱신을 위해 테이블 카드도 주기적으로 리렌더링
-            }, 60000); 
+                loadServiceRequests();
+                render(); 
+            }, 30000); 
         };
     </script>
 </body>

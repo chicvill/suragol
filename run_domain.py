@@ -1,6 +1,12 @@
-import subprocess
-import sys
 import os
+import sys
+
+# [강제 경로 보정] 가상환경(venv) 내부 부품을 최우선으로 찾도록 설정
+_venv_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".venv", "Lib", "site-packages")
+if os.path.exists(_venv_path) and _venv_path not in sys.path:
+    sys.path.insert(0, _venv_path)
+
+import subprocess
 import time
 from dotenv import load_dotenv
 
@@ -8,9 +14,11 @@ from dotenv import load_dotenv
 load_dotenv()
 
 def run_command(cmd):
-    pip_path = os.path.join(".venv", "Scripts", "pip")
-    if os.path.exists(pip_path):
-        cmd = cmd.replace("pip", pip_path)
+    pip_path = os.path.join(".venv", "Scripts", "pip.exe")
+    site_packages = os.path.join(".venv", "Lib", "site-packages")
+    if os.path.exists(pip_path) and "install" in cmd:
+        # 가상환경의 site-packages를 명시적으로 타겟으로 지정
+        cmd = cmd.replace("pip", f'"{pip_path}"') + f' --target="{site_packages}"'
     return subprocess.run(cmd, shell=True)
 
 def main():
@@ -25,10 +33,26 @@ def main():
     try:
         import requests
         import dotenv
-    except ImportError:
-        print("\n[1/3] 필수 부품이 부족하여 설치 중입니다 (약 10초 소요)...")
-        run_command("pip install requests python-dotenv")
-        print(" > 설치 완료! 프로그램을 다시 시작해 주세요.")
+        import flask_apscheduler
+        try:
+            import psycopg2
+        except ImportError:
+            import pg8000
+    except ImportError as e:
+        print(f"\n⚠️ [오류 상세] 다음 부품이 아직 준비되지 않았습니다: {e}")
+        print("\n[1/3] 필수 부품(Library)이 부족하여 설치 중입니다 (약 20초 소요)...")
+        print(" > 가상환경 시스템 강제 복구를 시도합니다...")
+        
+        # 1. 엉킨 핵심 패키지들을 가상환경 정중앙에 강제 재설치
+        run_command("pip install --upgrade --force-reinstall requests python-dotenv Flask-SocketIO Flask-APScheduler eventlet flask-sqlalchemy")
+        
+        # 2. 호환성 높은 pg8000 설치
+        try:
+            print(" > 데이터베이스 엔진(pg8000)을 설치하는 중...")
+            run_command("pip install pg8000")
+        except: pass
+        
+        print("\n ✅ 조치가 끝났습니다! 프로그램을 다시 시작해 보세요.")
         input("\n 엔터를 누르면 종료됩니다...")
         return
 
@@ -36,9 +60,13 @@ def main():
     env_token = os.getenv("CLOUDFLARE_TUNNEL_TOKEN")
     
     if env_token:
+        # handle 'cloudflared.exe service install <TOKEN>' safely
+        if "service install" in env_token:
+            token = env_token.split("service install")[-1].strip().strip('"').strip("'")
+        else:
+            token = env_token.strip()
         print(f"\n✅ .env 파일에서 토큰을 발견했습니다.")
-        print(f" > 토큰: {env_token[:10]}...{env_token[-10:]}")
-        token = env_token
+        print(f" > 토큰: {token[:10]}...{token[-10:]}")
     else:
         print("\n" + "#"*70)
         print(" 💡 [단계 1] Cloudflare Tunnel Token을 입력해 주세요.")
@@ -70,18 +98,19 @@ def main():
             print("\n🛑 사용자에 의해 종료되었습니다.")
             return
 
-    # 3. 서버 실행 (로그를 파일로 분리하여 화면을 깨끗하게 유지)
-    print("\n[2/3] 내부 서버를 가동 중입니다...")
-    import subprocess
-    log_file = open("server.log", "w", encoding='utf-8')
-    server_proc = subprocess.Popen(
-        [sys.executable, "app.py"], 
-        stdout=log_file, 
-        stderr=log_file,
-        text=True
-    )
-    time.sleep(3)
-    print(" > 서버 가동 완료 (로그는 server.log에서 확인 가능)")
+    # 3. 서버 실행 (터미널에 직접 로그 출력하여 에러 확인)
+    print("\n[2/3] 내부 서버를 가동 중입니다 (실시간 에러 확인 모드)...")
+    try:
+        # 로그 파일 대신 터미널로 직접 출력
+        server_proc = subprocess.Popen(
+            [sys.executable, "app.py"], 
+            text=True
+        )
+        time.sleep(10) # 서버 가동 확인 대기 시간 충분히 확보
+        print(" > 서버 가동 시도 중...")
+    except Exception as e:
+        print(f"❌ 서버 가동 실패: {e}")
+        return
 
     # 4. 보안 터널 가동
     print("\n[3/3] 보안 연결을 수립합니다. 잠시만 기다려 주세요...")
@@ -94,7 +123,7 @@ def main():
     else:
         print(f"\n✨ 임시 보안 주소를 생성합니다. (Handshake 중...)")
         # 토큰 없을 땐 'tunnel --url' 보다 '--url'만 쓰는 게 더 잘 될 때가 있습니다.
-        cmd = [cf_path, "tunnel", "--url", "http://127.0.0.1:8888"]
+        cmd = [cf_path, "tunnel", "--url", "http://127.0.0.1:10000"]
 
     print(f"\n[실행 명령어]: {' '.join(cmd)}")
     print("-" * 70)
@@ -113,7 +142,6 @@ def main():
         print("\n\n🛑 보안 연결을 종료합니다.")
     finally:
         server_proc.terminate()
-        log_file.close()
         print("✅ 모든 시스템이 안전하게 종료되었습니다.")
 
 if __name__ == "__main__":

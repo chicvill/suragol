@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ store.name }} - 비주얼 메뉴 빌더</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+        :root {
+            --primary: #3b82f6; --accent: #10b981; --danger: #ef4444;
+            --bg: #0f172a; --sidebar: #1e293b; --card: #1e293b; --border: #334155;
+            --input-bg: #0f172a; --text: #f1f5f9;
+        }
+        body { background: var(--bg); color: var(--text); font-family: 'Pretendard', sans-serif; min-height: 100vh; margin: 0; padding-bottom: 5rem; }
+        .main-content { max-width: 1100px; margin: 0 auto; padding: 2rem; }
+        
+        /* Glass Header */
+        .header-section { 
+            position: sticky; top: 0; z-index: 100;
+            background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(12px);
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 1.5rem 0; border-bottom: 1px solid var(--border); margin-bottom: 2.5rem;
+        }
+        .header-title h1 { margin: 0; font-size: 1.75rem; font-weight: 800; }
+        
+        /* Content Cards */
+        .card { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 2rem; margin-bottom: 2rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+        .card h3 { margin-top: 0; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 10px; font-size: 1.1rem; color: #94a3b8; }
+        
+        /* Form Styling */
+        .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; }
+        .form-group label { display: block; margin-bottom: 8px; font-size: 0.85rem; color: #94a3b8; font-weight: 600; }
+        input, select { 
+            background: var(--input-bg); border: 1px solid var(--border); color: white; padding: 12px 16px; border-radius: 12px;
+            width: 100%; box-sizing: border-box; transition: all 0.2s; font-size: 0.95rem;
+        }
+        input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1); }
+
+        .category-item { background: rgba(255,255,255,0.03); border-radius: 16px; padding: 1.5rem; margin-bottom: 2.5rem; border: 1px solid var(--border); }
+        .category-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+        .cat-title-input { background: transparent; border: none; border-bottom: 2px solid var(--border); font-size: 1.3rem; font-weight: 800; color: var(--primary); width: auto; padding: 5px 0; border-radius: 0; }
+        
+        .menu-row { display: grid; grid-template-columns: 1.5fr 1fr 2fr 100px 50px; gap: 12px; align-items: center; background: var(--input-bg); padding: 12px; border-radius: 14px; margin-bottom: 10px; border: 1px solid transparent; transition: 0.2s; }
+        .menu-row:hover { border-color: #475569; transform: translateY(-2px); }
+
+        .btn { border: none; padding: 10px 18px; border-radius: 10px; cursor: pointer; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s; font-family: inherit; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { opacity: 0.9; transform: scale(1.02); }
+        .btn-secondary { background: #334155; color: #f1f5f9; }
+        .btn-outline { background: transparent; border: 1px dashed var(--border); color: #94a3b8; width: 100%; margin-top: 10px; padding: 12px; }
+        .btn-outline:hover { border-color: var(--primary); color: var(--primary); background: rgba(59,130,246,0.05); }
+        .btn-save { padding: 14px 30px; font-size: 1rem; border-radius: 14px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        
+        .btn-danger { color: #f87171; background: transparent; width: 40px; height: 40px; padding: 0; border-radius: 10px; }
+        .btn-danger:hover { background: rgba(239, 68, 68, 0.1); color: var(--danger); }
+        .btn-upload { font-size: 0.8rem; height: 38px; }
+
+        .back-link { color: #94a3b8; text-decoration: none; display: flex; align-items: center; gap: 6px; font-size: 0.9rem; margin-bottom: 10px; transition: 0.2s; }
+        .back-link:hover { color: white; }
+    </style>
+</head>
+<body>
+    <div class="main-content">
+        <div class="header-section">
+            <div class="header-title">
+                <a href="/admin/stores" class="back-link"><i data-lucide="chevron-left" size="18"></i> 업소 목록으로</a>
+                <h1>{{ store.name }} <span style="color:#64748b; font-weight:400; font-size:1rem;">| 상세 설정 및 메뉴 관리</span></h1>
+            </div>
+            <button type="button" onclick="saveAll()" class="btn btn-primary btn-save"><i data-lucide="save" size="20"></i> 설정 변경 저장</button>
+        </div>
+
+        <form id="configForm" method="POST">
+            <!-- 1. 기본 정보 카드 -->
+            <div class="card">
+                <h3><i data-lucide="info" size="18"></i> 기본 정보 및 영업 담당자</h3>
+                <div class="info-grid">
+                    <div class="form-group"><label>업소 정식 명칭</label><input type="text" name="name" value="{{ store.name }}"></div>
+                    <div class="form-group"><label>사업자 등록 번호</label><input type="text" name="business_no" value="{{ store.business_no or '' }}" placeholder="000-00-00000"></div>
+                    <div class="form-group"><label>대표자 성함</label><input type="text" name="ceo_name" value="{{ store.ceo_name or '' }}"></div>
+                    <div class="form-group"><label>정산 알림 이메일</label><input type="email" name="business_email" value="{{ store.business_email or '' }}" placeholder="receipt@company.com"></div>
+                    
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label>담당 관리 직원 (영업 실적 분석용)</label>
+                        {% if session['role'] == 'admin' %}
+                        <select name="recommended_by">
+                            <option value="">담당 지정 없음</option>
+                            {% for staff in staffs %}
+                            <option value="{{ staff.id }}" {% if store.recommended_by == staff.id %}selected{% endif %}>{{ staff.username }} (ID: {{ staff.id }})</option>
+                            {% endfor %}
+                        </select>
+                        {% else %}
+                        <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 12px; color: #94a3b8; font-weight: 700;">
+                            {{ store.manager.username if store.manager else '미지정' }} (수정 권한 없음)
+                        </div>
+                        <input type="hidden" name="recommended_by" value="{{ store.recommended_by or '' }}">
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group">
+                        <label>월 사용료 (구독료 설정)</label>
+                        {% if session['role'] in ['admin', 'staff'] %}
+                        <input type="number" name="monthly_fee" value="{{ store.monthly_fee or 50000 }}" placeholder="50000">
+                        <p style="font-size:0.75rem; color:var(--primary); margin-top:5px;">* 파트너/관리자 수정 권한 부여됨</p>
+                        {% else %}
+                        <div class="info-value">
+                            {{ "{:,.0f}".format(store.monthly_fee or 50000) }}원 <span style="font-size:0.8rem; color:#94a3b8;">(수정 권한 없음)</span>
+                        </div>
+                        <input type="hidden" name="monthly_fee" value="{{ store.monthly_fee or 50000 }}">
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. 메뉴 빌더 카드 -->
+            <div class="card">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2rem;">
+                    <h3 style="margin:0;"><i data-lucide="layers" size="18"></i> 메뉴 구성 가이드</h3>
+                    <div style="display:flex; gap:10px;">
+                        <button type="button" onclick="importJSON()" class="btn btn-secondary" style="background:rgba(59, 130, 246, 0.1); color:var(--primary);"><i data-lucide="code-2" size="18"></i> JSON 데이터 가져오기</button>
+                        <button type="button" onclick="addCategory()" class="btn btn-secondary"><i data-lucide="plus-circle" size="18"></i> 새 카테고리 추가</button>
+                    </div>
+                </div>
+                <div id="categoryContainer"></div>
+                <input type="hidden" name="menu_data" id="final_menu_data">
+                <!-- 자바스크립트 데이터를 위한 안전한 소스 -->
+                <input type="hidden" id="menu_data_raw" value='{{ store.menu_data | tojson | safe if store.menu_data else "{}" }}'>
+            </div>
+        </form>
+        <input type="file" id="imageUploadInput" style="display:none" onchange="handleFileUpload(this)">
+    </div>
+
+    <script>
+        // 서버에서 전달된 데이터를 안전하게 파싱합니다.
+        let menuData = {};
+        try {
+            menuData = JSON.parse(document.getElementById('menu_data_raw').value);
+        } catch(e) {
+            console.error("데이터 파싱 오류:", e);
+        }
+        if (!menuData || typeof menuData !== 'object' || Object.keys(menuData).length === 0) {
+            menuData = { "신규 카테고리": [] };
+        }
+        let currentItem = { cat: null, idx: null };
+
+        function renderBuilder() {
+            const container = document.getElementById('categoryContainer');
+            container.innerHTML = '';
+            Object.keys(menuData).forEach(cat => {
+                const box = document.createElement('div');
+                box.className = 'category-item';
+                let rows = menuData[cat].map((it, idx) => `
+                    <div class="menu-row">
+                        <input type="text" value="${it.name}" placeholder="메뉴 이름" onchange="menuData['${cat}'][${idx}].name=this.value">
+                        <input type="number" value="${it.price}" placeholder="가격(원)" onchange="menuData['${cat}'][${idx}].price=parseInt(this.value)">
+                        <input type="text" id="img-${cat}-${idx}" value="${it.image || ''}" placeholder="이미지 경로" onchange="menuData['${cat}'][${idx}].image=this.value">
+                        <button type="button" class="btn btn-secondary btn-upload" onclick="openUpload('${cat}', ${idx})"><i data-lucide="camera" size="14"></i> 사진 업로드</button>
+                        <button type="button" class="btn btn-danger" onclick="removeItem('${cat}', ${idx})"><i data-lucide="trash-2" size="18"></i></button>
+                    </div>`).join('');
+                box.innerHTML = `
+                    <div class="category-header">
+                        <input type="text" class="cat-title-input" value="${cat}" onchange="renameCat('${cat}', this.value)">
+                        <button type="button" class="btn btn-danger" style="background:#ef444422" onclick="removeCat('${cat}')"><i data-lucide="x" size="20"></i></button>
+                    </div>
+                    <div class="rows-list">${rows}</div>
+                    <button type="button" class="btn btn-outline" onclick="menuData['${cat}'].push({name:'', price:0, image:''}); renderBuilder();">+ ${cat} 메뉴 추가</button>`;
+                container.appendChild(box);
+            });
+            lucide.createIcons();
+        }
+        function renameCat(old, n) { if(!n || menuData[n]) return renderBuilder(); menuData[n]=menuData[old]; delete menuData[old]; renderBuilder(); }
+        function addCategory() { const n=prompt('카테고리명:'); if(n && !menuData[n]) { menuData[n]=[]; renderBuilder(); } }
+        
+        // [신규] JSON 데이터 직접 입력 시스템
+        function importJSON() {
+            const raw = prompt("복사한 JSON 데이터를 여기에 붙여넣어 주세요:");
+            if (!raw) return;
+            try {
+                const parsed = JSON.parse(raw);
+                if (typeof parsed === 'object') {
+                    menuData = parsed;
+                    renderBuilder();
+                    alert("✅ 메뉴 데이터가 성공적으로 분석되어 매칭되었습니다!");
+                }
+            } catch(e) {
+                alert("❌ JSON 형식이 올바르지 않습니다. 코드를 정확히 복사해 주세요.");
+            }
+        }
+
+        function removeCat(c) { if(confirm('카테고리를 삭제할까요?')) { delete menuData[c]; renderBuilder(); } }
+        function removeItem(c, i) { menuData[c].splice(i, 1); renderBuilder(); }
+        async function handleFileUpload(input) {
+            if (!input.files[0]) return;
+            await uploadFile(input.files[0]);
+        }
+
+        async function uploadFile(file) {
+            const fd = new FormData();
+            fd.append('file', file);
+            try {
+                const r = await fetch('/api/admin/upload', { method: 'POST', body: fd });
+                const d = await r.json();
+                if (d.status === 'success') {
+                    const {cat, idx} = currentItem;
+                    menuData[cat][idx].image = d.url;
+                    document.getElementById(`img-${cat}-${idx}`).value = d.url;
+                    alert('사진 업로드 완료!');
+                }
+            } catch(e) { alert('업로드 실패'); }
+        }
+
+        // [신규] 클립보드 붙여넣기 감지 시스템
+        window.addEventListener('paste', async (e) => {
+            const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+            for (const item of items) {
+                if (item.type.indexOf('image') !== -1) {
+                    const blob = item.getAsFile();
+                    
+                    // 현재 포커스된 입력창 찾기
+                    const focused = document.activeElement;
+                    if (focused && focused.id && focused.id.startsWith('img-')) {
+                        const parts = focused.id.split('-');
+                        currentItem = { cat: parts[1], idx: parseInt(parts[2]) };
+                        await uploadFile(blob);
+                    }
+                }
+            }
+        });
+
+        function saveAll() {
+            document.getElementById('final_menu_data').value = JSON.stringify(menuData);
+            document.getElementById('configForm').submit();
+        }
+        renderBuilder();
+    </script>
+</body>
+</html>

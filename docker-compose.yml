@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  # 1. 8888 포트 기반 SaaS 통합 웹 서버
+  app:
+    build: .
+    container_name: mqr_saas_app
+    restart: always
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-sqlite:///suragol.db}
+      - SECRET_KEY=${SECRET_KEY:-mqr-central-secret}
+      - PORT=8888
+    volumes:
+      - ./suragol.db:/app/suragol.db
+      - ./static/images:/app/static/images
+    ports:
+      - "8888:8888"
+
+  # 2. Cloudflare Tunnel (도메인 자동 연결)
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: mqr_cloudflare_tunnel
+    restart: always
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      - app
+
+# .env 파일에 CLOUDFLARE_TUNNEL_TOKEN이 있어야 합니다.

@@ -3,222 +3,247 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>수라골 참숯갈비 통합 관리</title>
-    <!-- 보안 연결(HTTPS)에서 디자인 파일 차단을 방지하는 설정 -->
-    <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ range(1, 9999) | random }}">
-    <!-- Lucide Icons CDN -->
+    <title>MQnet Central | 통합 관리 포털</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
         :root {
-            --primary-color: #8B0000;
-            --secondary-color: #D4AF37;
-            --bg-dark: #0F0F0F;
-            --bg-gradient: linear-gradient(145deg, #1a0505 0%, #0f0f0f 100%);
-            --glass-bg: rgba(255, 255, 255, 0.07);
-            --glass-border: rgba(212, 175, 55, 0.2);
-            --text-white: #f5f5f5;
-            --text-muted: #a0a0a0;
-            --radius-lg: 24px;
+            --primary: #3b82f6; --accent: #10b981; --warning: #f59e0b; --danger: #ef4444;
+            --bg: #0b1121; --card: #161c2d; --border: rgba(255,255,255,0.08); --text: #f1f5f9;
         }
-        body {
-            background: #0F0F0F; /* 기본 배경색 명시 */
-            background: var(--bg-gradient);
-            color: var(--text-white);
-            padding-bottom: 60px;
-            margin: 0;
-            font-family: 'Pretendard', -apple-system, system-ui, sans-serif;
+        body { background: var(--bg); color: var(--text); font-family: 'Pretendard', sans-serif; margin: 0; min-height: 100vh; }
+        .portal-container { max-width: 1200px; margin: 0 auto; padding: 30px 20px; }
+        
+        .top-nav { 
+            display: flex; justify-content: space-between; align-items: center; 
+            margin-bottom: 30px; padding: 20px 30px; 
+            background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(15px);
+            border-radius: 20px; border: 1px solid var(--border);
         }
-        .dashboard-container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 60px 20px;
+        .user-summary { display: flex; align-items: center; gap: 12px; }
+        .role-badge { 
+            background: linear-gradient(135deg, var(--primary), #1e40af); 
+            color: white; padding: 4px 12px; border-radius: 50px; 
+            font-size: 0.65rem; font-weight: 900; text-transform: uppercase;
         }
-        .hero-section {
-            text-align: center;
-            margin-bottom: 60px;
-            animation: fadeIn 1s ease-out;
+        
+        .dashboard-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(480px, 1fr)); 
+            gap: 25px; margin-top: 20px; 
         }
-        .hero-section h1 {
-            font-size: clamp(2.5rem, 8vw, 4.5rem);
-            color: var(--secondary-color);
-            margin-bottom: 10px;
-            letter-spacing: -2px;
-            font-weight: 900;
-            text-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        .menu-card { 
+            background: var(--card); border: 1px solid var(--border); 
+            padding: 35px; border-radius: 28px; text-decoration: none; 
+            color: white; transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex; flex-direction: column; align-items: flex-start;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
         }
-        .hero-subtitle {
-            font-size: clamp(0.9rem, 2vw, 1.2rem);
-            letter-spacing: 4px;
-            color: var(--text-muted);
-            opacity: 0.8;
-            text-transform: uppercase;
+        @media (max-width: 1024px) {
+            .dashboard-grid { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
         }
-        .section-title {
-            font-size: 1.4rem;
-            margin-bottom: 35px;
-            color: var(--secondary-color);
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            font-weight: 800;
+        @media (max-width: 640px) {
+            .dashboard-grid { grid-template-columns: 1fr; }
+            .menu-card { padding: 25px; }
         }
-        .section-title::after {
-            content: "";
-            flex: 1;
-            height: 1px;
-            background: linear-gradient(90deg, rgba(212, 175, 55, 0.3), transparent);
+        .menu-card:hover { transform: translateY(-5px); border-color: var(--primary); background: rgba(59, 130, 246, 0.05); }
+        /* 비활성화 메뉴 카드 */
+        .menu-card.disabled {
+            opacity: 0.35; cursor: not-allowed; pointer-events: none;
+            filter: grayscale(80%);
         }
-        /* 카드 배치를 위한 Grid 레이아웃 */
-        .flex-center-layout {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 25px;
-            margin-bottom: 70px;
+        .menu-card.disabled:hover { transform: none; border-color: var(--border); background: var(--card); }
+        .disabled-badge {
+            display: inline-block; font-size: 0.65rem; background: rgba(239,68,68,0.15);
+            color: #ef4444; border: 1px solid rgba(239,68,68,0.3);
+            padding: 2px 7px; border-radius: 4px; font-weight: 700; margin-left: 6px;
         }
-        @media (min-width: 1200px) {
-            .flex-center-layout {
-                grid-template-columns: repeat(3, 1fr);
-            }
+        .menu-icon { 
+            width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; 
+            border-radius: 15px; background: rgba(255,255,255,0.03); color: var(--primary); margin-bottom: 20px;
         }
-        .card {
-            background: var(--glass-bg);
-            border: 1px solid var(--glass-border);
-            border-radius: var(--radius-lg);
-            padding: 40px 25px;
-            text-align: center;
-            transition: all 0.5s cubic-bezier(0.19, 1, 0.22, 1);
-            text-decoration: none;
-            color: white;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            backdrop-filter: blur(15px);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-            height: 100%;
+        .menu-card h3 { margin: 0 0 8px 0; font-size: 1.2rem; font-weight: 800; }
+        .menu-card p { margin: 0; color: #94a3b8; font-size: 0.85rem; line-height: 1.6; }
+
+        .admin-table { width: 100%; border-collapse: separate; border-spacing: 0 10px; margin-top: 10px; }
+        .admin-table tr { background: var(--card); border-radius: 15px; overflow: hidden; }
+        .admin-table td { padding: 15px 20px; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+        .admin-table td:first-child { border-left: 1px solid var(--border); border-radius: 15px 0 0 15px; }
+        .admin-table td:last-child { border-right: 1px solid var(--border); border-radius: 0 15px 15px 0; }
+        
+        .btn-quick { 
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 38px; height: 38px; border-radius: 10px; background: rgba(255,255,255,0.03);
+            color: #94a3b8; border: 1px solid var(--border); text-decoration: none; transition: 0.2s;
+            position: relative;
         }
-        .card:hover {
-            transform: translateY(-20px) scale(1.03);
-            border-color: var(--secondary-color);
-            background: rgba(255, 255, 255, 0.08);
-            box-shadow: 0 30px 60px rgba(0,0,0,0.6), 0 0 30px rgba(212, 175, 55, 0.2);
+        .btn-quick:hover { background: var(--primary); color: white; border-color: var(--primary); transform: scale(1.1); }
+        .btn-quick .tooltip { 
+            position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+            background: #000; color: #fff; padding: 4px 8px; border-radius: 4px;
+            font-size: 0.65rem; opacity: 0; pointer-events: none; transition: 0.2s;
+            white-space: nowrap; margin-bottom: 8px;
         }
-        .card-icon {
-            margin-bottom: 25px;
-            color: var(--secondary-color);
-            background: rgba(139, 0, 0, 0.2);
-            width: 80px;
-            height: 80px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 24px;
-            border: 1px solid rgba(212, 175, 55, 0.15);
-            transition: 0.4s;
+        .btn-quick:hover .tooltip { opacity: 1; }
+
+        .section-header { 
+            font-size: 0.85rem; font-weight: 900; letter-spacing: 1.5px; color: #4b5563; 
+            margin-top: 45px; margin-bottom: 15px; text-transform: uppercase; 
+            display: flex; align-items: center; gap: 10px;
         }
-        .card:hover .card-icon {
-            background: var(--primary-color);
-            color: var(--accent-color);
-            transform: rotate(10deg);
-            box-shadow: 0 15px 30px rgba(139, 0, 0, 0.5);
+        .section-header::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+        .big-action-btn {
+            background: linear-gradient(135deg, var(--primary), #1e40af);
+            color: white; padding: 40px; border-radius: 30px; text-align: center;
+            text-decoration: none; display: block; filter: drop-shadow(0 10px 20px rgba(59, 130, 246, 0.4));
+            transition: 0.3s;
         }
-        .card h2 {
-            font-size: 1.6rem;
-            margin-bottom: 12px;
-            color: var(--text-white);
-            font-weight: 900;
-        }
-        .card p {
-            font-size: 0.95rem;
-            color: var(--text-muted);
-            line-height: 1.6;
-            font-weight: 400;
-        }
-        .brand-badge {
-            background: var(--secondary-color);
-            color: var(--bg-dark);
-            padding: 6px 20px;
-            border-radius: 50px;
-            font-weight: 900;
-            font-size: 0.9rem;
-            margin-bottom: 25px;
-            display: inline-block;
-            box-shadow: 0 10px 20px rgba(212, 175, 55, 0.3);
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(30px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        @media (max-width: 768px) {
-            .hero-section h1 { font-size: 3rem; }
-            .card { width: 100%; }
-        }
+        .big-action-btn:hover { transform: scale(1.02) translateY(-5px); }
     </style>
 </head>
 <body>
-    <div class="dashboard-container">
-        <div class="hero-section">
-            <span class="brand-badge">PREMIUM MANAGEMENT HUB</span>
-            <h1>수라골 참숯갈비</h1>
-            <div class="hero-subtitle">Integrate & Manage Everything</div>
-        </div>
+    <div class="portal-container">
+        {% if not logged_in %}
+            <!-- [로그인 전 화면] -->
+            <div style="text-align: center; padding: 100px 0;">
+                <h1 style="font-size: 3.5rem; font-weight: 900; margin-bottom: 10px;">MQNET <span style="color:var(--primary);">Central</span></h1>
+                <p style="color:#64748b; margin-bottom: 50px; font-size: 1.1rem;">지능형 매장 자동화 & 통합 관제 솔루션</p>
+                <div style="max-width: 420px; margin: 0 auto; background: var(--card); padding: 40px; border-radius: 30px; border: 1px solid var(--border); box-shadow: 0 30px 60px rgba(0,0,0,0.4);">
+                    <form action="/login" method="POST">
+                        <input type="text" name="username" placeholder="아이디" required style="width:100%; padding:18px; margin-bottom:15px; border-radius:15px; background:#0b1121; border:1px solid var(--border); color:#fff; box-sizing:border-box;">
+                        <input type="password" name="password" placeholder="비밀번호" required style="width:100%; padding:18px; margin-bottom:25px; border-radius:15px; background:#0b1121; border:1px solid var(--border); color:#fff; box-sizing:border-box;">
+                        <button type="submit" style="width:100%; padding:20px; border-radius:15px; background:var(--primary); color:white; border:none; font-weight:900; cursor:pointer; font-size: 1.1rem;">관제 포털 입장</button>
+                    </form>
+                    <div style="margin-top:25px; font-size:0.9rem; color:#64748b;">
+                        비즈니스 파트너 <a href="/signup" style="color:var(--primary); text-decoration:none; font-weight: 800;">합류 신청 →</a>
+                    </div>
+                </div>
+            </div>
+        {% else %}
+            <!-- [로그인 후 화면] -->
+            <div class="top-nav">
+                <div class="user-summary">
+                    <span class="role-badge">{{ role.upper() }}</span>
+                    <span style="font-weight: 800; font-size: 1.15rem;">{{ user.full_name or user.username }}님</span>
+                    <span style="font-size: 0.65rem; color: #475569; opacity: 0.6; padding: 4px 8px; background: rgba(0,0,0,0.2); border-radius: 6px;">
+                        ID: {{ user.id }} | STORE: {{ user.store_id or 'NONE' }}
+                    </span>
+                </div>
+                <a href="/logout" style="color:var(--danger); text-decoration:none; font-size:0.9rem; font-weight:800; display: flex; align-items: center; gap: 8px;">
+                    로그아웃 <i data-lucide="log-out" size="16"></i>
+                </a>
+            </div>
 
-        <div class="section-title">
-            <span>손님 접객 및 서비스 (Service Hub)</span>
-        </div>
-        <div class="flex-center-layout">
-            <a href="/customer/1" class="card">
-                <div class="card-icon"><i data-lucide="smartphone" size="48"></i></div>
-                <h2>메뉴판 보기</h2>
-                <p>손님들이 보시는 주문창입니다.<br>테이블 1번 기준으로 미리보기 가능.</p>
-            </a>
-            <a href="/waiting" class="card">
-                <div class="card-icon"><i data-lucide="bell" size="48"></i></div>
-                <h2>대기 등록</h2>
-                <p>입구 태블릿 전용 화면입니다.<br>손님이 직접 대기표를 받습니다.</p>
-            </a>
-            <a href="/qr-print" class="card">
-                <div class="card-icon"><i data-lucide="printer" size="48"></i></div>
-                <h2>QR 코드 인쇄</h2>
-                <p>테이블 주문용 QR을 생성합니다.<br>대기 안내 QR도 출력이 가능합니다.</p>
-            </a>
-        </div>
+            {% if role == 'worker' %}
+                <!-- [1. 현장 근로자 전용] -->
+                <div style="padding: 40px 0;">
+                    <a href="/{{ user.store_id }}/attendance" class="big-action-btn">
+                        <i data-lucide="alarm-clock" size="64" style="margin-bottom: 25px;"></i>
+                        <h2 style="margin:0; font-size: 2.3rem; font-weight: 900;">출퇴근 기록하기</h2>
+                        <p style="margin: 12px 0 0 0; opacity: 0.9; font-size: 1.1rem;">근무 시작과 종료를 QR로 간편하게 기록하세요.</p>
+                    </a>
+                </div>
 
-        <div class="section-title">
-            <span>매장 운영 및 분석 (Operations Hub)</span>
-        </div>
-        <div class="flex-center-layout">
-            <a href="/kitchen" class="card">
-                <div class="card-icon"><i data-lucide="chef-hat" size="48"></i></div>
-                <h2>주방 오더</h2>
-                <p>주방 조리용 태블릿 전용입니다.<br>실시간 주문 접수 및 완료 처리.</p>
-            </a>
-            <a href="/display" class="card">
-                <div class="card-icon"><i data-lucide="megaphone" size="48"></i></div>
-                <h2>조리완료 알림</h2>
-                <p>배식구 탭/모니터 전용입니다.<br>완료 번호를 크게 보여줍니다.</p>
-            </a>
-            <a href="/counter" class="card">
-                <div class="card-icon"><i data-lucide="wallet" size="48"></i></div>
-                <h2>카운터 결제</h2>
-                <p>전체 주문 내역 확인 및 정산.<br>테이블 현황을 한눈에 관리합니다.</p>
-            </a>
-            <a href="/stats" class="card">
-                <div class="card-icon"><i data-lucide="bar-chart-3" size="48"></i></div>
-                <h2>매출 및 통계</h2>
-                <p>인기 메뉴 및 매출 분석 리포트.<br>데이터 기반의 경영을 돕습니다.</p>
-            </a>
-        </div>
-        
-        <div style="text-align: center; margin-top: 60px; color: var(--text-muted); font-size: 0.9rem; opacity: 0.6;">
-            &checkmark; 본 시스템은 Secure Tunnel(chicvill.store)을 통해 암호화 통신 중입니다.
+            {% elif role == 'owner' or role == 'manager' %}
+                <!-- [2. 매장 사장님 및 점장 전용] -->
+                <div class="section-header">{{ role.upper() }} Operational Hub</div>
+                
+                {% if store %}
+                    <div style="background: linear-gradient(135deg, #1e293b, #0f172a); padding: 35px; border-radius: 28px; border: 1px solid var(--primary); margin-bottom: 35px; box-shadow: 0 15px 35px rgba(0,0,0,0.3);">
+                        <h2 style="margin:0; font-size: 2rem; font-weight:900;">{{ store.name }}</h2>
+                        <p style="color:#64748b; margin: 8px 0 0 0; font-size: 1rem;">{{ role.upper() }} 권한으로 매장을 통합 관리 중입니다.</p>
+                    </div>
+                    
+                    <div class="dashboard-grid">
+                        <a href="/{{ store.id }}/counter" class="menu-card">
+                            <div class="menu-icon"><i data-lucide="monitor" size="28"></i></div>
+                            <h3>카운터 관제</h3>
+                            <p>실시간 주문 결제 현황을 추적합니다.</p>
+                        </a>
+                        <a href="/{{ store.id }}/kitchen" class="menu-card">
+                            <div class="menu-icon" style="color:var(--warning);"><i data-lucide="chef-hat" size="28"></i></div>
+                            <h3>주방 오더</h3>
+                            <p>주방 주문 진행 상태를 제어합니다.</p>
+                        </a>
+                        <a href="/{{ store.id }}/display" class="menu-card" target="_blank">
+                            <div class="menu-icon" style="color:var(--accent);"><i data-lucide="tv-2" size="28"></i></div>
+                            <h3>완료 전광판</h3>
+                            <p>손님용 대형 모니터 화면입니다.</p>
+                        </a>
+                        
+                        {% if role == 'owner' %}
+                            <a href="/admin/staff?slug={{ store.id }}" class="menu-card" style="border-color: var(--primary);">
+                                <div class="menu-icon" style="color:var(--primary);"><i data-lucide="gem" size="28"></i></div>
+                                <h3>임금 정산/관리</h3>
+                                <p>사장님 전용 권한 (시급/급여 확정)</p>
+                            </a>
+                        {% else %}
+                            <a href="/admin/staff?slug={{ store.id }}" class="menu-card">
+                                <div class="menu-icon" style="color:var(--primary);"><i data-lucide="users" size="28"></i></div>
+                                <h3>직원 근태 확인</h3>
+                                <p>점장님 권한 (현장 직원 관리)</p>
+                            </a>
+                        {% endif %}
+                        
+                        {% if role == 'admin' %}
+                        <a href="/admin/stores/{{ store.id }}/config" class="menu-card" style="border-style: dashed; border-color: var(--primary);">
+                            <div class="menu-icon" style="color:#fff;"><i data-lucide="settings" size="28"></i></div>
+                            <h3>관제 마스터 설정</h3>
+                            <p>최고 관리자 전용 서버 환경 구성</p>
+                        </a>
+                        {% endif %}
+                    </div>
+                {% else %}
+                    <div class="menu-card" style="border-color: var(--danger); background: rgba(239, 68, 68, 0.05); text-align: center; padding: 60px; border-radius: 30px;">
+                        <i data-lucide="shield-alert" size="48" style="color:var(--danger); margin-bottom:20px;"></i>
+                        <h3 style="color: var(--danger); font-size: 1.5rem;">매장 연결 정보 없음</h3>
+                        <p>현재 계정에 연결된 매장 데이터가 없습니다.</p>
+                    </div>
+                {% endif %}
+
+            {% elif role == 'staff' or role == 'admin' %}
+                {% if role == 'admin' %}
+                <div class="section-header">Admin Global Command</div>
+                <div class="dashboard-grid" style="margin-bottom: 50px;">
+                    <a href="/admin/performance" class="menu-card"><div class="menu-icon"><i data-lucide="line-chart"></i></div><h3>종합 실적</h3></a>
+                    <a href="/admin/users" class="menu-card"><div class="menu-icon"><i data-lucide="user-cog"></i></div><h3>유저 관리</h3></a>
+                    <a href="/admin/billing" class="menu-card"><div class="menu-icon"><i data-lucide="mail-check"></i></div><h3>정산/과금</h3></a>
+                </div>
+                {% endif %}
+
+                <div class="section-header">Managed Stores ({{ stores|length }})</div>
+                <div style="background: var(--card); border-radius: 25px; padding: 10px; border: 1px solid var(--border);">
+                    <table class="admin-table">
+                        <tbody>
+                            {% for s in stores %}
+                            <tr>
+                                <td style="width: 250px;"><div style="font-weight: 900; font-size: 1.1rem; color: #fff;">{{ s.name }}</div></td>
+                                <td>
+                                    <div style="display:flex; gap:10px;">
+                                        <a href="/{{ s.id }}/counter" class="btn-quick" title="카운터"><i data-lucide="monitor" size="18"></i></a>
+                                        <a href="/{{ s.id }}/display" class="btn-quick" title="조리완료 현황판"><i data-lucide="tv" size="18"></i></a>
+                                        <a href="/{{ s.id }}/kitchen" class="btn-quick" title="주방"><i data-lucide="chef-hat" size="18"></i></a>
+                                        <a href="/admin/staff?slug={{ s.id }}" class="btn-quick" title="직원관리"><i data-lucide="user-check" size="18"></i></a>
+                                        {% if role == 'admin' %}
+                                        <a href="/admin/stores/{{ s.id }}/config" class="btn-quick" title="설정"><i data-lucide="settings" size="18"></i></a>
+                                        {% endif %}
+                                        <a href="/{{ s.id }}/qr-print" target="_blank" class="btn-quick" title="QR 코드 출력"><i data-lucide="printer" size="18"></i></a>
+                                        <a href="/{{ s.id }}" class="btn-quick" style="margin-left:auto; color:var(--primary);" title="주문"><i data-lucide="shopping-bag" size="18"></i></a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+        {% endif %}
+        <div style="text-align: center; margin-top: 100px; padding-bottom: 50px; color: #334155; font-size: 0.7rem; font-weight: 700; opacity: 0.5;">
+            SECURE ACCESS CORE v2.9 | MQNET CLOUD PRO
         </div>
     </div>
-
-    <script>
-        // Lucide 아이콘 라이브러리 활성화
-        lucide.createIcons();
-    </script>
+    <script>lucide.createIcons();</script>
 </body>
 </html>

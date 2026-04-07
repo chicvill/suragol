@@ -2,417 +2,253 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>수라골 참숯갈비 - QR 코드 출력</title>
-    <!-- QR 코드 생성 라이브러리 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ store.name }} - QR 코드 인쇄</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&display=swap">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@700;900&family=Pretendard:wght@400;700&display=swap');
-
         :root {
-            --primary: #c0392b; /* 중국집 느낌의 진한 레드 */
-            --gold: #f1c40f;
-            --dark: #2c3e50;
+            --royal-red: #8B0000;
+            --royal-gold: #D4AF37;
         }
-
         body {
-            font-family: 'Pretendard', sans-serif;
             margin: 0;
             padding: 0;
-            background: #f5f6fa;
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: #f0f0f0;
         }
-
-        .no-print-header {
-            background: #fff;
-            padding: 20px 40px;
-            border-bottom: 2px solid var(--primary);
-            margin-bottom: 30px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        }
-
-        .header-top {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-
-        .ip-config-panel {
-            background: #f8f9fa;
-            border-radius: 12px;
-            padding: 20px;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 20px;
-            border: 1px solid #ddd;
-        }
-
-        .ip-input-box {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .ip-input-box label {
-            font-weight: bold;
-            font-size: 0.9rem;
-            color: var(--dark);
-        }
-
-        .ip-input-group {
-            display: flex;
-            gap: 10px;
-        }
-
-        #ip-field {
-            flex: 1;
-            padding: 10px 15px;
-            border: 2px solid #ddd;
-            border-radius: 6px;
-            font-size: 1.1rem;
-            font-family: monospace;
-            font-weight: bold;
-        }
-
-        #ip-field:focus {
-            border-color: var(--primary);
-            outline: none;
-        }
-
-        .update-btn {
-            background: var(--dark);
-            color: white;
-            border: none;
-            padding: 0 20px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: bold;
-        }
-
-        .guide-box {
-            font-size: 0.85rem;
-            color: #666;
-            line-height: 1.5;
-            border-left: 3px solid #ccc;
-            padding-left: 15px;
-        }
-
-        .print-btn {
-            background: var(--primary);
-            color: white;
-            border: none;
-            padding: 12px 30px;
-            font-size: 1.1rem;
-            font-weight: bold;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.2s;
-            box-shadow: 0 4px 10px rgba(192, 57, 43, 0.3);
-        }
-
-        .print-btn:hover {
-            background: #a93226;
-            transform: translateY(-2px);
+        
+        /* 인쇄 가이드 라인 (화면에서만 보임) */
+        .print-container {
+            width: 210mm; /* A4 Width */
+            margin: 20px auto;
+            background: white;
+            padding: 10mm;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
         }
 
         .qr-grid {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 20px;
-            max-width: 900px;
-            margin: 0 auto 50px auto;
-            padding: 0 20px;
+            grid-template-columns: repeat(2, 1fr); /* 2열 */
+            gap: 8mm;
+            row-gap: 8mm;
         }
 
         .qr-card {
-            background: #fff;
-            border: 4px double var(--primary);
-            padding: 30px;
+            border: 2px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 10px;
             text-align: center;
-            position: relative;
-            overflow: hidden;
-            border-radius: 15px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        }
-
-        .qr-card::before, .qr-card::after {
-            content: "水剌";
-            position: absolute;
-            font-family: 'Noto Serif KR', serif;
-            font-size: 0.8rem;
-            color: rgba(192, 57, 43, 0.1);
-        }
-        .qr-card::before { top: 10px; left: 10px; }
-        .qr-card::after { bottom: 10px; right: 10px; }
-
-        .brand-name {
-            font-family: 'Noto Serif KR', serif;
-            font-weight: 900;
-            font-size: 1.8rem;
-            color: var(--primary);
-            margin-bottom: 5px;
-        }
-
-        .sub-name {
-            font-size: 0.9rem;
-            color: var(--dark);
-            letter-spacing: 2px;
-            margin-bottom: 25px;
-            display: block;
-        }
-
-        .table-box {
-            display: inline-block;
-            background: var(--primary);
-            color: var(--gold);
-            padding: 5px 20px;
-            border-radius: 20px;
-            font-weight: 800;
-            font-size: 1.2rem;
-            margin-bottom: 20px;
-        }
-
-        .qr-holder {
             display: flex;
+            flex-direction: column;
+            align-items: center;
             justify-content: center;
-            margin-bottom: 25px;
-            background: #fff;
-            padding: 15px;
-            border: 1px solid #eee;
-            border-radius: 10px;
+            page-break-inside: avoid;
+            background: linear-gradient(145deg, #ffffff, #f1f5f9);
+            height: 52mm;
+            position: relative;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+
+        .mq-logo-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 30px;
+            height: 30px;
+            background: white;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            font-size: 12px;
+            color: #1e3a8a;
+            border: 2px solid #1e3a8a;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            z-index: 10;
+        }
+
+        .qr-wrapper {
+            position: relative;
             display: inline-block;
+            background: white;
+            padding: 5px;
+            border-radius: 8px;
+        }
+
+        .store-name {
+            font-size: 1rem;
+            font-weight: 900;
+            color: #1e293b;
+            margin-bottom: 3px;
+        }
+
+        .table-no {
+            font-size: 1.1rem;
+            font-weight: 900;
+            margin-top: 5px;
+            background: #1e293b;
+            color: #fff;
+            padding: 1px 15px;
+            border-radius: 20px;
+            letter-spacing: -0.5px;
         }
 
         .instruction {
-            font-size: 1rem;
-            font-weight: bold;
-            color: var(--dark);
-            margin-bottom: 5px;
+            font-size: 0.7rem;
+            color: #64748b;
+            margin-top: 3px;
+            font-weight: 600;
         }
 
-        .hint {
-            font-size: 0.8rem;
-            color: #7f8c8d;
+        /* 컨트롤 패널 (인쇄 시 숨김) */
+        .controls {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            z-index: 1000;
+        }
+        .btn-print {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 8px;
         }
 
         @media print {
-            @page {
-                size: A4 portrait;
-                margin: 10mm; /* A4 용지 여백 최소화 */
-            }
-            .no-print-header, #connection-warning { display: none !important; }
-            body { 
-                background: white; 
-                padding: 0; 
-                margin: 0;
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
-            }
-            .qr-grid { 
-                display: grid;
-                grid-template-columns: repeat(2, 1fr);
-                gap: 5mm; /* 카드 간 간격 */
-                margin: 0; 
-                padding: 0; 
-            }
-            .qr-card { 
-                box-shadow: none !important; 
-                page-break-inside: avoid;
-                border: 2px dashed rgb(192, 57, 43); /* 절취선 느낌의 점선 */
-                border-radius: 10px;
-                width: 100%;
-                box-sizing: border-box;
-                height: 85mm; /* 3줄이 A4 한 장 (약 297mm) 안에 들어가도록 높이 고정 */
-                padding: 5mm;
-                margin: 0;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                justify-content: center;
-            }
-            
-            /* 인쇄 시 크기 축소 */
-            .brand-name { font-size: 1.3rem; margin-bottom: 2px; }
-            .sub-name { font-size: 0.7rem; margin-bottom: 5px; }
-            .table-box { font-size: 0.9rem; padding: 3px 12px; margin-bottom: 5px; }
-            .qr-holder { padding: 5px; margin-bottom: 5px; border: none; }
-            .qr-holder img, .qr-holder canvas { 
-                width: 100px !important; 
-                height: 100px !important; 
-            }
-            .instruction { font-size: 0.8rem; margin-bottom: 2px; }
-            .hint { font-size: 0.65rem; }
+            body { background: white; }
+            .controls { display: none !important; }
+            .print-container { margin: 0; padding: 0; width: 100%; box-shadow: none; }
+            .qr-grid { gap: 4mm; }
+            /* 10개마다 페이지 넘김 (2열 5행 기준) */
+            .page-break { page-break-after: always; }
         }
     </style>
 </head>
 <body>
 
-    <div id="connection-warning" style="display:none; background: #e74c3c; color: white; padding: 20px; text-align: center; font-weight: 900; font-size: 1.2rem; border-bottom: 5px solid #c0392b; animation: blink 1s infinite;">
-        🛑 [알림] 현재 로컬 주소(localhost)로 접속 중입니다. 🛑<br>
-        QR 코드가 외부에서도 작동하도록 자동으로 <span style="text-decoration:underline;">wang.chicvill.store</span> 주소로 설정되었습니다.<br>
-        인쇄 전 아래의 '인쇄용 주소'가 올바른지 꼭 확인하세요!
+    <div class="controls">
+        <h2 style="margin:0 0 10px 0;">통합 QR 인쇄 설정</h2>
+        <p style="font-size:0.9rem; color:#666;">
+            • <b>A4 1장당 10개</b>가 출력됩니다.<br>
+            • 상단 10개는 전직원 <b>출퇴근용</b>입니다.<br>
+            • 하단은 대기/설명서/테이블용입니다.
+        </p>
+        <button class="btn-print" onclick="window.print()">인쇄 시작 (Ctrl+P)</button>
+        <div style="margin-top:10px;"><a href="/admin/staff" style="font-size:0.8rem; color:#3b82f6;">← 인력 관리로 돌아가기</a></div>
     </div>
 
-    <div class="no-print-header">
-        <div class="header-top" style="flex-wrap: wrap; gap: 15px;">
-            <h1 style="margin:0; color:var(--primary); font-family: 'Noto Serif KR', serif; font-size: clamp(1.2rem, 4vw, 1.8rem);">수라골 QR 인쇄 센터</h1>
-            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                <a href="/" style="text-decoration: none; background: var(--dark); color: white; padding: 10px 20px; font-size: 0.95rem; font-weight: bold; border-radius: 8px; display: flex; align-items: center; gap: 8px;">🏠 홈</a>
-                <button class="print-btn" onclick="window.print()" style="padding: 10px 20px; font-size: 0.95rem;">🖨️ 인쇄 (Ctrl+P)</button>
-            </div>
-        </div>
+    <div class="print-container">
 
-            <div class="ip-input-box">
-                <label for="ip-field">매장 내 서버 주소 설정 (현재 도메인 사용 중)</label>
-                <div class="ip-input-group">
-                    <input type="text" id="ip-field" placeholder="예: wang.chicvill.store" value="wang.chicvill.store" onchange="generateQRs()">
-                    <button class="update-btn" onclick="generateQRs()">QR 갱신</button>
+        <div class="qr-grid">
+            <!-- 출퇴근 QR 1 -->
+            <div class="qr-card">
+                <div class="store-name">[ 직원 출퇴근 ]</div>
+                <div class="qr-wrapper">
+                    <div id="qr-attendance-1" class="qr-placeholder"></div>
+                    <div class="mq-logo-overlay">MQ</div>
                 </div>
-                <p style="margin:5px 0 0; font-size:0.9rem; color:#666;">현재 인쇄용 주소: <strong id="detected-ip">https://wang.chicvill.store</strong></p>
+                <div class="table-no">출퇴근 QR</div>
+                <div class="instruction">직원용 · 카메라 스캔</div>
             </div>
-            <div class="guide-box">
-                <strong>💡 QR 코드가 안 열리나요?</strong><br>
-                1. 명령창(터미널)에서 <strong>보안 주소(https://...trycloudflare.com)</strong>를 확인하세요.<br>
-                2. 해당 주소를 인터넷 창에 넣고 접속한 뒤 <strong>다시 인쇄</strong>하셔야 손님들이 5G로 접속할 수 있습니다.<br>
-                (localhost 주소가 포함된 QR은 손님 핸드폰에서 열리지 않습니다.)
-            </div>
-        </div>
-    </div>
 
-    <style>
-        @keyframes blink {
-            0% { background: #e74c3c; }
-            50% { background: #c0392b; }
-            100% { background: #e74c3c; }
-        }
-    </style>
-
-    <div class="qr-grid">
-        {% for table_id in range(1, 11) %}
-        <div class="qr-card">
-            <div class="brand-name">수라골 참숯갈비</div>
-            <span class="sub-name">수라골 참숯갈비</span>
-            
-            <div class="table-box">TABLE {{ table_id }}</div>
-            
-            <div class="qr-section">
-                <div class="qr-holder" id="qrcode-{{ table_id }}"></div>
+            <!-- 출퇴근 QR 2 -->
+            <div class="qr-card">
+                <div class="store-name">[ 직원 출퇴근 ]</div>
+                <div class="qr-wrapper">
+                    <div id="qr-attendance-2" class="qr-placeholder"></div>
+                    <div class="mq-logo-overlay">MQ</div>
+                </div>
+                <div class="table-no">출퇴근 QR</div>
+                <div class="instruction">직원용 · 카메라 스캔</div>
             </div>
-            
-            <div class="instruction">휴대폰 카메라로 스캔하세요</div>
-            <div class="hint">스캔하면 바로 메뉴판이 열립니다</div>
-        </div>
-        {% endfor %}
 
-        <!-- 대기 등록 전용 QR -->
-        <div class="qr-card" style="border-style: solid; border-color: var(--dark);">
-            <div class="brand-name">수라골 참숯갈비</div>
-            <span class="sub-name">수라골 참숯갈비</span>
-            
-            <div class="table-box" style="background: var(--dark); color: var(--gold);">ENTRY WAITING</div>
-            
-            <div class="qr-section">
-                <div class="qr-holder" id="qrcode-waiting"></div>
+            <!-- 대기 등록용 QR -->
+            <div class="qr-card" style="border-color: #2ecc71;">
+                <div class="store-name" style="color: #2ecc71;">[ 대기 등록 ]</div>
+                <div class="qr-wrapper">
+                    <div id="qr-waiting" class="qr-placeholder"></div>
+                    <div class="mq-logo-overlay" style="color:#2ecc71; border-color:#2ecc71;">MQ</div>
+                </div>
+                <div class="table-no" style="background: #2ecc71;">대기 신청</div>
+                <div class="instruction">입장 대기 등록 전용</div>
             </div>
-            
-            <div class="instruction" style="color: var(--primary);">입구 대기 등록 전용</div>
-            <div class="hint">스캔하여 대기 번호를 받으세요</div>
+
+            <!-- 이용 가이드 QR -->
+            <div class="qr-card" style="border-color: #1e3a8a;">
+                <div class="store-name" style="color: #1e3a8a;">[ 이용 가이드 ]</div>
+                <div class="qr-wrapper">
+                    <div id="qr-manual" class="qr-placeholder"></div>
+                    <div class="mq-logo-overlay">MQ</div>
+                </div>
+                <div class="table-no">이용 가이드</div>
+                <div class="instruction">시스템 사용법 안내</div>
+            </div>
+
+            {# 테이블별 QR 반복문 #}
+            {% set table_limit = 6 if '왕궁' in store.name else (store.tables_count or 0) %}
+            {% for i in range(1, table_limit + 1) %}
+                <div class="qr-card">
+                    <div class="store-name">{{ store.name }}</div>
+                    <div class="qr-wrapper">
+                        <div id="qr-table-{{ i }}" class="qr-placeholder"></div>
+                        <div class="mq-logo-overlay">MQ</div>
+                    </div>
+                    <div class="table-no">{{ i }}번 테이블</div>
+                    <div class="instruction">스캔하여 바로 주문하기</div>
+                </div>
+
+                {# 페이지 넘김 처리 (10개 단위) #}
+                {% if (i + 4) % 10 == 0 and not loop.last %}
+                    </div>
+                    <div class="page-break"></div>
+                    <div class="qr-grid">
+                {% endif %}
+            {% endfor %}
         </div>
     </div>
 
     <script>
-        const qrContainers = {};
-        
-        // 초기화
-        document.addEventListener('DOMContentLoaded', () => {
-            const initialHost = "{{ host_url }}"; 
-            const urlObj = new URL(initialHost);
-            
-            // 1. 저장된 주소가 있는지 확인 (가장 우선)
-            // 1. 저장된 주소가 있는지 확인
-            let savedDomain = localStorage.getItem('wang_gung_qr_domain');
-            
-            // 현재 접속 방식 확인 (로컬 여부)
-            const isLocal = window.location.hostname === 'localhost' || 
-                            window.location.hostname === '127.0.0.1' || 
-                            window.location.hostname.startsWith('192.168');
+        const BASE_URL = "{{ current_url }}";
+        const STORE_ID = "{{ store.id }}";
 
-            if (isLocal) {
-                document.getElementById('connection-warning').style.display = 'block';
-            }
-
-            // [핵심 수정] 저장된 주소가 localhost라면 무시하고 외부 도메인 제안
-            let suggestedDomain = isLocal ? 'wang.chicvill.store' : urlObj.host;
-            if (savedDomain && savedDomain.includes('localhost') && isLocal) {
-                savedDomain = 'wang.chicvill.store';
-            }
-            
-            const finalDomainName = savedDomain || suggestedDomain;
-            document.getElementById('ip-field').value = finalDomainName;
-
-            // QR 컨테이너 객체 초기화
-            for (let i = 1; i <= 10; i++) {
-                qrContainers[i] = new QRCode(document.getElementById(`qrcode-${i}`), {
-                    text: "",
-                    width: 170,
-                    height: 170,
-                    colorDark : "#000000",
-                    colorLight : "#ffffff",
-                    correctLevel : QRCode.CorrectLevel.H
-                });
-            }
-
-            // 대기열 전용 QR 초기화
-            qrContainers['waiting'] = new QRCode(document.getElementById('qrcode-waiting'), {
-                text: "",
-                width: 170,
-                height: 170,
-                colorDark : "#000000",
+        window.onload = () => {
+            const QR_CONFIG = {
+                width: 120, height: 120, 
+                colorDark : "#1e293b",
                 colorLight : "#ffffff",
-                correctLevel : QRCode.CorrectLevel.H
+                correctLevel: QRCode.CorrectLevel.H
+            };
+
+            // 1. 출퇴근 QR 생성
+            [1, 2].forEach(n => {
+                const el = document.getElementById(`qr-attendance-${n}`);
+                if (el) new QRCode(el, { ...QR_CONFIG, text: `${BASE_URL}/${STORE_ID}/attendance` });
             });
 
-            generateQRs();
-        });
+            // 2. 대기/가이드 QR 생성
+            const wEl = document.getElementById("qr-waiting");
+            if (wEl) new QRCode(wEl, { ...QR_CONFIG, text: `${BASE_URL}/${STORE_ID}/waiting` });
+            const mEl = document.getElementById("qr-manual");
+            if (mEl) new QRCode(mEl, { ...QR_CONFIG, text: `${BASE_URL}/${STORE_ID}/manual` });
 
-        function generateQRs() {
-            const inputVal = document.getElementById('ip-field').value.trim();
-            if (!inputVal) {
-                alert('도메인 주소 또는 IP를 입력해 주세요.');
-                return;
+            // 3. 테이블별 QR 생성
+            const tableLimit = parseInt("{{ table_limit }}") || 0;
+            for (let i = 1; i <= tableLimit; i++) {
+                const tel = document.getElementById(`qr-table-${i}`);
+                if (tel) new QRCode(tel, { ...QR_CONFIG, text: `${BASE_URL}/${STORE_ID}/customer/${i}` });
             }
-
-            // 입력값에서 프로토콜 제거 (중복 방지)
-            let domain = inputVal.replace(/^https?:\/\//, '').replace(/\/$/, '');
-            
-            // 2. 입력된 주소를 브라우저에 저장 (기억하기)
-            localStorage.setItem('wang_gung_qr_domain', domain);
-
-            // 현재 접속 중인 방식을 참고하여 프로토콜 결정
-            let protocol = window.location.protocol + "//";
-            const baseUrl = `${protocol}${domain}`;
-            
-            // 화면에 현재 설정된 주소를 실시간으로 표시 및 경고
-            const displayEl = document.getElementById('detected-ip');
-            if (domain.includes('localhost') || domain.includes('192.168')) {
-                displayEl.innerHTML = `<span style="color:red; font-weight:bold;">${baseUrl} (🛑 주의: 매장 밖 접속 불가!)</span>`;
-            } else {
-                displayEl.innerHTML = `<span style="color:green; font-weight:bold;">${baseUrl} (✅ 외부 접속 가능)</span>`;
-            }
-
-            // 테이블 주소 생성 (슬래시 하나만 정확히 삽입)
-            for (let i = 1; i <= 10; i++) {
-                const targetUrl = `${baseUrl}/customer/${i}`;
-                qrContainers[i].clear();
-                qrContainers[i].makeCode(targetUrl);
-            }
-
-            // 대기열용 QR 생성
-            const waitingUrl = `${baseUrl}/waiting`;
-            qrContainers['waiting'].clear();
-            qrContainers['waiting'].makeCode(waitingUrl);
-            
-            console.log("QR 생성 완료:", baseUrl);
-        }
+        };
     </script>
 </body>
 </html>

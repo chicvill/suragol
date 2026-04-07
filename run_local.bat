@@ -22,5 +22,6 @@ if not exist ".venv\Scripts\python.exe" (
 )
 
 set PORT=8899
+set FLASK_DEBUG=1
 .\.venv\Scripts\python.exe app.py
 pause

@@ -1,0 +1,120 @@
+{% extends "admin/base.html" %}
+{% set active_page = 'stores' %}
+
+{% block title %}가맹점 인스턴스 관리 | MQnet Central Admin{% endblock %}
+
+{% block extra_style %}
+<style>
+    .store-list-container { display: flex; flex-direction: column; gap: 15px; }
+    .store-row { 
+        background: rgba(30, 41, 59, 0.4); border: 1px solid var(--border); border-radius: 20px; 
+        padding: 20px 28px; display: grid; grid-template-columns: 2fr 1.5fr 1fr 1.5fr 1.8fr;
+        align-items: center; transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        backdrop-filter: blur(5px);
+    }
+    .store-row:hover { background: rgba(30, 41, 59, 0.7); border-color: var(--primary-soft); transform: scale(1.005); box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
+    
+    .store-info-box { display: flex; align-items: center; gap: 18px; }
+    .store-icon { width: 44px; height: 44px; border-radius: 12px; background: var(--primary-soft); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
+    .store-name-text { font-weight: 800; font-size: 1.1rem; color: white; letter-spacing: -0.4px; }
+    .store-id-text { font-size: 0.75rem; color: var(--primary); font-weight: 700; opacity: 0.8; margin-top: 2px; }
+
+    .manager-box { display: flex; align-items: center; gap: 8px; font-weight: 700; color: var(--text-dim); font-size: 0.9rem; }
+    
+    .status-badge { 
+        padding: 5px 12px; border-radius: 8px; font-size: 0.7rem; font-weight: 800; 
+        display: inline-flex; align-items: center; gap: 5px; text-transform: uppercase;
+    }
+    .status-active { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+    .status-unpaid { background: rgba(239, 68, 68, 0.15); color: #f87171; }
+
+    .quick-toolbar { display: flex; gap: 8px; }
+    .tool-btn { 
+        width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; 
+        transition: 0.2s; color: var(--text-dim); background: rgba(255,255,255,0.05); border: 1px solid var(--border); text-decoration: none;
+    }
+    .tool-btn:hover { background: var(--primary); color: white; transform: translateY(-2px); border-color: var(--primary); }
+    
+    .master-action { 
+        background: var(--primary); color: white; border: none; padding: 10px 18px; border-radius: 12px;
+        font-weight: 800; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 8px; text-decoration: none;
+        box-shadow: 0 4px 15px var(--primary-soft); transition: 0.2s;
+    }
+    .master-action:hover { transform: translateY(-3px); box-shadow: 0 8px 25px var(--primary-soft); opacity: 0.9; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="header" style="margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: flex-end;">
+    <div>
+        <h1 style="margin:0; font-size:1.80rem; letter-spacing:-1px; text-transform:uppercase;">Store Instance Master</h1>
+        <p style="margin:0; font-size:0.85rem; color:var(--text-dim); font-weight:600;">글로벌 가맹점 인스턴스 및 구독 엔진 통합 관리</p>
+    </div>
+    <div style="font-size:0.75rem; color:var(--text-dim); font-weight:700;">TOTAL ACTIVE NODES: {{ stores|length }}</div>
+</div>
+
+{% if session['role'] == 'admin' %}
+<div style="margin-bottom: 2rem; text-align: right;">
+    <a href="/admin/stores/add" class="master-action" style="display:inline-flex; background:var(--neon-success); box-shadow: 0 4px 15px rgba(16, 185, 129, 0.2);">
+        <i data-lucide="plus-circle" size="18"></i> NEW INSTANCE DEPLOY
+    </a>
+</div>
+{% endif %}
+
+<!-- 3. 가맹점 카드 리스트 -->
+<div class="store-list-container">
+    <div style="display:grid; grid-template-columns: 2fr 1.5fr 1fr 1.5fr 1.8fr; padding: 0 28px 10px; font-size: 0.75rem; color: var(--text-dim); text-transform:uppercase; letter-spacing:1px; font-weight:800;">
+        <div>Instance Info</div>
+        <div>Assigned Master</div>
+        <div>Live Node</div>
+        <div>Subscription System</div>
+        <div style="text-align:right;">Control Console</div>
+    </div>
+    
+    {% for store in stores %}
+    <div class="store-row">
+        <div class="store-info-box">
+            <div class="store-icon"><i data-lucide="layout"></i></div>
+            <div>
+                <div class="store-name-text">{{ store.name }}</div>
+                <div class="store-id-text">ID: {{ store.id }}</div>
+            </div>
+        </div>
+        
+        <div class="manager-box">
+            <i data-lucide="user" size="16"></i>
+            {{ store.manager.username if store.manager else 'MASTER UNASSIGNED' }}
+        </div>
+        
+        <div><span class="status-badge status-active"><i data-lucide="radio" size="14"></i> {{ store.status.upper() }}</span></div>
+        
+        <div>
+            <span class="status-badge {% if store.payment_status == 'paid' %}status-active{% else %}status-unpaid{% endif %}">
+                <i data-lucide="{{ 'check-circle' if store.payment_status == 'paid' else 'alert-circle' }}" size="14"></i>
+                {% if store.payment_status == 'paid' %}Standard Subscription{% else %}Unpaid / Blocked{% endif %}
+            </span>
+        </div>
+        
+        <div style="display:flex; justify-content:flex-end; align-items:center; gap:12px;">
+            <div class="quick-toolbar">
+                <a href="/{{ store.id }}/counter" target="_blank" class="tool-btn" title="Counter POS"><i data-lucide="monitor" size="16"></i></a>
+                <a href="/{{ store.id }}/kitchen" target="_blank" class="tool-btn" title="Kitchen HUD"><i data-lucide="utensils" size="16"></i></a>
+                <a href="/{{ store.id }}/display" target="_blank" class="tool-btn" title="Display Board"><i data-lucide="tv" size="16"></i></a>
+                <a href="/{{ store.id }}/qr-print" target="_blank" class="tool-btn" title="Print QR Codes"><i data-lucide="printer" size="16"></i></a>
+            </div>
+            {% if session['role'] == 'admin' or store.recommended_by == session['user_id'] %}
+            <form action="/admin/stores/{{ store.id }}/delete" method="POST" onsubmit="return confirm('🚨 경고: 이 매장[{{ store.name }}]을 영구 삭제하시겠습니까?\n삭제 후에는 실적 및 모든 데이터가 복구 불가능합니다.');" style="margin:0;">
+                <button type="submit" class="tool-btn" style="color:#f87171; border-color:rgba(239, 68, 68, 0.2); background:rgba(239, 68, 68, 0.05); width:40px; height:40px;" title="매장 인스턴스 영구 삭제">
+                    <i data-lucide="trash-2" size="18"></i>
+                </button>
+            </form>
+            {% endif %}
+
+            <a href="/admin/stores/{{ store.id }}/config" class="master-action">
+                <i data-lucide="settings-2" size="16"></i> CONFIG
+            </a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

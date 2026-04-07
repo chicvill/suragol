@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>수라골 참숯갈비 - 주문</title>
+    <title>{% if store.id == 'MQ-cafe' %}수라골 참숯갈비 통합 메뉴{% else %}{{ store.name }} - 주문{% endif %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ range(1, 9999) | random }}">
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <style>
@@ -32,26 +32,24 @@
     </style>
 </head>
 <body>
-    <header>
-        <div class="brand-box">
-            <div class="brand-chinese">水剌</div>
-            <div class="brand-korean">수라골 참숯갈비</div>
+    <header style="display: flex; justify-content: space-between; align-items: center; padding: 10px 15px;">
+        <div class="header-left" style="display: flex; align-items: center; gap: 8px; overflow: hidden;">
+            <div class="brand-korean" style="font-weight: 900; color: var(--secondary-color); font-size: 1.1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px;">{{ store.name }}</div>
+            <div class="table-pill" style="display: flex; align-items: center; padding: 4px 8px; background: rgba(255,255,255,0.1); border-radius: 12px; white-space: nowrap;">
+                <span style="font-size: 0.75rem; opacity: 0.7;">테이블</span>
+                <span style="font-weight: 800; margin: 0 3px; font-size: 1rem; color: #fff;">{{ table_id }}</span>
+            </div>
+            <div id="order-no" class="order-badge" style="font-size: 0.75rem; color: var(--secondary-color); border: 1px solid rgba(212, 175, 55, 0.4); padding: 3px 6px; border-radius: 6px; white-space: nowrap;">#{{ session_id }}</div>
         </div>
         <div class="header-right">
-            <div class="table-pill">
-                <span>테이블</span>
-                <span>테이블</span>
-                <span style="font-weight: bold; margin: 0 5px; font-size: 1.2rem;">{{ table_id }}</span>
-                <span>번</span>
-            </div>
-            <div id="order-no" class="order-badge">주문번호: #----</div>
+            <button onclick="toggleServiceModal()" class="call-staff-btn" style="padding: 8px 15px; font-size: 0.85rem; border-radius: 20px; white-space: nowrap; background: var(--secondary-color); color: #000; font-weight: 900; border: none; box-shadow: 0 2px 10px rgba(0,0,0,0.3);">직원 호출</button>
         </div>
     </header>
 
     <div id="toast" class="toast">장바구니에 담겼습니다!</div>
 
     <div class="tabs">
-        {% for category in menu.keys() %}
+        {% for category in store.menu_data.keys() %}
         <div class="tab {{ 'active' if loop.first else '' }}" onclick="showCategory('{{ category }}', this)">
             {{ category }}
         </div>
@@ -75,6 +73,11 @@
                 <!-- 장바구니 항목 동적 생성 -->
             </div>
             <div class="cart-summary">
+                <div style="margin-bottom: 15px; background: rgba(212, 175, 55, 0.1); padding: 12px; border-radius: 10px; border: 1px solid var(--glass-border);">
+                    <div style="font-size: 0.85rem; margin-bottom: 8px; color: var(--secondary-color); font-weight: bold;">💰 포인트 적립 (결제금액의 1%)</div>
+                    <input type="tel" id="order-phone" placeholder="휴대폰 번호 입력 (선택)" style="width: 100%; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid #444; color: white; border-radius: 8px; font-size: 0.9rem; text-align: center;">
+                    <p style="font-size: 0.65rem; color: #888; margin-top: 5px;">* 최종 적립 후 1년 경과 시 포인트가 소멸됩니다.</p>
+                </div>
                 <div style="display: flex; justify-content: space-between; margin-bottom: 15px; font-size: 1.2rem;">
                     <span>총 합계</span>
                     <span id="modal-total" style="color: var(--secondary-color); font-weight: bold;">0원</span>
@@ -94,12 +97,31 @@
         <span style="font-weight: 900;"><span id="cart-total">0</span>원 주문하기</span>
     </div>
 
-    <script id="menu-data" type="application/json">{{ menu | tojson | safe }}</script>
+    <!-- 서비스 요청 모달 (Service Request Modal) -->
+    <div id="service-modal" class="modal-overlay modal-bottom" onclick="closeServiceOnOverlay(event)">
+        <div class="modal-content" style="height: auto; max-height: 70%;">
+            <div class="modal-header">
+                <h2>필요하신 것이 있나요?</h2>
+                <button class="close-btn" onclick="toggleServiceModal(false)">×</button>
+            </div>
+            <div class="service-options-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 15px;">
+                <button class="service-opt-btn" onclick="sendServiceRequest('시원한 물')">💧 시원한 물</button>
+                <button class="service-opt-btn" onclick="sendServiceRequest('반찬 리필')">🥗 반찬 더주세요</button>
+                <button class="service-opt-btn" onclick="sendServiceRequest('앞접시 추가')">🥣 앞접시</button>
+                <button class="service-opt-btn" onclick="sendServiceRequest('물티슈/냅킨')">🧻 물티슈/냅킨</button>
+                <button class="service-opt-btn" onclick="sendServiceRequest('식기(수저)')">🥢 수저/젓가락</button>
+                <button class="service-opt-btn" onclick="sendServiceRequest('직원 직접호출')" style="grid-column: span 2; background: var(--primary-color); color: white;">🙋 직원 직접호출</button>
+            </div>
+        </div>
+    </div>
+
+    <script id="menu-data" type="application/json">{{ store.menu_data | tojson | safe }}</script>
     <script>
         const socket = io();
         
         socket.on('connect', () => {
             console.log('Socket.IO Connected for Customer');
+            socket.emit('join', { store_id: '{{ store.id }}' });
         });
 
         const menuData = JSON.parse(document.getElementById('menu-data').textContent);
@@ -115,7 +137,7 @@
         } else {
             localStorage.setItem('wang_gung_session', sessionId);
         }
-        document.getElementById('order-no').innerText = `주문번호: #${sessionId}`;
+        document.getElementById('order-no').innerText = `#${sessionId}`;
         
         // 장바구니 초기화 (이전 캐시 오류 방지)
         // localStorage.removeItem(`cart_table_${tableId}`); // 필요 시 로컬 캐시를 비우는 구문을 여기에 활성화할 수 있습니다.
@@ -214,6 +236,33 @@
             }
         }
 
+        function toggleServiceModal(show) {
+            const modal = document.getElementById('service-modal');
+            const isShown = modal.classList.contains('show');
+            show === undefined ? modal.classList.toggle('show') : (show ? modal.classList.add('show') : modal.classList.remove('show'));
+        }
+
+        function closeServiceOnOverlay(event) {
+            if (event.target.id === 'service-modal') toggleServiceModal(false);
+        }
+
+        async function sendServiceRequest(content) {
+            try {
+                const response = await fetch(`/api/{{ store.id }}/service_request`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content: content, table_id: tableId })
+                });
+                if (response.ok) {
+                    showToast(`'${content}' 요청이 전달되었습니다.`);
+                    toggleServiceModal(false);
+                }
+            } catch (err) {
+                console.error(err);
+                alert('요청 전달에 실패했습니다.');
+            }
+        }
+
         function updateCartModalContent() {
             const list = document.getElementById('cart-items-list');
             const modalTotal = document.getElementById('modal-total');
@@ -269,14 +318,20 @@
             
             const totalPrice = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
             const orderId = 'ORD-' + Date.now();
+            const phone = document.getElementById('order-phone').value.replace(/[^0-9]/g, '');
             const payload = {
+                store_id: '{{ store.id }}',
                 order_id: orderId,
                 session_id: sessionId,
                 table_id: tableId,
                 items: cart,
                 total_price: totalPrice,
+                phone: phone, // Pass phone for point accumulation during payment
                 timestamp: Date.now()
             };
+            
+            // Save phone to localStorage for convenience
+            if (phone) localStorage.setItem('freeorder_phone', phone);
             
             socket.emit('place_order', payload);
             
@@ -298,6 +353,10 @@
                 showCategory(category, firstTab);
             }
             updateCartBar(); // Initialize cart UI on load
+            
+            // Load saved phone
+            const savedPhone = localStorage.getItem('freeorder_phone');
+            if (savedPhone) document.getElementById('order-phone').value = savedPhone;
         };
     </script>
 </body>

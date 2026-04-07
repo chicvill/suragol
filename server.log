@@ -1,0 +1,12 @@
+Traceback (most recent call last):
+  File "C:\Users\USER\Dev\FreeOrder\app.py", line 71, in <module>
+    print("\U0001f50d [DB 점검] 테이블 및 컬럼 상태를 확인합니다...")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'cp949' codec can't encode character '\U0001f50d' in position 0: illegal multibyte sequence
+Traceback (most recent call last):
+  File "C:\Users\USER\Dev\FreeOrder\app.py", line 71, in <module>
+    print("\U0001f50d [DB 점검] 테이블 및 컬럼 상태를 확인합니다...")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'cp949' codec can't encode character '\U0001f50d' in position 0: illegal multibyte sequence
+
+--- Server Start: Mon Apr  6 08:18:45 2026 ---

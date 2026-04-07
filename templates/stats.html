@@ -2,25 +2,65 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>수라골 참숯갈비 - 매출 통계</title>
+    <title>{{ store.name }} - 매출 통계</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ range(1, 9999) | random }}">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .period-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 25px;
+            background: rgba(255,255,255,0.05);
+            padding: 10px;
+            border-radius: 12px;
+            border: 1px solid rgba(212, 175, 55, 0.2);
+        }
+        .tab-btn {
+            flex: 1;
+            padding: 12px;
+            background: none;
+            border: 1px solid transparent;
+            color: #888;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: bold;
+            transition: 0.3s;
+        }
+        .tab-btn.active {
+            background: var(--royal-gold);
+            color: black;
+            box-shadow: 0 4px 10px rgba(212, 175, 55, 0.3);
+        }
+        .tab-btn:hover:not(.active) {
+            background: rgba(255,255,255,0.1);
+        }
+    </style>
 </head>
 <body>
     <header style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; padding: 15px 25px; gap: 15px;">
         <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
-            <h1 style="color: #f1c40f; margin: 0; font-size: clamp(1.2rem, 4vw, 1.8rem);">매출 통계 센터</h1>
+            <h1 style="color: #f1c40f; margin: 0; font-size: clamp(1.2rem, 4vw, 1.8rem);">{{ store.name }} 매출 통계</h1>
             <button onclick="resetStats()" style="background: #e74c3c; color: white; border: none; padding: 6px 12px; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 0.75rem;">일일 매출 초기화</button>
         </div>
-        <a href="/" style="color: white; text-decoration: none; font-size: 0.9rem; border: 1px solid rgba(255,255,255,0.2); padding: 5px 12px; border-radius: 4px;">홈으로</a>
+        <a href="/{{ store.id }}/counter" style="color: white; text-decoration: none; font-size: 0.9rem; border: 1px solid rgba(212, 175, 55, 0.5); padding: 5px 15px; border-radius: 4px; background: rgba(212, 175, 55, 0.1);">카운터로 이동</a>
     </header>
 
-    <div class="container">
+    <div class="container" style="max-width: 1000px;">
+        <!-- 기간 선택 탭 -->
+        <div class="period-tabs">
+            <button class="tab-btn active" onclick="changePeriod('today', this)">오늘</button>
+            <button class="tab-btn" onclick="changePeriod('week', this)">이번 주</button>
+            <button class="tab-btn" onclick="changePeriod('month', this)">이번 달</button>
+            <button class="tab-btn" onclick="changePeriod('year', this)">올해</button>
+        </div>
+
         <div class="dashboard-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
-            <!-- 오늘 매출 카드 -->
+            <!-- 매출 카드 -->
             <div class="order-card" style="text-align: center; padding: 30px 20px;">
-                <h2 style="color: var(--text-muted); font-size: 1rem; margin-bottom: 15px;">오늘의 총 매출</h2>
-                <div id="today-sales" style="font-size: clamp(2rem, 8vw, 3rem); font-weight: 900; color: var(--secondary-color);">0원</div>
+                <h2 id="period-label" style="color: var(--text-muted); font-size: 1.1rem; margin-bottom: 15px;">오늘의 총 매출</h2>
+                <div id="sales-total" style="font-size: clamp(2.5rem, 8vw, 3.5rem); font-weight: 900; color: var(--secondary-color);">0원</div>
+                <div id="period-sub" style="font-size: 0.85rem; color: #666; margin-top: 10px;">기준일: -</div>
             </div>
 
             <!-- 인기 메뉴 카드 -->
@@ -33,38 +73,71 @@
         </div>
 
         <div class="order-card" style="margin-top: 30px;">
-            <h2 style="margin-bottom: 20px; font-size: 1.2rem;">메뉴별 판매 비중</h2>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h2 style="font-size: 1.2rem;">단골 고객 및 포인트 현황</h2>
+                <span id="cust-count" style="font-size: 0.9rem; color: #888;">총 0명</span>
+            </div>
+            <div style="overflow-x: auto; background: rgba(0,0,0,0.2); border-radius: 10px; border: 1px solid rgba(255,255,255,0.05);">
+                <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                    <thead>
+                        <tr style="border-bottom: 2px solid rgba(212, 175, 55, 0.3);">
+                            <th style="padding: 15px; text-align: left;">휴대폰 번호</th>
+                            <th style="padding: 15px; text-align: center;">방문 횟수</th>
+                            <th style="padding: 15px; text-align: center;">누적 지출</th>
+                            <th style="padding: 15px; text-align: right;">보유 포인트</th>
+                        </tr>
+                    </thead>
+                    <tbody id="customer-list">
+                        <!-- 고객 데이터 로드 -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="order-card" style="margin-top: 30px;">
+            <h2 style="margin-bottom: 20px; font-size: 1.2rem;">메인 메뉴 판매 비중</h2>
             <canvas id="menuChart" style="max-height: 400px;"></canvas>
         </div>
     </div>
 
     <script>
         let chart = null;
+        let currentPeriod = 'today';
+
+        async function changePeriod(period, btn) {
+            // 버튼 상태 변경
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            
+            // 라벨 변경
+            const labels = {'today': '오늘의 총 매출', 'week': '이번 주 매출 합계', 'month': '이번 달 매출 합계', 'year': '올해 누적 매출'};
+            document.getElementById('period-label').innerText = labels[period];
+            
+            currentPeriod = period;
+            loadStats();
+        }
 
         async function resetStats() {
             if (!confirm('정말 오늘 매출 통계를 초기화하시겠습니까? (DB 데이터는 삭제되지 않으며, 오늘 집계에서만 제외됩니다)')) return;
             
             try {
-                const res = await fetch('/api/stats/reset', { method: 'POST' });
+                const res = await fetch('/api/{{ store.id }}/stats/reset', { method: 'POST' });
                 const data = await res.json();
                 if (data.status === 'success') {
                     alert('초기화되었습니다.');
                     loadStats();
-                } else {
-                    alert('오류: ' + data.message);
                 }
-            } catch (e) {
-                alert('초기화 실패: ' + e);
-            }
+            } catch (e) { alert('실패: ' + e); }
         }
 
         async function loadStats() {
             try {
-                const res = await fetch('/api/stats');
+                const res = await fetch(`/api/{{ store.id }}/stats?period=${currentPeriod}`);
                 const data = await res.json();
                 
                 // 매출 업데이트
-                document.getElementById('today-sales').innerText = (data.daily_sales || 0).toLocaleString() + '원';
+                document.getElementById('sales-total').innerText = (data.sales || 0).toLocaleString() + '원';
+                document.getElementById('period-sub').innerText = `조회 시작일: ${data.start_date || '-'}`;
                 
                 // 인기 메뉴 업데이트
                 const list = document.getElementById('best-menu-list');
@@ -72,30 +145,43 @@
                 if (data.best_menu && data.best_menu.length > 0) {
                     data.best_menu.forEach((item, index) => {
                         const div = document.createElement('div');
-                        div.style.display = 'flex';
-                        div.style.justifyContent = 'space-between';
-                        div.style.padding = '10px 0';
-                        div.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
+                        div.style.display = 'flex'; div.style.justifyContent = 'space-between';
+                        div.style.padding = '12px 0'; div.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
                         div.innerHTML = `
-                            <span>${index + 1}. ${item.name}</span>
+                            <span>${index + 1}. <span style="font-weight:800;">${item.name}</span></span>
                             <span style="font-weight: bold; color: var(--secondary-color);">${item.count}개</span>
                         `;
                         list.appendChild(div);
                     });
                 } else {
-                    list.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 20px;">집계된 데이터가 없습니다.</div>';
+                    list.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 40px 0;">데이터가 없습니다.</div>';
                 }
+
+                // [추가] 고객 리스트 업데이트
+                const custRes = await fetch(`/api/{{ store.id }}/customers`);
+                const customers = await custRes.json();
+                const clist = document.getElementById('customer-list');
+                document.getElementById('cust-count').innerText = `총 ${customers.length}명`;
+                clist.innerHTML = '';
+                customers.slice(0, 10).forEach(c => { // VVIP 상위 10명만 기본 노출
+                    const tr = document.createElement('tr');
+                    tr.style.borderBottom = '1px solid rgba(255,255,255,0.03)';
+                    tr.innerHTML = `
+                        <td style="padding: 12px 15px;">${c.phone}</td>
+                        <td style="padding: 12px 15px; text-align: center;">${c.visit_count}회</td>
+                        <td style="padding: 12px 15px; text-align: center;">${(c.total_spent || 0).toLocaleString()}원</td>
+                        <td style="padding: 12px 15px; text-align: right; font-weight: bold; color: var(--royal-gold);">${(c.points || 0).toLocaleString()} P</td>
+                    `;
+                    clist.appendChild(tr);
+                });
 
                 // 차트 업데이트
                 updateChart(data.best_menu || []);
-            } catch (e) {
-                console.error('Failed to load stats:', e);
-            }
+            } catch (e) { console.error(e); }
         }
 
         function updateChart(bestMenu) {
             const ctx = document.getElementById('menuChart').getContext('2d');
-            
             if (chart) chart.destroy();
             
             chart = new Chart(ctx, {
@@ -103,29 +189,21 @@
                 data: {
                     labels: bestMenu.map(m => m.name),
                     datasets: [{
-                        label: '판매 수량',
+                        label: '판매 수량 (개)',
                         data: bestMenu.map(m => m.count),
-                        backgroundColor: 'rgba(241, 196, 15, 0.6)',
-                        borderColor: 'rgba(241, 196, 15, 1)',
-                        borderWidth: 1
+                        backgroundColor: 'rgba(212, 175, 55, 0.6)',
+                        borderColor: 'rgba(212, 175, 55, 1)',
+                        borderWidth: 1,
+                        borderRadius: 5
                     }]
                 },
                 options: {
                     responsive: true,
                     scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: { color: '#ecf0f1' }
-                        },
-                        x: {
-                            ticks: { color: '#ecf0f1' }
-                        }
+                        y: { beginAtZero: true, ticks: { color: '#ecf0f1' } },
+                        x: { ticks: { color: '#ecf0f1' } }
                     },
-                    plugins: {
-                        legend: {
-                            labels: { color: '#ecf0f1' }
-                        }
-                    }
+                    plugins: { legend: { labels: { color: '#ecf0f1' } } }
                 }
             });
         }

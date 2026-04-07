@@ -4,25 +4,92 @@ from datetime import datetime
 
 db = SQLAlchemy()
 
+class User(db.Model):
+    __tablename__ = 'users'
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(50), unique=True, nullable=False)
+    password = db.Column(db.String(255), nullable=False)
+    role = db.Column(db.String(20), default='owner') # admin, owner, staff
+    store_id = db.Column(db.String(50), db.ForeignKey('stores.id'), nullable=True)
+    full_name = db.Column(db.String(100), nullable=True) # 파트너 실명
+    phone = db.Column(db.String(20), nullable=True) # 파트너 연락처
+    is_approved = db.Column(db.Boolean, default=False) # 관리자 승인 여부 (staff 전용)
+    agreed_at = db.Column(db.DateTime, nullable=True) # 약관 동의 일시
+    
+    # [신규] 직원 관리용 필드
+    hourly_rate = db.Column(db.Integer, default=10000) # 시급 기본값 10,000원
+    position = db.Column(db.String(50), nullable=True) # 담당 (조리, 서빙 등)
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class Store(db.Model):
+    __tablename__ = 'stores'
+    id = db.Column(db.String(50), primary_key=True) # slug (e.g., 'suragol', 'wangpung')
+    name = db.Column(db.String(100), nullable=False)
+    tables_count = db.Column(db.Integer, default=20)
+    menu_data = db.Column(db.JSON, nullable=True) # store individual menu
+    
+    # 관리 및 결제 상태 필드
+    status = db.Column(db.String(20), default='active') 
+    payment_status = db.Column(db.String(20), default='paid')
+    monthly_fee = db.Column(db.Integer, default=50000) # Monthly subscription fee
+    expires_at = db.Column(db.DateTime, nullable=True)
+    
+    # 사업자 정보 (세금계산서 발행용)
+    business_no = db.Column(db.String(20))
+    ceo_name = db.Column(db.String(50))
+    business_type = db.Column(db.String(50))
+    business_item = db.Column(db.String(100))
+    business_email = db.Column(db.String(100))
+
+    # 영업 담당자 (직원)
+    recommended_by = db.Column(db.Integer, db.ForeignKey('users.id'))
+
+    # 출퇴근 승인용 보안 PIN (기본값: 0000)
+    attendance_pin = db.Column(db.String(10), default='0000')
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    users = db.relationship('User', backref='store_ptr', lazy=True, foreign_keys=[User.store_id])
+    manager = db.relationship('User', backref='managed_stores', lazy=True, foreign_keys=[recommended_by])
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'tables_count': self.tables_count,
+            'menu_data': self.menu_data,
+            'status': self.status,
+            'payment_status': self.payment_status,
+            'expires_at': self.expires_at.isoformat() if self.expires_at else None,
+            'business_no': self.business_no,
+            'ceo_name': self.ceo_name,
+            'business_email': self.business_email,
+            'recommended_by': self.recommended_by
+        }
+
 class Order(db.Model):
     __tablename__ = 'orders'
     id = db.Column(db.String(50), primary_key=True)
+    store_id = db.Column(db.String(50), db.ForeignKey('stores.id'), nullable=False)
     table_id = db.Column(db.Integer, nullable=False)
     total_price = db.Column(db.Integer, default=0)
     status = db.Column(db.String(20), default='pending')  # pending, ready, served, paid
-    session_id = db.Column(db.String(50), nullable=True)   # 고객 식별 세션 ID
+    session_id = db.Column(db.String(50), nullable=True)
+    phone = db.Column(db.String(20), nullable=True) # For points
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     paid_at = db.Column(db.DateTime, nullable=True)
-    
     items = db.relationship('OrderItem', backref='order', lazy=True, cascade="all, delete-orphan")
 
     def to_dict(self):
         return {
             'id': self.id,
+            'store_id': self.store_id,
             'table_id': self.table_id,
             'total_price': self.total_price,
             'status': self.status,
             'session_id': self.session_id,
+            'phone': self.phone,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'items': [item.to_dict() for item in self.items]
         }
@@ -35,32 +102,125 @@ class OrderItem(db.Model):
     name = db.Column(db.String(100), nullable=False)
     price = db.Column(db.Integer, nullable=False)
     quantity = db.Column(db.Integer, default=1)
-
     def to_dict(self):
-        return {
-            'id': self.id,
-            'name': self.name,
-            'price': self.price,
-            'quantity': self.quantity
-        }
+        return { 'id': self.id, 'name': self.name, 'price': self.price, 'quantity': self.quantity }
+
 class Waiting(db.Model):
     __tablename__ = 'waiting'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    waiting_no = db.Column(db.Integer, nullable=True) # 3자리 난수 대기 번호
+    store_id = db.Column(db.String(50), db.ForeignKey('stores.id'), nullable=False)
+    waiting_no = db.Column(db.Integer, nullable=True)
     phone = db.Column(db.String(20), nullable=False)
     people = db.Column(db.Integer, default=1)
-    status = db.Column(db.String(20), default='waiting') # waiting, entered, cancelled
-    notified = db.Column(db.Boolean, default=False) # Rank 3 notice sent?
+    status = db.Column(db.String(20), default='waiting')
+    nearby_notified = db.Column(db.Boolean, default=False) # 3rd in line notification
+    enter_notified = db.Column(db.Boolean, default=False)  # Entry notification
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     def to_dict(self):
         return {
             'id': self.id,
+            'store_id': self.store_id,
             'waiting_no': self.waiting_no,
             'phone': self.phone,
             'people': self.people,
             'status': self.status,
-            'notified': self.notified,
+            'nearby_notified': self.nearby_notified,
+            'enter_notified': self.enter_notified,
             'created_at': self.created_at.isoformat()
+        }
+
+class SystemConfig(db.Model):
+    __tablename__ = 'system_configs'
+    id = db.Column(db.Integer, primary_key=True)
+    key = db.Column(db.String(100), unique=True, nullable=False)
+    value = db.Column(db.String(255), nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+class TaxInvoice(db.Model):
+    __tablename__ = 'tax_invoices'
+    id = db.Column(db.Integer, primary_key=True)
+    order_id = db.Column(db.String(50), db.ForeignKey('orders.id'), nullable=False)
+    store_id = db.Column(db.String(50), db.ForeignKey('stores.id'), nullable=False)
+    amount = db.Column(db.Integer, nullable=False)
+    status = db.Column(db.String(20), default='issued')
+    issued_at = db.Column(db.DateTime, default=datetime.utcnow)
+    store = db.relationship('Store', backref='invoices')
+
+    def to_dict(self):
+        return { 'id': self.id, 'order_id': self.order_id, 'amount': self.amount, 'status': self.status, 'issued_at': self.issued_at.isoformat() }
+
+class ServiceRequest(db.Model):
+    __tablename__ = 'service_requests'
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    store_id = db.Column(db.String(50), db.ForeignKey('stores.id'), nullable=False)
+    table_id = db.Column(db.Integer, nullable=False)
+    content = db.Column(db.String(100), nullable=False) # e.g., "물", "반찬 더주세요", "앞접시"
+    status = db.Column(db.String(20), default='pending') # pending, completed
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'store_id': self.store_id,
+            'table_id': self.table_id,
+            'content': self.content,
+            'status': self.status,
+            'created_at': self.created_at.isoformat()
+        }
+
+class Customer(db.Model):
+    __tablename__ = 'customers'
+    id = db.Column(db.Integer, primary_key=True)
+    store_id = db.Column(db.String(50), db.ForeignKey('stores.id'), nullable=False)
+    phone = db.Column(db.String(20), nullable=False)
+    points = db.Column(db.Integer, default=0)
+    visit_count = db.Column(db.Integer, default=0)
+    total_spent = db.Column(db.Integer, default=0)
+    last_accumulation_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    __table_args__ = (db.UniqueConstraint('store_id', 'phone', name='_store_phone_uc'),)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'phone': self.phone,
+            'points': self.points,
+            'visit_count': self.visit_count,
+            'total_spent': self.total_spent,
+            'last_accumulation_at': self.last_accumulation_at.isoformat() if self.last_accumulation_at else None
+        }
+
+class PointTransaction(db.Model):
+    __tablename__ = 'point_transactions'
+    id = db.Column(db.Integer, primary_key=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customers.id'), nullable=False)
+    store_id = db.Column(db.String(50), db.ForeignKey('stores.id'), nullable=False)
+    amount = db.Column(db.Integer, nullable=False) # positive for accumulation, negative for usage
+    description = db.Column(db.String(200))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class Attendance(db.Model):
+    __tablename__ = 'attendance'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    store_id = db.Column(db.String(50), db.ForeignKey('stores.id'), nullable=False)
+    check_in_at = db.Column(db.DateTime, default=datetime.utcnow)
+    check_out_at = db.Column(db.DateTime, nullable=True)
+    total_minutes = db.Column(db.Integer, default=0) # 자동 산출된 분 단위 근무시간
+    status = db.Column(db.String(20), default='working') # working, completed
+    
+    user = db.relationship('User', backref='attendances')
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'user_name': self.user.full_name or self.user.username,
+            'check_in_at': self.check_in_at.isoformat() if self.check_in_at else None,
+            'check_out_at': self.check_out_at.isoformat() if self.check_out_at else None,
+            'total_minutes': self.total_minutes,
+            'status': self.status
         }

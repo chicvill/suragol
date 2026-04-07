@@ -1,9 +1,20 @@
 services:
   - type: web
-    name: free-order
-    env: docker
-    plan: free # Render 무료 요금제 사용 시
-    branch: main
+    name: mqr-saas-platform
+    runtime: docker
+    plan: free # 무료 티어 또는 유료(starter) 선택 가능
+    # Render가 사용할 기본 포트를 10000번으로 일치시킵니다.
     envVars:
+      - key: PORT
+        value: "10000"
       - key: DATABASE_URL
-        sync: false # Supabase에서 발급받은 URI를 Render 대시보드에 직접 입력하세요
+        # 로컬 DB 대신 Supabase 주소를 Render 대시보드(Environment)에서 직접 입력하세요.
+        sync: false
+      - key: CLOUDFLARE_TUNNEL_TOKEN
+        # 보안을 위해 대시보드에서 직접 입력하도록 설정
+        sync: false
+    # 디스크 보존 설정 (무료 티어는 재배포 시 SQLite 파일이 초기화됨. 영구 저장은 'Disk' 서비스 추천)
+    disk:
+      name: suragol-storage
+      mountPath: /app/data
+      sizeGB: 1
