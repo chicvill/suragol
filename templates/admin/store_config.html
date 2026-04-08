@@ -65,7 +65,11 @@
     <div class="main-content">
         <div class="header-section">
             <div class="header-title">
-                <a href="/admin/stores" class="back-link"><i data-lucide="chevron-left" size="18"></i> 업소 목록으로</a>
+                {% if session['role'] in ['owner', 'manager'] %}
+                    <a href="/" class="back-link"><i data-lucide="chevron-left" size="18"></i> 메인 대시보드로</a>
+                {% else %}
+                    <a href="/admin/stores" class="back-link"><i data-lucide="chevron-left" size="18"></i> 업소 목록으로</a>
+                {% endif %}
                 <h1>{{ store.name }} <span style="color:#64748b; font-weight:400; font-size:1rem;">| 상세 설정 및 메뉴 관리</span></h1>
             </div>
             <button type="button" onclick="saveAll()" class="btn btn-primary btn-save"><i data-lucide="save" size="20"></i> 설정 변경 저장</button>
@@ -78,6 +82,7 @@
                 <div class="info-grid">
                     <div class="form-group"><label>업소 정식 명칭</label><input type="text" name="name" value="{{ store.name }}"></div>
                     <div class="form-group"><label>사업자 등록 번호</label><input type="text" name="business_no" value="{{ store.business_no or '' }}" placeholder="000-00-00000"></div>
+                    <div class="form-group"><label>매장 업종 (예: 카페, 한식, 치킨 등)</label><input type="text" name="business_type" value="{{ store.business_type or '' }}" placeholder="예: 카페, 한식, 다방, 치킨 등"></div>
                     <div class="form-group"><label>대표자 성함</label><input type="text" name="ceo_name" value="{{ store.ceo_name or '' }}"></div>
                     <div class="form-group"><label>정산 알림 이메일</label><input type="email" name="business_email" value="{{ store.business_email or '' }}" placeholder="receipt@company.com"></div>
                     
@@ -132,7 +137,7 @@
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2rem;">
                     <h3 style="margin:0;"><i data-lucide="layers" size="18"></i> 메뉴 구성 가이드</h3>
                     <div style="display:flex; gap:10px;">
-                        <button type="button" onclick="importJSON()" class="btn btn-secondary" style="background:rgba(59, 130, 246, 0.1); color:var(--primary);"><i data-lucide="code-2" size="18"></i> JSON 데이터 가져오기</button>
+                        <button type="button" onclick="generateAIMenu()" class="btn btn-secondary" style="background:rgba(139, 92, 246, 0.1); color:#a78bfa; border: 1px solid rgba(139, 92, 246, 0.3);"><i data-lucide="sparkles" size="18"></i> ✨ AI 메뉴 예시 생성</button>
                         <button type="button" onclick="addCategory()" class="btn btn-secondary"><i data-lucide="plus-circle" size="18"></i> 새 카테고리 추가</button>
                     </div>
                 </div>
@@ -187,18 +192,36 @@
         function addCategory() { const n=prompt('카테고리명:'); if(n && !menuData[n]) { menuData[n]=[]; renderBuilder(); } }
         
         // [신규] JSON 데이터 직접 입력 시스템
-        function importJSON() {
-            const raw = prompt("복사한 JSON 데이터를 여기에 붙여넣어 주세요:");
-            if (!raw) return;
+        // [AI] 업종 기반 자동 메뉴 구성 시스템
+        async function generateAIMenu() {
+            let currentBizType = "{{ store.business_type or '' }}";
+            
+            // 업종 정보가 없을 경우 사용자에게 정중히 물어봅니다.
+            if (!currentBizType || currentBizType === 'None') {
+                currentBizType = prompt("매장의 업종이 지정되지 않았습니다.\n어떤 종류의 메뉴판을 만들어 드릴까요? (예: 카페, 한식, 치킨, 분식 등)");
+                if (!currentBizType) return;
+            }
+
+            if (!confirm(`AI가 '${currentBizType}' 업종에 최적화된 메뉴 예시를 생성합니다.\n(기존에 작성된 내용은 삭제됩니다. 계속하시겠습니까?)`)) return;
+            
             try {
-                const parsed = JSON.parse(raw);
-                if (typeof parsed === 'object') {
-                    menuData = parsed;
+                const res = await fetch(`/api/ai-menu-template?type=${encodeURIComponent(currentBizType)}`);
+                const data = await res.json();
+                
+                console.log("AI 추천 데이터 도착:", data); // 디버깅용 로그
+
+                if (data && Object.keys(data).length > 0) {
+                    menuData = data;
+                    renderBuilder(); // 화면 강제 갱신
+                    alert("✅ AI가 분석한 추천 메뉴 구성이 완료되었습니다!");
+                } else {
+                    alert("🤔 업종에 어울리는 구체적인 메뉴를 찾지 못했습니다. 기본 구조를 생성합니다.");
+                    menuData = { "✨ 추천 메뉴": [{"name": "새 메뉴", "price": 0, "image": ""}] };
                     renderBuilder();
-                    alert("✅ 메뉴 데이터가 성공적으로 분석되어 매칭되었습니다!");
                 }
             } catch(e) {
-                alert("❌ JSON 형식이 올바르지 않습니다. 코드를 정확히 복사해 주세요.");
+                alert("❌ AI 메뉴 생성 중 네트워크 오류가 발생했습니다.");
+                console.error(e);
             }
         }
 

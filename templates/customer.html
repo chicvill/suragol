@@ -49,11 +49,15 @@
     <div id="toast" class="toast">장바구니 추가</div>
 
     <div class="tabs">
-        {% for category in store.menu_data.keys() %}
-        <div class="tab {{ 'active' if loop.first else '' }}" onclick="showCategory('{{ category }}', this)">
-            {{ category }}
-        </div>
-        {% endfor %}
+        {% if store.menu_data is not none %}
+            {% for category in store.menu_data.keys() %}
+            <div class="tab {{ 'active' if loop.first else '' }}" onclick="showCategory('{{ category }}', this)">
+                {{ category }}
+            </div>
+            {% endfor %}
+        {% else %}
+            <div style="padding: 20px; text-align: center; color: #94a3b8; font-size: 0.9rem; width: 100%;">메뉴를 구성 중입니다.</div>
+        {% endif %}
     </div>
 
     <div class="container" style="padding: 15px;">

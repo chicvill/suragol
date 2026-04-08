@@ -21,6 +21,12 @@ from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
 from datetime import datetime, timedelta, timezone
+
+# ---------------------------------------------------------
+# 외부 유틸리티 모듈 임포트
+# ---------------------------------------------------------
+from MQutils.ai_engine import get_ai_recommended_menu, get_ai_operation_insight
+
 from flask import Flask, render_template, request, jsonify, redirect, url_for, session, flash
 from flask_socketio import SocketIO, emit
 from flask_sqlalchemy import SQLAlchemy
@@ -440,40 +446,67 @@ def admin_store_delete(slug):
     return redirect(url_for('admin_stores'))
 
 @app.route('/admin/stores/<slug>/config', methods=['GET', 'POST'])
-@staff_required
+@store_access_required
 def admin_store_config(slug):
     store = db.session.get(Store, slug)
     user_id = session.get('user_id')
     role = session.get('role')
+    user_store_id = session.get('store_id')
 
-    # 보안 체크: 일반 직원이 본인 담당이 아닌 매장에 접근할 경우 차단
-    if role == 'staff' and store.recommended_by != user_id:
+    # 보안 체크
+    can_access = False
+    if role == 'admin':
+        can_access = True
+    elif role == 'staff' and store.recommended_by == user_id:
+        can_access = True
+    elif role in ['owner', 'manager'] and slug == user_store_id:
+        can_access = True
+        
+    if not can_access:
         flash("해당 업소에 대한 관리 권한이 없습니다.")
-        return redirect(url_for('admin_stores'))
+        return redirect(url_for('index'))
     
     if request.method == 'POST':
-        # Now we allow STAFF to update menus, but NOT the manager assignment
+        # 매장 기본 정보 업데이트
         store.name = request.form.get('name')
         store.business_no = request.form.get('business_no')
         store.ceo_name = request.form.get('ceo_name')
         store.business_email = request.form.get('business_email')
+        store.business_type = request.form.get('business_type')  # [추가] 업종 저장
+        store.theme_color = request.form.get('theme_color', store.theme_color)
+        store.contact_phone = request.form.get('contact_phone', store.contact_phone)
+        store.point_ratio = float(request.form.get('point_ratio', 0))
+        store.waiting_sms_no = request.form.get('waiting_sms_no', store.waiting_sms_no)
         
-        # Responsible Staff (recommended_by) is ONLY changeable by Admin
-        # Monthly Fee is changeable by Admin or Staff (Sales Partner)
-        if session.get('role') == 'admin':
+        # 담당 직원 및 공개 설정은 최고 관리자(Admin)만 변경 가능
+        if role == 'admin':
             store.recommended_by = request.form.get('recommended_by')
-            store.is_public = 'is_public' in request.form # [변경] 어드민만 샘플 공개 설정 가능
+            store.is_public = 'is_public' in request.form
         
-        if session.get('role') in ['admin', 'staff']:
+        # 월 회비는 관리자나 영업 파트너만 수정 가능 (점주는 불가)
+        if role in ['admin', 'staff']:
             store.monthly_fee = int(request.form.get('monthly_fee', 50000))
         
-        store.menu_data = json.loads(request.form.get('menu_data', '{}'))
+        # 메뉴 데이터 저장 (JSON 포맷)
+        raw_menu = request.form.get('menu_data', '{}')
+        try:
+            import json
+            store.menu_data = json.loads(raw_menu)
+            print(f"DEBUG: [{store.id}] 메뉴판 데이터 저장 시도 -> {len(store.menu_data)} 카테고리 감지")
+        except Exception as e:
+            print(f"ERROR: [{store.id}] 메뉴 JSON 파싱 실패: {e}")
+            
         db.session.commit()
-        flash(f"{store.name}의 설정이 저장되었습니다.")
+        flash(f"매장 '{store.name}'의 모든 설정이 안전하게 저장되었습니다.")
+        
+        # 점주는 메인으로, 관리/직원은 목록으로 리다이렉트
+        if role in ['owner', 'manager']:
+            return redirect(url_for('index'))
         return redirect(url_for('admin_stores'))
-    # 담당 직원 선택 목록에 관리자(admin) 및 사장님(owner)도 포함하도록 수정
+
+    # 담당 직원 선택 목록 (Admin용)
     staffs = User.query.filter(User.role.in_(['staff', 'admin', 'owner'])).all()
-    return render_template('admin/store_config.html', store=store, staffs=staffs)
+    return render_template('admin/store_config.html', store=store, staffs=staffs, role=role)
 
 @app.route('/admin/performance')
 @staff_required
@@ -708,47 +741,80 @@ def signup_new_store():
         username = request.form.get('username').strip()
         password = request.form.get('password').strip()
         
+        # [데이터 보정] partner_id가 비어있거나 문자열일 경우를 대비해 숫자로 변환
+        raw_partner_id = request.form.get('partner_id')
+        try:
+            partner_id_int = int(raw_partner_id) if raw_partner_id and str(raw_partner_id).isdigit() else None
+        except:
+            partner_id_int = None
+            
+        # monthly_fee 숫자 변환
+        try:
+            monthly_fee_int = int(request.form.get('monthly_fee', 50000))
+        except:
+            monthly_fee_int = 50000
+        
         # 중복 체크
         if Store.query.get(slug):
-            flash("이미 사용 중인 업소 영문 코드(ID)입니다.")
+            flash(f"이미 사용 중인 업소 영문 코드({slug})입니다. 다른 코드를 사용해 주세요.")
             return redirect(url_for('signup_new_store', partner_id=partner_id))
         if User.query.filter_by(username=username).first():
-            flash("이미 존재하는 계정 아이디입니다.")
+            flash(f"이미 존재하는 계정 아이디({username})입니다. 다른 아이디를 사용해 주세요.")
             return redirect(url_for('signup_new_store', partner_id=partner_id))
 
-        # 1. 업소 생성 (Pending 상태)
-        new_store = Store(
-            id=slug,
-            name=name,
-            business_no=request.form.get('business_no'),
-            ceo_name=request.form.get('ceo_name'),
-            business_type=request.form.get('business_type'),
-            business_item=request.form.get('business_item'),
-            business_email=request.form.get('business_email'),
-            monthly_fee=int(request.form.get('monthly_fee', 50000)),
-            recommended_by=partner_id,
-            signature_owner=request.form.get('sig_owner'),
-            signature_partner=request.form.get('sig_partner'),
-            status='pending', # 어드민 승인 전
-            payment_status='paid', # 1개월 무료 기간 제공에 따른 초기 상태
-            expires_at=datetime.utcnow() + timedelta(days=31) # 다음 달 납부일까지 무료
-        )
-        db.session.add(new_store)
-        
-        # 2. 점주 계정 생성 (Pending 상태)
-        new_owner = User(
-            username=username,
-            password=generate_password_hash(password),
-            role='owner',
-            store_id=slug,
-            is_approved=False
-        )
-        db.session.add(new_owner)
-        db.session.commit()
-        
-        # 파트너 세션을 유지하여 즉시 상세 설정 단계로 유도
-        flash("신규 업소 가계약이 체결되었습니다. 상세 설정을 진행해 주세요.")
-        return redirect(url_for('admin_store_setup', slug=slug))
+        try:
+            # AI 메뉴 자동 추천 로직 적용
+            business_type = request.form.get('business_type', '').strip()
+            ai_menu = get_ai_recommended_menu(business_type)
+
+            # 1. 업소 생성 (Pending 상태)
+            new_store = Store(
+                id=slug,
+                name=name,
+                menu_data=ai_menu, # [AI] 업종에 맞는 메뉴 자동 생성
+                business_no=request.form.get('business_no'),
+                ceo_name=request.form.get('ceo_name'),
+                business_type=business_type,
+                business_item=request.form.get('business_item'),
+                business_email=request.form.get('business_email'),
+                monthly_fee=monthly_fee_int,
+                recommended_by=partner_id_int,
+                signature_owner=request.form.get('sig_owner'),
+                signature_partner=request.form.get('sig_partner'),
+                status='pending',
+                payment_status='paid',
+                expires_at=datetime.utcnow() + timedelta(days=31)
+            )
+            db.session.add(new_store)
+            db.session.flush() # [핵심] DB에 매장 정보를 먼저 밀어넣어 외래키 제약조건 충족
+            
+            # 2. 점주 계정 생성 (Pending 상태)
+            new_owner = User(
+                username=username,
+                password=generate_password_hash(password),
+                role='owner',
+                store_id=slug,
+                is_approved=False
+            )
+            db.session.add(new_owner)
+            db.session.commit()
+            
+            print(f"✅ [계약 성공] 신규 가맹점({slug}) 및 점주({username}) 등록 완료!")
+            
+            # [추가] 가계약 완료 후 자동 로그인 처리 (상세 설정 즉시 진입용)
+            session['user_id'] = new_owner.id
+            session['username'] = new_owner.username
+            session['role'] = new_owner.role
+            session['store_id'] = new_owner.store_id
+            
+            flash("🎉 가계약이 체결되었습니다! 매장의 메뉴와 상세 정보를 설정해 주세요.")
+            return redirect(url_for('admin_store_config', slug=slug))
+
+        except Exception as e:
+            db.session.rollback()
+            print(f"❌ [계약 실패] 오류 발생: {e}")
+            flash(f"가계약 체결 중 오류가 발생했습니다: {str(e)}")
+            return redirect(url_for('signup_new_store', partner_id=partner_id))
 
     return render_template('signup/new_store.html', partner_id=partner_id)
 
@@ -882,7 +948,14 @@ def store_index(slug):
 
 @app.route('/<slug>/customer/<int:table_id>')
 def customer_view(slug, table_id):
-    store = db.session.get(Store, slug)
+    store = Store.query.get_or_404(slug)
+    
+    # [방어 로직] 메뉴 데이터가 없거나 완전히 비어있는 경우 자동 복구 및 샘플 생성
+    if not store.menu_data or len(store.menu_data) == 0:
+        store.menu_data = {"✨ 추천 메뉴": []}
+        db.session.commit()
+        print(f"🛠 [복구] {slug} 매장에 기본 카테고리를 생성했습니다.")
+        
     if 'uid' not in session: session['uid'] = str(random.randint(100, 999))
     return render_template('customer.html', store=store, table_id=table_id, session_id=session['uid'])
 
@@ -891,7 +964,26 @@ def customer_view(slug, table_id):
 def counter_view(slug):
     store = db.session.get(Store, slug)
     if not store: return redirect(url_for('index'))
-    return render_template('counter.html', store=store)
+    # [AI] 매장 운영 인사이트 생성
+    insight = get_ai_operation_insight(store)
+    return render_template('counter.html', store=store, ai_insight=insight)
+
+@app.route('/api/<slug>/ai-insight')
+@store_access_required
+def api_ai_insight(slug):
+    store = db.session.get(Store, slug)
+    if not store: return jsonify({'error': 'Not found'}), 404
+    return jsonify({
+        'status': 'success',
+        'insight': get_ai_operation_insight(store)
+    })
+
+@app.route('/api/ai-menu-template')
+@login_required
+def api_ai_menu_template():
+    # 쿼리 파라미터로 받은 업종(type)을 기반으로 추천 메뉴 반환
+    biz_type = request.args.get('type', '')
+    return jsonify(get_ai_recommended_menu(biz_type))
 
 @app.route('/<slug>/kitchen')
 @store_access_required

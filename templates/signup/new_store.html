@@ -33,6 +33,11 @@
             border-radius: 15px; font-weight: 950; font-size: 1.1rem; cursor: pointer; margin-top: 2rem;
             transition: 0.2s; box-shadow: 0 5px 15px rgba(59, 130, 246, 0.3);
         }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
     </style>
 </head>
 <body>
@@ -41,6 +46,17 @@
             <h1 style="font-weight:950; font-size:2.2rem; letter-spacing:-1px;">가맹점 가계약 체결</h1>
             <p style="color:#64748b;">점주님과 영업 파트너가 상호 확인하여 계약을 확정합니다.</p>
         </div>
+
+        {# 에러 메시지 표시 영역 #}
+        {% with messages = get_flashed_messages() %}
+          {% if messages %}
+            {% for message in messages %}
+              <div style="background:#fff1f2; color:#be123c; padding:1rem; border-radius:12px; margin-bottom:2rem; border:1px solid #fecdd3; font-weight:700; text-align:center; animation: shake 0.5s;">
+                <i data-lucide="alert-circle" style="display:inline-block; vertical-align:middle; margin-right:5px;"></i> {{ message }}
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
 
         <form id="contractForm" action="/signup/new-store" method="POST">
             <input type="hidden" name="sig_owner" id="sig_owner_data">
@@ -102,8 +118,8 @@
                     <input type="number" name="monthly_fee" value="50000" id="fee_input">
                 </div>
                 <div class="form-group"><label>영업 파트너 성함 (자동)</label>
-                    <input type="text" value="{{ session.username }}" disabled>
-                    <input type="hidden" name="partner_id" value="{{ session.user_id }}">
+                    <input type="text" value="추천 파트너 ID: {{ partner_id }}" disabled>
+                    <input type="hidden" name="partner_id" value="{{ partner_id }}">
                 </div>
             </div>
 

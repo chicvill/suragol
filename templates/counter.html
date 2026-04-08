@@ -362,6 +362,19 @@
                 </button>
             </div>
     </header>
+    
+    <!-- ✨ AI 매장 운영 리포트 섹션 -->
+    <div style="background: linear-gradient(90deg, #1a0505 0%, #2a0a0a 100%); border-bottom: 1px solid var(--border-gold); padding: 12px 30px; display: flex; align-items: center; gap: 20px; z-index: 90;">
+        <div style="background: rgba(212, 175, 55, 0.15); color: var(--royal-gold); padding: 5px 15px; border-radius: 20px; font-size: 0.8rem; font-weight: 800; border: 1px solid var(--border-gold); display: flex; align-items: center; gap: 8px; white-space: nowrap;">
+            <i data-lucide="sparkles" size="14"></i> LIVE AI REPORT
+        </div>
+        <div id="ai-insight-text" style="color: #f1f5f9; font-size: 1rem; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+            {{ ai_insight if ai_insight else "실시간 운영 데이터를 분석하여 인사이트를 생성 중입니다..." }}
+        </div>
+        <div style="margin-left: auto; color: #64748b; font-size: 0.75rem; font-weight: 600;">
+            <i data-lucide="refresh-cw" size="12" style="vertical-align: middle;"></i> 5분 마다 갱신됨
+        </div>
+    </div>
 
     <div class="main-layout">
         <!-- 좌측: 실시간 직원 호출(서비스 요청) -->
@@ -994,6 +1007,27 @@
             await fetch('/api/stats/reset', { method: 'POST' });
             alert('초기화되었습니다.');
         }
+
+        // 5. AI 리포트 실시간 갱신 시스템
+        async function refreshAIInsight() {
+            try {
+                const res = await fetch(`/api/{{ store.id }}/ai-insight`);
+                const data = await res.json();
+                if (data.status === 'success') {
+                    const el = document.getElementById('ai-insight-text');
+                    if(el) {
+                        el.style.opacity = '0';
+                        setTimeout(() => {
+                            el.innerText = data.insight;
+                            el.style.opacity = '1';
+                        }, 500);
+                    }
+                }
+            } catch (e) { console.error("AI Insight Refresh Error:", e); }
+        }
+        
+        // 5분마다 자동 갱신
+        setInterval(refreshAIInsight, 300000);
 
         window.onload = () => {
             forceReSync();

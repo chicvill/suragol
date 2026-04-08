@@ -11,6 +11,13 @@
         <div style="margin-top: 2rem;">
             <p style="font-weight: 800; color: var(--primary); margin: 0;">담당 파트너: {{ session.username }}</p>
             <p style="font-size: 0.8rem; color: #94a3b8; margin-top: 5px;">ID: {{ session.user_id }}</p>
+            
+            <!-- [추가] 시뮬레이션용 직접 링크 -->
+            <div style="margin-top:20px; border-top:1px solid #eee; padding-top:20px;">
+                <a id="direct-link" href="#" class="btn" style="background:#f1f5f9; color:#475569; padding:10px 20px; border-radius:10px; font-size:0.85rem; font-weight:700; text-decoration:none; display:inline-block;">
+                    <i data-lucide="external-link" size="14"></i> 계약 페이지 직접 열기 (PC 테스트용)
+                </a>
+            </div>
         </div>
     </div>
 
@@ -29,6 +36,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
     const recruit_url = window.location.origin + "/signup/new-store?partner_id={{ session.user_id }}";
+    
+    // QR 생성
     new QRCode(document.getElementById("qrcode"), {
         text: recruit_url,
         width: 250,
@@ -37,6 +46,10 @@
         colorLight : "#ffffff",
         correctLevel : QRCode.CorrectLevel.H
     });
+
+    // 직접 링크 버튼 세팅
+    document.getElementById("direct-link").href = recruit_url;
+    
     lucide.createIcons();
 </script>
 {% endblock %}

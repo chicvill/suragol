@@ -4,85 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MQnet Central | 통합 관리 포털</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v={{ range(1, 9999) | random }}">
     <script src="https://unpkg.com/lucide@latest"></script>
-    <style>
-        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
-        :root {
-            --primary: #3b82f6; --accent: #10b981; --warning: #f59e0b; --danger: #ef4444;
-            --bg: #0b1121; --card: #161c2d; --border: rgba(255,255,255,0.08); --text: #f1f5f9;
-        }
-        body { background: var(--bg); color: var(--text); font-family: 'Pretendard', sans-serif; margin: 0; min-height: 100vh; }
-        .portal-container { max-width: 1300px; margin: 0 auto; padding: 15px; }
-        
-        .top-nav { 
-            display: flex; justify-content: space-between; align-items: center; 
-            margin-bottom: 20px; padding: 12px 25px;
-            background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(15px);
-            border-radius: 15px; border: 1px solid var(--border);
-        }
-        .user-summary { display: flex; align-items: center; gap: 15px; }
-        .role-badge { 
-            background: var(--primary); color: white; padding: 3px 10px; border-radius: 50px; 
-            font-size: 0.75rem; font-weight: 950;
-        }
-
-        .section-header { 
-            font-size: 0.9rem; font-weight: 950; letter-spacing: 1px; color: #4b5563; 
-            margin: 25px 0 15px; text-transform: uppercase; border-left: 5px solid var(--primary); padding-left: 12px;
-        }
-
-        .global-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; margin-bottom: 25px; }
-        .global-card {
-            background: rgba(59, 130, 246, 0.05); border: 1px solid rgba(59, 130, 246, 0.2);
-            padding: 15px 25px; border-radius: 15px; display: flex; align-items: center; gap: 20px;
-            text-decoration: none; color: #fff; transition: 0.2s;
-        }
-        .global-card:hover { background: var(--primary); transform: translateY(-2px); }
-        .global-card span { font-size: 1.1rem; font-weight: 800; }
-
-        /* [스마트 탭] 1개일 때도 유지, 영문 Slug 강조 */
-        .store-tabs { display: flex; gap: 10px; overflow-x: auto; margin-bottom: 12px; }
-        .store-tab-btn {
-            background: rgba(255,255,255,0.03); border: 1px solid var(--border); color: #64748b;
-            padding: 10px 25px; border-radius: 12px; font-weight: 950; font-size: 1.1rem; cursor: pointer; white-space: nowrap; transition: 0.2s;
-            text-transform: lowercase; font-family: monospace;
-        }
-        .store-tab-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
-        .store-tab-btn .tab-ko { font-size: 0.7rem; font-weight: 700; display: block; opacity: 0.6; margin-top: -3px; font-family: 'Pretendard'; }
-
-        /* [매장 카드] 군더더기 제거 */
-        .store-card {
-            background: var(--card); border: 2px solid var(--border); border-radius: 20px; padding: 25px;
-            transition: all 0.3s;
-        }
-        .store-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        /* 큰 가게명 제거하고 매장 전체 이름 작게 표시 */
-        .store-meta { font-size: 1.1rem; font-weight: 900; color: var(--primary); }
-        
-        .action-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-        .action-item {
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            padding: 22px 5px; border-radius: 15px; background: rgba(255,255,255,0.03);
-            border: 1px solid var(--border); color: #94a3b8; text-decoration: none; transition: 0.2s;
-            gap: 12px;
-        }
-        .action-item:hover { background: var(--primary); color: #fff; border-color: var(--primary); transform: scale(1.03); }
-        .action-item i { width: 44px; height: 44px; stroke-width: 2.5px; } 
-        .action-label { font-size: 1rem; font-weight: 950; }
-
-        .worker-panel { 
-            background: linear-gradient(145deg, #1e293b, #0f172a); 
-            border-radius: 25px; padding: 30px; margin-bottom: 25px; border: 1px solid var(--border);
-        }
-        .status-badge { display: inline-block; padding: 6px 15px; border-radius: 50px; font-weight: 950; font-size: 0.85rem; }
-        .status-working { background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); }
-        .status-home { background: rgba(148, 163, 184, 0.1); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.2); }
-        
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-        .store-pane { display: none; }
-        .store-pane.active { display: block; animation: fadeIn 0.3s ease; }
-    </style>
 </head>
 <body>
     {# [매장 관리 카드 컴포넌트 매크로 정의] #}
@@ -108,6 +31,10 @@
             <a href="/signup?role=worker&store_id={{ s.id }}" class="action-item" style="border-color: var(--accent); background: rgba(16, 185, 129, 0.08);">
                 <i data-lucide="user-plus" style="color: var(--accent);"></i>
                 <span class="action-label" style="color:var(--accent);">직원 등록</span>
+            </a>
+            <a href="/admin/stores/{{ s.id }}/config" class="action-item" style="border-color: var(--accent); background: rgba(16, 185, 129, 0.08);">
+                <i data-lucide="clipboard-list" style="color: var(--accent);"></i>
+                <span class="action-label" style="color:var(--accent);">메뉴 및 매장 관리</span>
             </a>
             <a href="/admin/staff?slug={{ s.id }}" class="action-item" style="border-color: var(--warning); background: rgba(245, 158, 11, 0.08);">
                 <i data-lucide="clipboard-check" style="color: var(--warning);"></i>
@@ -242,8 +169,8 @@
                         업무 진행 중 (<span id="worker-minutes-count">0</span>분)
                     </div>
                     <div id="worker-action-area">
-                        <button id="worker-btn-in" onclick="workerCheckIn()" style="width: 100%; border: none; cursor: pointer; display: none; padding: 35px; border-radius: 20px; background: var(--primary); color: white; font-weight: 950; font-size: 1.8rem;">출근하기</button>
-                        <button id="worker-btn-out" onclick="workerCheckOut()" style="width: 100%; border: none; cursor: pointer; display: none; padding: 35px; border-radius: 20px; background: var(--danger); color: white; font-weight: 950; font-size: 1.8rem;">퇴근하기</button>
+                        <button id="worker-btn-in" onclick="handleCheckIn()" style="width: 100%; border: none; cursor: pointer; display: none; padding: 35px; border-radius: 20px; background: var(--primary); color: white; font-weight: 950; font-size: 1.8rem;">출근하기</button>
+                        <button id="worker-btn-out" onclick="handleCheckOut()" style="width: 100%; border: none; cursor: pointer; display: none; padding: 35px; border-radius: 20px; background: var(--danger); color: white; font-weight: 950; font-size: 1.8rem;">퇴근하기</button>
                     </div>
                 </div>
             {% else %}
@@ -288,37 +215,9 @@
     </div>
 
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}?v={{ range(1, 9999) | random }}"></script>
     <script>
         lucide.createIcons();
-        function switchStoreTab(storeId, btn) {
-            document.querySelectorAll('.store-pane').forEach(p => p.classList.remove('active'));
-            document.querySelectorAll('.store-tab-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById('tab-pane-' + storeId).classList.add('active');
-            btn.classList.add('active');
-        }
-
-        async function cloneStore(sid) {
-            if(!confirm("이 매장을 복제하여 시연용 데모 매장을 만드시겠습니까?\n(원본의 메뉴와 디자인 설정이 그대로 복사됩니다)")) return;
-            try {
-                const r = await fetch('/api/admin/store/clone', {
-                    method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({source_id: sid})
-                });
-                const d = await r.json();
-                if(d.status === 'success') {
-                    alert(d.message);
-                    location.reload();
-                } else alert(d.message);
-            } catch(e) { alert('복제 실패: ' + e); }
-        }
-
-        async function deleteDemo(sid) {
-            if(!confirm("[주의] 데모 매장을 삭제하시겠습니까?\n모든 데이터가 영구 삭제됩니다.")) return;
-            try {
-                const r = await fetch(`/admin/stores/${sid}/delete`, { method: 'POST' });
-                if(r.ok) location.reload();
-            } catch(e) { alert('삭제 실패: ' + e); }
-        }
     </script>
 
     {% if role == 'worker' %}
@@ -353,7 +252,7 @@
         setInterval(updateWorkerClock, 1000);
 
         async function loadWorkerStatus() {
-            if(!slug) return;
+            if(!slug || slug === 'None') return;
             try {
                 const res = await fetch(`/api/${slug}/attendance/staff-status`);
                 const data = await res.json();
@@ -378,17 +277,10 @@
             } catch (e) { console.error(e); }
         }
 
-        async function workerCheckIn() {
-            if(!confirm('출근 처리하시겠습니까?')) return;
-            await fetch(`/api/${slug}/attendance/check-in`, { method: 'POST' });
-            loadWorkerStatus();
-        }
+        // 외부 dashboard.js의 함수 호출 연동
+        async function handleCheckIn() { await workerCheckIn(slug); loadWorkerStatus(); }
+        async function handleCheckOut() { await workerCheckOut(slug); loadWorkerStatus(); }
 
-        async function workerCheckOut() {
-            if(!confirm('퇴근 처리하시겠습니까?')) return;
-            await fetch(`/api/${slug}/attendance/check-out`, { method: 'POST' });
-            loadWorkerStatus();
-        }
         loadWorkerStatus(); updateWorkerClock();
     </script>
     {% endif %}
