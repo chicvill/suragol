@@ -34,6 +34,17 @@ AI_MENU_PRESETS = {
             {'name': '바삭 후라이드', 'price': 18000, 'image': ''},
             {'name': '달콤 양념치킨', 'price': 19000, 'image': ''}
         ]
+    },
+    '꽃집/플라워': {
+        '💐 꽃다발/선물': [
+            {'name': '프리지아 한발 (계절)', 'price': 15000, 'image': ''},
+            {'name': '로맨틱 장미 다발', 'price': 35000, 'image': ''},
+            {'name': '감사 카네이션', 'price': 12000, 'image': ''}
+        ],
+        '🪴 식물/화분': [
+            {'name': '공기정화 스투키', 'price': 25000, 'image': ''},
+            {'name': '행운의 개운죽', 'price': 8000, 'image': ''}
+        ]
     }
 }
 
@@ -54,6 +65,8 @@ def get_ai_recommended_menu(business_type):
         menu_template = AI_MENU_PRESETS.get('분식/매점')
     elif any(k in biz_type for k in ['치킨', '호프', '닭', '통닭', '맥주']):
         menu_template = AI_MENU_PRESETS.get('치킨/호프')
+    elif any(k in biz_type for k in ['꽃', '플라워', '화분', '원예', '식물']):
+        menu_template = AI_MENU_PRESETS.get('꽃집/플라워')
     else:
         menu_template = {"🔍 추천 메뉴": [{"name": "이곳에 첫 메뉴를 추가해 보세요!", "price": 0, "image": ""}]}
 
