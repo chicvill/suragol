@@ -79,9 +79,14 @@
                 {{ user.phone or '연락처 미등록' }}
             </div>
             <div class="role-badge role-{{ user.role }}"><i data-lucide="shield"></i> {{ user.role.upper() }}</div>
-            <form action="/admin/users/{{ user.id }}/approve" method="POST" style="text-align:right;">
-                <button type="submit" class="action-btn" style="background:var(--accent); color:white; border-color:var(--accent);"><i data-lucide="check-check"></i> 가입 승인</button>
-            </form>
+            <div style="display:flex; gap:6px; justify-content:flex-end; align-items:center;">
+                <form action="/admin/users/{{ user.id }}/approve" method="POST">
+                    <button type="submit" class="action-btn" style="background:var(--accent); color:white; border-color:var(--accent);"><i data-lucide="check-check"></i> 가입 승인</button>
+                </form>
+                <form action="/admin/users/{{ user.id }}/delete" method="POST" onsubmit="return confirm('이 신청을 정말 삭제(거절)하시겠습니까?');">
+                    <button type="submit" class="action-btn btn-delete" style="padding: 6px; border-radius: 8px;"><i data-lucide="trash-2" size="16"></i></button>
+                </form>
+            </div>
         </div>
         {% endfor %}
     </div>
