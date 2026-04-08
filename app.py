@@ -59,18 +59,19 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 # [DB 설정] 환경변수에 DATABASE_URL이 있으면 우선 사용 (Supabase 등), 없으면 로컬 SQLite 사용
 db_url = os.environ.get('DATABASE_URL')
 
-if db_url:
-    if db_url.startswith("postgres://"):
-        db_url = db_url.replace("postgres://", "postgresql://", 1)
-    print(f"🌐 [클라우드 DB 모드] Supabase 데이터베이스에 연결합니다.")
-else:
-    # 🏠 내 컴퓨터(로컬)에서는 이 가벼운 파일 DB를 사용합니다 (에러 방지)
-    db_url = 'sqlite:///local_test.db'
-    print("🏠 [로컬 모드] 'local_test.db' 파일을 사용하여 테스트를 준비합니다.")
-
 # ---------------------------------------------------------
 # DB 연결 설정
 # ---------------------------------------------------------
+if db_url:
+    if db_url.startswith("postgres://") or db_url.startswith("postgresql://"):
+        # [패치] psycopg2가 없는 환경(Docker/Pad)을 위해 pg8000 자동 전환
+        try:
+            import psycopg2
+        except ImportError:
+            db_url = db_url.replace("postgresql://", "postgresql+pg8000://", 1)
+            db_url = db_url.replace("postgres://", "postgresql+pg8000://", 1)
+            print("🐘 [DB 엔진] psycopg2 대신 pg8000을 사용합니다.")
+
 app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
