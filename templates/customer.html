@@ -176,11 +176,13 @@
         }
 
         function addToCart(event, id, name, price) {
-            const existing = cart.find(i => i.id === id);
+            // ID가 누락된 경우(AI 추천 메뉴 초기 상태 등) 이름 기반으로 임시 ID 생성
+            const finalId = id || (name.length + price);
+            const existing = cart.find(i => i.id === finalId);
             if (existing) {
                 existing.quantity++;
             } else {
-                cart.push({ id, name, price, quantity: 1 });
+                cart.push({ id: finalId, name, price, quantity: 1 });
             }
             saveCart();
             updateCartBar();

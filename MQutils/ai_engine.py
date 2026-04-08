@@ -38,22 +38,33 @@ AI_MENU_PRESETS = {
 }
 
 def get_ai_recommended_menu(business_type):
-    """업종 키워드를 분석하여 가장 적절한 AI 메뉴 프리셋을 반환합니다."""
+    """업종 키워드를 분석하여 가장 적절한 AI 메뉴 프리셋을 반환하며, 모든 메뉴 항목에 고유 ID를 부여합니다."""
     if not business_type: 
-        return {"🔍 추천 메뉴": [{"name": "매장 명칭을 기반으로 메뉴를 추가해 주세요", "price": 0, "image": ""}]}
+        return {"🔍 추천 메뉴": [{"id": 1, "name": "매장 명칭을 기반으로 메뉴를 추가해 주세요", "price": 0, "image": ""}]}
     
     # 키워드 매칭 정교화 (대소문자 무시)
     biz_type = business_type.lower()
+    menu_template = {"✨ 추천 메뉴": []}
+    
     if any(k in biz_type for k in ['커피', '카페', '찻집', '다방', '디저트', '음료']):
-        return AI_MENU_PRESETS.get('커피/카페', {"✨ 추천 메뉴": []})
-    if any(k in biz_type for k in ['한식', '식당', '밥집', '국밥', '찌개', '갈비', '고기']):
-        return AI_MENU_PRESETS.get('한식/식당', {"✨ 추천 메뉴": []})
-    if any(k in biz_type for k in ['분식', '떡볶이', '김밥', '매점', '포장마차']):
-        return AI_MENU_PRESETS.get('분식/매점', {"✨ 추천 메뉴": []})
-    if any(k in biz_type for k in ['치킨', '호프', '닭', '통닭', '맥주']):
-        return AI_MENU_PRESETS.get('치킨/호프', {"✨ 추천 메뉴": []})
-        
-    return {"🔍 추천 메뉴": [{"name": "이곳에 첫 메뉴를 추가해 보세요!", "price": 0, "image": ""}]}
+        menu_template = AI_MENU_PRESETS.get('커피/카페')
+    elif any(k in biz_type for k in ['한식', '식당', '밥집', '국밥', '찌개', '갈비', '고기']):
+        menu_template = AI_MENU_PRESETS.get('한식/식당')
+    elif any(k in biz_type for k in ['분식', '떡볶이', '김밥', '매점', '포장마차']):
+        menu_template = AI_MENU_PRESETS.get('분식/매점')
+    elif any(k in biz_type for k in ['치킨', '호프', '닭', '통닭', '맥주']):
+        menu_template = AI_MENU_PRESETS.get('치킨/호프')
+    else:
+        menu_template = {"🔍 추천 메뉴": [{"name": "이곳에 첫 메뉴를 추가해 보세요!", "price": 0, "image": ""}]}
+
+    # 모든 메뉴 항목에 순차적인 ID 부여 (Socket.IO 주문 처리 시 필수)
+    item_id = 1
+    for category in menu_template:
+        for item in menu_template[category]:
+            item['id'] = item_id
+            item_id += 1
+            
+    return menu_template
 
 def get_ai_operation_insight(store):
     """매장의 현재 데이터를 분석하여 AI 운영 인사이트를 생성합니다."""

@@ -1660,23 +1660,35 @@ def on_join(data):
 
 @socketio.on('place_order')
 def on_place_order(data):
-    slug = data.get('store_id')
-    items = data.get('items')
-    table_id = data.get('table_id')
-    session_id = data.get('session_id')
-    total_price = data.get('total_price')
-    phone = data.get('phone') # Point accumulation phone
+    try:
+        slug = data.get('store_id')
+        items = data.get('items')
+        table_id = data.get('table_id')
+        session_id = data.get('session_id')
+        total_price = data.get('total_price')
+        phone = data.get('phone')
 
-    order_id = str(uuid.uuid4())[:8]
-    new_order = Order(id=order_id, store_id=slug, table_id=table_id, session_id=session_id, total_price=total_price, phone=phone)
-    db.session.add(new_order)
-    
-    for item in items:
-        oi = OrderItem(order_id=order_id, menu_id=item['id'], name=item['name'], price=item['price'], quantity=item['quantity'])
-        db.session.add(oi)
-    
-    db.session.commit()
-    socketio.emit('new_order', new_order.to_dict(), room=slug)
+        if not items:
+            print("⚠️ [주문 오류] 빈 주문 목록이 전송되었습니다.")
+            return
+
+        order_id = str(uuid.uuid4())[:8]
+        new_order = Order(id=order_id, store_id=slug, table_id=table_id, session_id=session_id, total_price=total_price, phone=phone)
+        db.session.add(new_order)
+        
+        for item in items:
+            # menu_id가 누락되었을 경우 0으로 대체 (AI 초기 메뉴 등)
+            m_id = item.get('id', 0)
+            oi = OrderItem(order_id=order_id, menu_id=m_id, name=item['name'], price=item['price'], quantity=item['quantity'])
+            db.session.add(oi)
+        
+        db.session.commit()
+        print(f"✅ [주문 성공] {slug} 테이블 {table_id} - 주문번호 {order_id}")
+        socketio.emit('new_order', new_order.to_dict(), room=slug)
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ [주문 처리 오류] {e}")
+        socketio.emit('order_error', {'message': '주문 처리 중 서버 오류가 발생했습니다.'})
 
 @socketio.on('set_ready')
 def on_set_ready(data):
