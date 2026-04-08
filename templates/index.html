@@ -180,9 +180,10 @@
             </div>
             {% endif %}
 
-            {% if role in ['owner', 'manager'] %}
+            {% if role in ['owner', 'manager'] and user.store_id %}
                 {# 본인 매장의 승인 대기자 (파트너 제외) #}
                 {% set pending_workers = users_pending|selectattr('store_id', 'equalto', user.store_id)|rejectattr('role', 'equalto', 'staff')|list %}
+                
                 {% if pending_workers %}
                 <div class="card" style="border-color: var(--warning); background: rgba(245, 158, 11, 0.05); margin-bottom:20px; padding:20px;">
                     <h3 style="margin:0 0 15px 0; font-size:1rem; color:var(--warning); font-weight:900;"><i data-lucide="user-check"></i> 가입 승인 대기 ({{ pending_workers|length }})</h3>

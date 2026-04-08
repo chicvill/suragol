@@ -24,7 +24,7 @@ from datetime import datetime, timedelta, timezone
 from flask import Flask, render_template, request, jsonify, redirect, url_for, session, flash
 from flask_socketio import SocketIO, emit
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import func, desc, text
+from sqlalchemy import func, desc, text, or_
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
@@ -195,11 +195,15 @@ def index():
     if role == 'admin':
         stores = Store.query.all()
     elif role == 'staff':
-        # 직원은 본인이 담당한 매장 목록 + 공개된 샘플 업소(is_public)
-        from sqlalchemy import or_
-        stores = Store.query.filter(or_(Store.recommended_by == user_id, Store.is_public == True)).all()
+        # 직원은 본인이 담당한 매장 목록 (is_public은 이제 클론 방식으로 대체 중이므로 추천 매장 우선)
+        # 만약 is_public 필드가 있다면 포함, 없다면 본인 추천 매장만
+        try:
+            stores = Store.query.filter(or_(Store.recommended_by == user_id, Store.is_public == True)).all()
+        except:
+            stores = Store.query.filter_by(recommended_by=user_id).all()
         
-    # 승인 대기 명단 (매니저/사장님 승인용)
+    # 승인 대기 명단 (매니저/사장님 승인용 - 본인 매장 소속인 경우만 필터링하도록 템플릿 전달 전 최적화 가능)
+    # 일단 전체를 보내되 템플릿에서 role에 따라 처리
     users_pending = User.query.filter_by(is_approved=False).all()
         
     return render_template('index.html', 
@@ -603,7 +607,6 @@ def admin_billing():
         stores = Store.query.all()
     elif role == 'staff':
         # 파트너는 본인이 추천한 매장 + 공개 샘플 매장만 조회 가능
-        from sqlalchemy import or_
         stores = Store.query.filter(or_(Store.recommended_by == user_id, Store.is_public == True)).all()
     else:
         # 일반 점주/매니저는 본인 매장 정보만
