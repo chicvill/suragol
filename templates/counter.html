@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=1200, initial-scale=0.3, user-scalable=yes">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% if store.id == 'MQ-cafe' %}수라골 참숯갈비 통합 관제{% else %}{{ store.name }} - 통합 카운터 관제{% endif %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ range(1, 9999) | random }}">
     <!-- Socket.IO & Icons -->
@@ -23,10 +23,8 @@
             margin: 0;
             display: flex;
             flex-direction: column;
-            min-height: 100vh;
-            min-width: 1200px;
-            overflow: auto; /* 스크롤 허용 */
-            -webkit-overflow-scrolling: touch;
+            height: 100vh;
+            overflow: hidden;
         }
 
         /* 헤더 스타일 */
@@ -58,7 +56,7 @@
             display: grid;
             grid-template-columns: 0px 1fr 0px; /* 기본은 사이드바 닫힘 */
             flex: 1;
-            min-height: calc(100vh - 120px);
+            overflow: hidden;
             transition: grid-template-columns 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .main-layout.show-left { grid-template-columns: 350px 1fr 0px; }
