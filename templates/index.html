@@ -97,31 +97,31 @@
         </div>
         
         <div class="action-bar">
-            <a href="/{{ s.id }}/counter" class="action-item">
+            <a href="/{{ s.id }}/counter" class="action-item" style="background: rgba(59, 130, 246, 0.08); border-color: var(--primary); color: white;">
                 <i data-lucide="monitor"></i>
-                <span class="action-label">카운터</span>
+                <span class="action-label" style="color:var(--primary);">카운터</span>
             </a>
-            <a href="/{{ s.id }}/kitchen" class="action-item">
+            <a href="/{{ s.id }}/kitchen" class="action-item" style="background: rgba(59, 130, 246, 0.08); border-color: var(--primary); color: white;">
                 <i data-lucide="chef-hat"></i>
-                <span class="action-label">주방</span>
+                <span class="action-label" style="color:var(--primary);">주방룸</span>
             </a>
-            <a href="/{{ s.id }}/display" class="action-item" target="_blank">
-                <i data-lucide="tv"></i>
-                <span class="action-label">전광판</span>
+            <a href="/signup?role=worker&store_id={{ s.id }}" class="action-item" style="border-color: var(--accent); background: rgba(16, 185, 129, 0.08);">
+                <i data-lucide="user-plus" style="color: var(--accent);"></i>
+                <span class="action-label" style="color:var(--accent);">직원 등록</span>
+            </a>
+            <a href="/admin/staff?slug={{ s.id }}" class="action-item" style="border-color: var(--warning); background: rgba(245, 158, 11, 0.08);">
+                <i data-lucide="clipboard-check" style="color: var(--warning);"></i>
+                <span class="action-label" style="color:var(--warning);">근태/스케줄</span>
             </a>
             <a href="/{{ s.id }}/stats" class="action-item">
                 <i data-lucide="bar-chart-3"></i>
-                <span class="action-label">통계</span>
-            </a>
-            <a href="/admin/staff?slug={{ s.id }}" class="action-item">
-                <i data-lucide="users"></i>
-                <span class="action-label">근태/급여</span>
+                <span class="action-label">통계분석</span>
             </a>
             <a href="/{{ s.id }}/qr-print" class="action-item" target="_blank">
                 <i data-lucide="printer"></i>
                 <span class="action-label">QR 인쇄</span>
             </a>
-            <a href="/{{ s.id }}" class="action-item" style="color: var(--accent); background: rgba(16, 185, 129, 0.05); border-color: rgba(16, 185, 129, 0.2);">
+            <a href="/{{ s.id }}" class="action-item" style="color: #fff; background: rgba(255, 255, 255, 0.05);">
                 <i data-lucide="shopping-bag"></i>
                 <span class="action-label">주문판</span>
             </a>
@@ -130,6 +130,19 @@
                 <i data-lucide="settings"></i>
                 <span class="action-label">설정</span>
             </a>
+            {% endif %}
+
+            {% if current_role == 'staff' %}
+            <button onclick="cloneStore('{{ s.id }}')" class="action-item" style="background: rgba(16, 185, 129, 0.08); border-color: var(--accent); color: var(--accent); cursor: pointer; height: auto;">
+                <i data-lucide="copy"></i>
+                <span class="action-label" style="color:var(--accent);">시연용 복제</span>
+            </button>
+            {% if s.id.startswith('demo_') %}
+            <button onclick="deleteDemo('{{ s.id }}')" class="action-item" style="background: rgba(239, 68, 68, 0.08); border-color: var(--danger); color: var(--danger); cursor: pointer; height: auto;">
+                <i data-lucide="trash-2"></i>
+                <span class="action-label" style="color:var(--danger);">DEMO 삭제</span>
+            </button>
+            {% endif %}
             {% endif %}
         </div>
     </div>
@@ -158,6 +171,58 @@
                     종료 <i data-lucide="log-out" size="22"></i>
                 </a>
             </div>
+
+            {% if role == 'staff' %}
+            <div style="margin-bottom: 2rem;">
+                <a href="/partner/recruit-qr" class="btn" style="background: var(--primary); color: white; padding: 18px; border-radius: 20px; font-weight: 950; display: block; text-align: center; font-size: 1.2rem; box-shadow: 0 10px 20px rgba(59, 130, 246, 0.3);">
+                    <i data-lucide="qr-code" size="24" style="vertical-align: middle; margin-right: 8px;"></i> 신규 가맹점 영업용 QR 열기
+                </a>
+            </div>
+            {% endif %}
+
+            {% if role in ['owner', 'manager'] %}
+                {# 본인 매장의 승인 대기자 (파트너 제외) #}
+                {% set pending_workers = users_pending|selectattr('store_id', 'equalto', user.store_id)|rejectattr('role', 'equalto', 'staff')|list %}
+                {% if pending_workers %}
+                <div class="card" style="border-color: var(--warning); background: rgba(245, 158, 11, 0.05); margin-bottom:20px; padding:20px;">
+                    <h3 style="margin:0 0 15px 0; font-size:1rem; color:var(--warning); font-weight:900;"><i data-lucide="user-check"></i> 가입 승인 대기 ({{ pending_workers|length }})</h3>
+                    <div style="display:grid; gap:10px;">
+                        {% for pw in pending_workers %}
+                        <div style="background:rgba(255,255,255,0.03); padding:15px; border-radius:12px; margin-bottom:8px; border: 1px solid var(--border);">
+                            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
+                                <div>
+                                    <span style="font-weight:950; font-size:1.1rem; color:white;">{{ pw.username }}</span> 
+                                    <span style="font-size:0.85rem; color:#94a3b8;">({{ pw.full_name or '성명 미입력' }})</span>
+                                    <div style="font-size:0.75rem; color:var(--primary); font-weight:800; margin-top:3px;">
+                                        <i data-lucide="calendar" size="12"></i> 
+                                        {{ pw.contract_start or '미정' }} ~ {{ pw.contract_end or '미정' }}
+                                    </div>
+                                </div>
+                                <form action="/admin/users/{{ pw.id }}/approve" method="POST">
+                                    <button type="submit" style="background:var(--accent); color:white; border:none; padding:8px 20px; border-radius:10px; font-weight:900; font-size:0.9rem; cursor:pointer; box-shadow:0 5px 15px rgba(16, 185, 129, 0.3);">최종 채용 승인</button>
+                                </form>
+                            </div>
+                            
+                            <div style="padding:10px; background:rgba(0,0,0,0.2); border-radius:10px;">
+                                <p style="font-size:0.7rem; color:#64748b; margin-top:0; margin-bottom:8px; font-weight:700;">[신청 근로 스케줄]</p>
+                                <div style="display:flex; flex-wrap:wrap; gap:10px;">
+                                    {% if pw.work_schedule %}
+                                        {% for d, t in pw.work_schedule.items() %}
+                                        <span style="font-size:0.7rem; color:#fff; background:rgba(255,255,255,0.05); padding:3px 8px; border-radius:5px;">
+                                            {{ {'mon':'월','tue':'화','wed':'수','thu':'목','fri':'금','sat':'토','sun':'일'}[d] }}: {{ t.in }}~{{ t.out }}
+                                        </span>
+                                        {% endfor %}
+                                    {% else %}
+                                        <span style="font-size:0.7rem; color:#64748b;">설정된 스케줄 없음</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            {% endif %}
 
             {% if role == 'worker' %}
                 <div class="worker-panel">
@@ -229,6 +294,29 @@
             document.querySelectorAll('.store-tab-btn').forEach(b => b.classList.remove('active'));
             document.getElementById('tab-pane-' + storeId).classList.add('active');
             btn.classList.add('active');
+        }
+
+        async function cloneStore(sid) {
+            if(!confirm("이 매장을 복제하여 시연용 데모 매장을 만드시겠습니까?\n(원본의 메뉴와 디자인 설정이 그대로 복사됩니다)")) return;
+            try {
+                const r = await fetch('/api/admin/store/clone', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({source_id: sid})
+                });
+                const d = await r.json();
+                if(d.status === 'success') {
+                    alert(d.message);
+                    location.reload();
+                } else alert(d.message);
+            } catch(e) { alert('복제 실패: ' + e); }
+        }
+
+        async function deleteDemo(sid) {
+            if(!confirm("[주의] 데모 매장을 삭제하시겠습니까?\n모든 데이터가 영구 삭제됩니다.")) return;
+            try {
+                const r = await fetch(`/admin/stores/${sid}/delete`, { method: 'POST' });
+                if(r.ok) location.reload();
+            } catch(e) { alert('삭제 실패: ' + e); }
         }
     </script>
 

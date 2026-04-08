@@ -86,7 +86,10 @@ with app.app_context():
             ("full_name", "VARCHAR(100)"),
             ("phone", "VARCHAR(50)"),
             ("hourly_rate", "INTEGER DEFAULT 10000"),
-            ("position", "VARCHAR(50)")
+            ("position", "VARCHAR(50)"),
+            ("work_schedule", "JSON"),
+            ("contract_start", "DATE"),
+            ("contract_end", "DATE")
         ]
         for col, dtype in user_cols:
             try:
@@ -105,14 +108,28 @@ with app.app_context():
             db.session.execute(text("ALTER TABLE stores ADD COLUMN monthly_fee INTEGER DEFAULT 50000"))
             db.session.execute(text("ALTER TABLE stores ADD COLUMN attendance_pin VARCHAR(4) DEFAULT '1234'"))
             db.session.execute(text("ALTER TABLE stores ADD COLUMN recommended_by INTEGER REFERENCES users(id)"))
+            db.session.execute(text("ALTER TABLE stores ADD COLUMN is_public BOOLEAN DEFAULT FALSE"))
             db.session.commit()
-            print("✅ [성공] stores 테이블에 monthly_fee, attendance_pin, recommended_by 컬럼이 추가되었습니다.")
+            print("✅ [성공] stores 테이블에 monthly_fee, attendance_pin, recommended_by, is_public 컬럼이 추가되었습니다.")
         except Exception as e:
             db.session.rollback()
             print(f"ℹ️ [알림] stores 컬럼 체크 완료 ({'이미 존재함' if 'already exists' in str(e).lower() else e})")
-            print(f"ℹ️ [알림] stores.monthly_fee 체크 완료 ({'이미 존재함' if 'already exists' in str(e).lower() else e})")
 
-        print("🚀 [완료] 모든 데이터베이스 구조가 최신 상태로 동기화되었습니다.")
+        # 3. 초기 계정 '대표' (Owner) 생성 로직
+        default_owner = User.query.filter_by(username='대표').first()
+        if not default_owner:
+            new_owner = User(
+                username='대표', 
+                password=generate_password_hash('1111'),
+                role='owner',
+                full_name='통합 대표',
+                is_approved=True
+            )
+            db.session.add(new_owner)
+            db.session.commit()
+            print("👤 [초기화] '대표' (PW: 1111) 계정이 생성되었습니다.")
+
+        print("🚀 [완료] 모든 데이터베이스 구조 및 초기 데이터가 동기화되었습니다.")
     except Exception as e:
         print(f"❌ [치명적 오류] DB 초기화 실패: {e}")
         db.session.rollback()
@@ -178,15 +195,20 @@ def index():
     if role == 'admin':
         stores = Store.query.all()
     elif role == 'staff':
-        # 직원은 본인이 담당한 매장 목록
-        stores = Store.query.filter_by(recommended_by=user_id).all()
+        # 직원은 본인이 담당한 매장 목록 + 공개된 샘플 업소(is_public)
+        from sqlalchemy import or_
+        stores = Store.query.filter(or_(Store.recommended_by == user_id, Store.is_public == True)).all()
+        
+    # 승인 대기 명단 (매니저/사장님 승인용)
+    users_pending = User.query.filter_by(is_approved=False).all()
         
     return render_template('index.html', 
                          logged_in=True, 
                          user=user, 
                          role=role, 
                          store=store, 
-                         stores=stores)
+                         stores=stores,
+                         users_pending=users_pending)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -234,29 +256,46 @@ def signup():
         confirm_password = request.form.get('confirm_password')
         full_name = request.form.get('full_name')
         phone = request.form.get('phone')
-        # 역할 선택 (admin은 자가 가입 불가 - staff로 강제 처리)
+        # 역할 선택 (admin은 자가 가입 불가)
         selected_role = request.form.get('role', 'staff')
-        if selected_role not in ['owner', 'manager', 'worker', 'staff']:
-            selected_role = 'staff'
+        if selected_role == 'admin': selected_role = 'staff'
+        
+        store_id = request.form.get('store_id', '').strip()
+        
+        # 유효성 검사: 점장(manager), 근로자(worker)는 업소 코드가 필수
+        if selected_role in ['manager', 'worker'] and not store_id:
+            flash("해당 등급으로 가입하려면 소속 업소 코드가 필요합니다.")
+            return redirect(url_for('signup', role=selected_role))
 
         # 약관 동의 체크
         agree_profit = 'agree_profit' in request.form
         agree_privacy = 'agree_privacy' in request.form
         agree_age = 'agree_age' in request.form
         agree_not_robot = 'agree_not_robot' in request.form
-        agree_termination = 'agree_termination' in request.form
+        agree_labor = 'agree_labor' in request.form if selected_role == 'worker' else True
 
-        if not all([agree_profit, agree_privacy, agree_age, agree_not_robot, agree_termination]):
+        if not all([agree_profit, agree_privacy, agree_age, agree_not_robot, agree_labor]):
             flash("모든 필수 약관에 동의하셔야 가입 신청이 가능합니다.")
-            return redirect(url_for('signup'))
+            return redirect(url_for('signup', role=selected_role, store_id=store_id))
 
         if password != confirm_password:
             flash("비밀번호가 일치하지 않습니다.")
-            return redirect(url_for('signup'))
+            return redirect(url_for('signup', role=selected_role, store_id=store_id))
 
         if User.query.filter_by(username=username).first():
             flash("이미 사용 중인 아이디입니다.")
-            return redirect(url_for('signup'))
+            return redirect(url_for('signup', role=selected_role, store_id=store_id))
+
+        # 근로자 전용 스케줄 및 계약 데이터 처리
+        contract_start = request.form.get('contract_start')
+        contract_end = request.form.get('contract_end')
+        
+        work_schedule = {}
+        for d in ['mon','tue','wed','thu','fri','sat','sun']:
+            tin = request.form.get(f'sched_{d}_in')
+            tout = request.form.get(f'sched_{d}_out')
+            if tin and tout:
+                work_schedule[d] = {'in': tin, 'out': tout}
 
         role_labels = {'owner': '점주', 'manager': '점장', 'worker': '현장 근로자', 'staff': '파트너'}
         new_user = User(
@@ -265,8 +304,12 @@ def signup():
             role=selected_role,
             full_name=full_name,
             phone=phone,
-            is_approved=False,  # 모든 자가 가입은 관리자 승인 필요
-            agreed_at=datetime.utcnow()
+            store_id=store_id if store_id else None,
+            is_approved=False,  # 이제 점주가 검토 후 승인
+            agreed_at=datetime.utcnow(),
+            contract_start=datetime.strptime(contract_start, '%Y-%m-%d').date() if contract_start else None,
+            contract_end=datetime.strptime(contract_end, '%Y-%m-%d').date() if contract_end else None,
+            work_schedule=work_schedule if work_schedule else None
         )
         db.session.add(new_user)
         db.session.commit()
@@ -305,8 +348,9 @@ def admin_stores():
     if role == 'admin':
         stores = Store.query.order_by(Store.created_at.desc()).all()
     else:
-        # 직원은 본인이 담당한 매장만 리스팅
-        stores = Store.query.filter_by(recommended_by=user_id).order_by(Store.created_at.desc()).all()
+        # 직원은 본인이 담당한 매장 + 공개 샘플 매장 리스팅
+        from sqlalchemy import or_
+        stores = Store.query.filter(or_(Store.recommended_by == user_id, Store.is_public == True)).order_by(Store.created_at.desc()).all()
     return render_template('admin/stores.html', stores=stores)
 
 @app.route('/admin/stores/add', methods=['GET', 'POST'])
@@ -397,6 +441,7 @@ def admin_store_config(slug):
         # Monthly Fee is changeable by Admin or Staff (Sales Partner)
         if session.get('role') == 'admin':
             store.recommended_by = request.form.get('recommended_by')
+            store.is_public = 'is_public' in request.form # [변경] 어드민만 샘플 공개 설정 가능
         
         if session.get('role') in ['admin', 'staff']:
             store.monthly_fee = int(request.form.get('monthly_fee', 50000))
@@ -475,14 +520,34 @@ def admin_users():
     return render_template('admin/users.html', users=users, stores=stores)
 
 @app.route('/admin/users/<int:user_id>/approve', methods=['POST'])
-@admin_required
+@login_required
 def admin_user_approve(user_id):
-    user = db.session.get(User, user_id)
-    if user:
-        user.is_approved = True
-        db.session.commit()
-        flash(f"{user.username} 님의 가입 신청이 최종 승인되었습니다.")
-    return redirect(url_for('admin_users'))
+    current_role = session.get('role')
+    current_user_store = session.get('store_id')
+    
+    user_to_approve = db.session.get(User, user_id)
+    if not user_to_approve:
+        flash("사용자를 찾을 수 없습니다.")
+        return redirect(request.referrer or url_for('index'))
+
+    # 권한 체크
+    # 1. 최고 관리자는 모든 승인 가능
+    # 2. 사장님(owner)과 점장(manager)은 본인 매장 소속이면서 파트너(staff)가 아닌 경우만 승인 가능
+    can_approve = False
+    if current_role == 'admin':
+        can_approve = True
+    elif current_role in ['owner', 'manager']:
+        if user_to_approve.store_id == current_user_store and user_to_approve.role != 'staff':
+            can_approve = True
+
+    if not can_approve:
+        flash("해당 사용자를 승인할 권한이 없습니다.")
+        return redirect(request.referrer or url_for('index'))
+
+    user_to_approve.is_approved = True
+    db.session.commit()
+    flash(f"{user_to_approve.username} 님의 가입 신청이 승인되었습니다.")
+    return redirect(request.referrer or url_for('index'))
 
 @app.route('/admin/users/<int:user_id>/delete', methods=['POST'])
 @admin_required
@@ -511,34 +576,178 @@ def admin_user_update(user_id):
     if new_pw:
         user.password = generate_password_hash(new_pw)
     
-    # 역할, 소속 매장, 실명, 연락처, 시급
-    user.role = data.get('role', user.role)
-    store_id = data.get('store_id', '').strip()
-    user.store_id = store_id if store_id else None
-    user.full_name = data.get('full_name', user.full_name)
-    user.phone = data.get('phone', user.phone)
-    user.hourly_rate = int(data.get('hourly_rate', user.hourly_rate or 10000))
+    # 요일별 시간, 계약 기간
+    if 'work_schedule' in data:
+        user.work_schedule = data['work_schedule']
+    
+    if data.get('contract_start'):
+        user.contract_start = datetime.strptime(data['contract_start'], '%Y-%m-%d').date()
+    else:
+        user.contract_start = None
+        
+    if data.get('contract_end'):
+        user.contract_end = datetime.strptime(data['contract_end'], '%Y-%m-%d').date()
+    else:
+        user.contract_end = None
     
     db.session.commit()
     return jsonify({'status': 'success'})
 
 @app.route('/admin/billing')
-@admin_required
+@staff_required
 def admin_billing():
-    stores = Store.query.all()
-    unpaid = Store.query.filter_by(payment_status='unpaid').count()
-    sus = Store.query.filter_by(status='suspended').count()
+    user_id = session.get('user_id')
+    role = session.get('role')
+    
+    if role == 'admin':
+        stores = Store.query.all()
+    elif role == 'staff':
+        # 파트너는 본인이 추천한 매장 + 공개 샘플 매장만 조회 가능
+        from sqlalchemy import or_
+        stores = Store.query.filter(or_(Store.recommended_by == user_id, Store.is_public == True)).all()
+    else:
+        # 일반 점주/매니저는 본인 매장 정보만
+        current_store_id = session.get('store_id')
+        stores = Store.query.filter_by(id=current_store_id).all() if current_store_id else []
+
+    unpaid = len([s for s in stores if s.payment_status == 'unpaid'])
+    sus = len([s for s in stores if s.status == 'suspended'])
+    
     return render_template('admin/billing.html', 
                            stores=stores, 
                            unpaid_count=unpaid, 
                            suspended_count=sus, 
                            total_stores=len(stores),
-                           role=session.get('role'),
+                           role=role,
                            now=datetime.utcnow())
 
-# ---------------------------------------------------------
-# 제휴 파트너 정산 보조 기능 (매월 25일 정산용 인쇄 페이지)
-# ---------------------------------------------------------
+@app.route('/partner/recruit-qr')
+@staff_required
+def partner_recruit_qr():
+    return render_template('admin/recruit_qr.html')
+
+@app.route('/api/admin/store/clone', methods=['POST'])
+@staff_required
+def api_clone_store():
+    data = request.json
+    source_id = data.get('source_id')
+    user_id = session.get('user_id')
+    
+    source = db.session.get(Store, source_id)
+    if not source: return jsonify({'status': 'error', 'message': '원본 매장을 찾을 수 없습니다.'}), 404
+    
+    # 닉네임 + 타임스탬프로 유니크한 데모 ID 생성
+    import time
+    demo_id = f"demo_{source_id}_{int(time.time()) % 10000}"
+    
+    new_store = Store(
+        id=demo_id,
+        name=f"[DEMO] {source.name}",
+        menu_data=source.menu_data,
+        theme_color=source.theme_color,
+        recommended_by=user_id,
+        status='active',
+        # [약관준수] 원본 업소의 인적사항 및 사업자 정보는 복사하지 않음
+        business_no=None,
+        ceo_name=None,
+        business_email=None,
+        business_type=None,
+        business_item=None,
+        signature_owner=None,
+        signature_partner=None,
+        monthly_fee=50000 # 기보급형 기본값
+    )
+    db.session.add(new_store)
+    
+    # 데모 매장용 점주 계정도 자동 생성 (시연용 - 비번 1111 고정)
+    demo_owner = User(
+        username=f"owner_{demo_id}",
+        password=generate_password_hash('1111'),
+        role='owner',
+        store_id=demo_id,
+        is_approved=True
+    )
+    db.session.add(demo_owner)
+    db.session.commit()
+    
+    return jsonify({
+        'status': 'success', 
+        'demo_id': demo_id, 
+        'owner_id': demo_owner.username,
+        'message': f'시연용 매장({demo_id})이 생성되었습니다. 점주 ID: {demo_owner.username} / PW: 1111'
+    })
+
+@app.route('/signup/new-store', methods=['GET', 'POST'])
+def signup_new_store():
+    # 파트너가 점주에게 보여준 QR을 통해 접속한 경우
+    partner_id = request.args.get('partner_id') or request.form.get('partner_id')
+    
+    if request.method == 'POST':
+        slug = request.form.get('slug').strip()
+        name = request.form.get('name').strip()
+        username = request.form.get('username').strip()
+        password = request.form.get('password').strip()
+        
+        # 중복 체크
+        if Store.query.get(slug):
+            flash("이미 사용 중인 업소 영문 코드(ID)입니다.")
+            return redirect(url_for('signup_new_store', partner_id=partner_id))
+        if User.query.filter_by(username=username).first():
+            flash("이미 존재하는 계정 아이디입니다.")
+            return redirect(url_for('signup_new_store', partner_id=partner_id))
+
+        # 1. 업소 생성 (Pending 상태)
+        new_store = Store(
+            id=slug,
+            name=name,
+            business_no=request.form.get('business_no'),
+            ceo_name=request.form.get('ceo_name'),
+            business_type=request.form.get('business_type'),
+            business_item=request.form.get('business_item'),
+            business_email=request.form.get('business_email'),
+            monthly_fee=int(request.form.get('monthly_fee', 50000)),
+            recommended_by=partner_id,
+            signature_owner=request.form.get('sig_owner'),
+            signature_partner=request.form.get('sig_partner'),
+            status='pending', # 어드민 승인 전
+            payment_status='paid', # 1개월 무료 기간 제공에 따른 초기 상태
+            expires_at=datetime.utcnow() + timedelta(days=31) # 다음 달 납부일까지 무료
+        )
+        db.session.add(new_store)
+        
+        # 2. 점주 계정 생성 (Pending 상태)
+        new_owner = User(
+            username=username,
+            password=generate_password_hash(password),
+            role='owner',
+            store_id=slug,
+            is_approved=False
+        )
+        db.session.add(new_owner)
+        db.session.commit()
+        
+        # 파트너 세션을 유지하여 즉시 상세 설정 단계로 유도
+        flash("신규 업소 가계약이 체결되었습니다. 상세 설정을 진행해 주세요.")
+        return redirect(url_for('admin_store_setup', slug=slug))
+
+    return render_template('signup/new_store.html', partner_id=partner_id)
+
+@app.route('/admin/stores/setup/<slug>', methods=['GET', 'POST'])
+def admin_store_setup(slug):
+    store = db.session.get(Store, slug)
+    if not store: return "Store not found", 404
+    
+    if request.method == 'POST':
+        store.theme_color = request.form.get('theme_color')
+        store.contact_phone = request.form.get('contact_phone')
+        store.point_ratio = float(request.form.get('point_ratio', 0))
+        store.waiting_sms_no = request.form.get('waiting_sms_no')
+        db.session.commit()
+        
+        flash("매장 맞춤 설정이 저장되었습니다. 어드민이 확인 후 원격 승인 시 운영이 개시됩니다.")
+        return redirect(url_for('index'))
+        
+    return render_template('admin/store_setup.html', store=store)
 
 @app.route('/admin/billing/payouts')
 @admin_required
@@ -840,34 +1049,74 @@ def api_complete_service_request(slug, req_id):
 def api_staff_check_in(slug):
     user_id = session.get('user_id')
     role = session.get('role')
-    user = db.session.get(User, user_id)  # 🔧 버그 수정: user 변수 조회 추가
+    user = db.session.get(User, user_id)
     
     # [권한 체크] 현장 근로자(worker) 및 점장(manager)만 출퇴근 가능
     if role not in ['worker', 'manager']:
         return jsonify({'status': 'error', 'message': '현장 근로자 및 점장 계정 전용 기능입니다.'}), 403
     
-    # [소속 체크] 매장에 소속되지 않은 유저가 QR을 찍은 경우 차단
+    # [소속 체크]
     if not user or not user.store_id or user.store_id != slug:
-        return jsonify({'status': 'error', 'message': '해당 매장에 등록되지 않은 근로자입니다. 매장 배정 후 이용해 주세요.'}), 403
+        return jsonify({'status': 'error', 'message': '해당 매장에 등록되지 않은 근로자입니다.'}), 403
 
-    # 이미 출근 중이거나 승인 대기 중인지 확인
-    existing = Attendance.query.filter(Attendance.user_id==user_id, Attendance.store_id==slug, Attendance.status.in_(['working', 'pending_in'])).first()
-    if existing:
-        return jsonify({'status': 'error', 'message': '현재 업무 대기 또는 진행 중입니다.'}), 400
+    # [계약 기간 체크]
+    # 서버 시간과 상권 현지 시간(KST) 동기화
+    kst = timezone(timedelta(hours=9))
+    now_full = datetime.now(kst)
+    today_date = now_full.date()
+    if user.contract_start and today_date < user.contract_start:
+        return jsonify({'status': 'error', 'message': f'근무 시작 전입니다. (시작일: {user.contract_start})'}), 400
+    if user.contract_end and today_date > user.contract_end:
+        return jsonify({'status': 'error', 'message': f'계약 기간이 종료되었습니다. (종료일: {user.contract_end})'}), 400
+
+    # [요일별 시간 체크]
+    days_map = {0: 'mon', 1: 'tue', 2: 'wed', 3: 'thu', 4: 'fri', 5: 'sat', 6: 'sun'}
+    today_key = days_map[now_full.weekday()]
     
-    new_att = Attendance(user_id=user_id, store_id=slug, status='pending_in')
+    if not user.work_schedule or today_key not in user.work_schedule:
+        return jsonify({'status': 'error', 'message': '오늘은 근무일이 아닙니다.'}), 400
+        
+    sched = user.work_schedule[today_key]
+    in_time_str = sched.get('in')
+    if not in_time_str:
+        return jsonify({'status': 'error', 'message': '정해진 출근 시간이 없습니다.'}), 400
+    
+    # 정해진 시간을 오늘 날짜의 datetime으로 변환 (naive)
+    target_in = datetime.strptime(f"{today_date} {in_time_str}", "%Y-%m-%d %H:%M")
+    
+    # 10분 범위 체크 (naive 끼리 비교) - 약관 반영
+    now_naive = now_full.replace(tzinfo=None)
+    diff = abs((now_naive - target_in).total_seconds())
+    if diff > 600: # 10분 = 600초
+        return jsonify({'status': 'error', 'message': f'출근 가능 시간이 아닙니다. (정해진 시간: {in_time_str} 전후 10분 이내 가능)'}), 400
+
+    # 이미 출근 중인지 확인
+    existing = Attendance.query.filter(Attendance.user_id==user_id, Attendance.store_id==slug, Attendance.status=='working').first()
+    if existing:
+        return jsonify({'status': 'error', 'message': '이미 업무 진행 중입니다.'}), 400
+    
+    # [자동 승인] 정해진 시간에 출근한 것으로 기록
+    # DB는 UTC로 저장하므로 KST(target_in)를 UTC로 변환하여 저장
+    target_in_utc = target_in - timedelta(hours=9)
+    
+    new_att = Attendance(
+        user_id=user_id, 
+        store_id=slug, 
+        check_in_at=target_in_utc, 
+        status='working'
+    )
     db.session.add(new_att)
     db.session.commit()
     
-    # 관리자에게 출근 승인 요청 알림
-    socketio.emit('attendance_request', {'id': new_att.id, 'name': session.get('username'), 'type': '출근'}, room=slug)
-    return jsonify({'status': 'success', 'message': '관리자 승인 대기 중...'})
+    return jsonify({'status': 'success', 'message': f'출근 처리되었습니다. (기록시간: {in_time_str})'})
 
 @app.route('/api/<slug>/attendance/check-out', methods=['POST'])
 @login_required
 def api_staff_check_out(slug):
     user_id = session.get('user_id')
     role = session.get('role')
+    user = db.session.get(User, user_id)
+    
     if role not in ['worker', 'manager']:
         return jsonify({'status': 'error', 'message': '현장 근로자 및 점장 계정 전용 기능입니다.'}), 403
 
@@ -875,12 +1124,40 @@ def api_staff_check_out(slug):
     if not att:
         return jsonify({'status': 'error', 'message': '업무 중인 상태가 아닙니다.'}), 400
     
-    att.status = 'pending_out'
+    # [요일별 시간 체크]
+    kst = timezone(timedelta(hours=9))
+    now_full = datetime.now(kst)
+    today_date = now_full.date()
+    days_map = {0: 'mon', 1: 'tue', 2: 'wed', 3: 'thu', 4: 'fri', 5: 'sat', 6: 'sun'}
+    today_key = days_map[now_full.weekday()]
+    
+    if not user.work_schedule or today_key not in user.work_schedule:
+        return jsonify({'status': 'error', 'message': '오늘은 근무 정해진 퇴근 시간이 없습니다.'}), 400
+        
+    sched = user.work_schedule[today_key]
+    out_time_str = sched.get('out')
+    if not out_time_str:
+        return jsonify({'status': 'error', 'message': '정해진 퇴근 시간이 없습니다.'}), 400
+    
+    # 정해진 시간을 오늘 날짜의 datetime으로 변환 (naive)
+    target_out = datetime.strptime(f"{today_date} {out_time_str}", "%Y-%m-%d %H:%M")
+    
+    # 10분 범위 체크 (naive 끼리 비교) - 약관 반영
+    now_naive = now_full.replace(tzinfo=None)
+    diff = abs((now_naive - target_out).total_seconds())
+    if diff > 600: # 10분 = 600초
+        return jsonify({'status': 'error', 'message': f'퇴근 가능 시간이 아닙니다. (정해진 시간: {out_time_str} 전후 10분 이내 가능)'}), 400
+
+    # [자동 승인] 정해진 시간에 퇴근한 것으로 기록
+    # DB는 UTC로 저장하므로 KST(target_out)를 UTC로 변환하여 저장
+    target_out_utc = target_out - timedelta(hours=9)
+    att.check_out_at = target_out_utc
+    duration = att.check_out_at - att.check_in_at
+    att.total_minutes = max(0, int(duration.total_seconds() / 60))
+    att.status = 'completed'
     db.session.commit()
     
-    # 관리자에게 퇴근 승인 요청 알림
-    socketio.emit('attendance_request', {'id': att.id, 'name': session.get('username'), 'type': '퇴근'}, room=slug)
-    return jsonify({'status': 'success', 'message': '퇴근 승인 대기 중...'})
+    return jsonify({'status': 'success', 'message': f'퇴근 처리되었습니다. (기록시간: {out_time_str})'})
 
 @app.route('/api/<slug>/attendance/pending', methods=['GET'])
 @login_required
@@ -1128,8 +1405,23 @@ def api_update_staff_wage(user_id):
     if user:
         user.hourly_rate = data.get('hourly_rate', user.hourly_rate)
         user.position = data.get('position', user.position)
-        user.role = data.get('role', user.role) # 역할 변경 기능 추가
-        user.phone = data.get('phone', user.phone) # 연락처 변경 기능 추가
+        user.role = data.get('role', user.role)
+        user.phone = data.get('phone', user.phone)
+        user.full_name = data.get('full_name', user.full_name) # 성명 변경도 가능하게 추가
+        
+        if 'work_schedule' in data:
+            user.work_schedule = data['work_schedule']
+            
+        if data.get('contract_start'):
+            user.contract_start = datetime.strptime(data['contract_start'], '%Y-%m-%d').date()
+        else:
+            user.contract_start = None
+
+        if data.get('contract_end'):
+            user.contract_end = datetime.strptime(data['contract_end'], '%Y-%m-%d').date()
+        else:
+            user.contract_end = None
+
         db.session.commit()
         return jsonify({'status': 'success'})
     return jsonify({'error': 'User not found'}), 404

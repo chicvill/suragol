@@ -74,6 +74,7 @@
 
         <form action="/signup" method="POST" id="signup-form" style="display:none;">
             <input type="hidden" name="role" id="selected-role" value="">
+            <input type="hidden" name="store_id" id="prefilled-store" value="">
             <div style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.2); padding: 15px; border-radius: 12px; margin-bottom: 1.5rem; font-size: 0.85rem; color: #94a3b8; line-height: 1.6;">
                 <span id="role-notice"></span>
             </div>
@@ -99,7 +100,44 @@
                 <input type="password" name="confirm_password" placeholder="다시 한번 입력" required>
             </div>
 
-            <div class="agreement-box">
+            <!-- [근로자 전용] 계약 기간 및 스케줄 설정 섹션 -->
+            <div id="worker-schedule-section" style="display:none; border-top: 2px solid var(--primary); padding-top: 1.5rem; margin-top: 1.5rem;">
+                <h4 style="margin:0 0 1rem; font-size:0.95rem; color:var(--primary); font-weight:800;"><i data-lucide="clock" size="16"></i> 계약 및 희망 근로 스케줄</h4>
+                
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:15px;">
+                    <div class="form-group">
+                        <label>근로 시작일</label>
+                        <input type="date" name="contract_start" id="contract_start" style="width: 100%; border-radius: 12px; padding: 10px; background: #0f172a; border: 1px solid var(--border); color:#fff;">
+                    </div>
+                    <div class="form-group">
+                        <label>계약 종료일</label>
+                        <input type="date" name="contract_end" id="contract_end" style="width: 100%; border-radius: 12px; padding: 10px; background: #0f172a; border: 1px solid var(--border); color:#fff;">
+                    </div>
+                </div>
+
+                <div style="display:grid; gap:8px;">
+                    <label style="font-size:0.8rem; margin-bottom:4px; display:block;">요일별 근무 시간 (예: 09:00 - 18:00)</label>
+                    {% for day in [('mon','월'),('tue','화'),('wed','수'),('thu','목'),('fri','금'),('sat','토'),('sun','일')] %}
+                    <div style="display:grid; grid-template-columns: 20px 1fr 1fr; gap:8px; align-items:center;">
+                        <span style="font-size:0.75rem; font-weight:700;">{{ day[1] }}</span>
+                        <input type="time" name="sched_{{ day[0] }}_in" style="background:#0f172a; border:1px solid var(--border); border-radius:8px; padding:6px; color:#fff; font-size:0.8rem;">
+                        <input type="time" name="sched_{{ day[0] }}_out" style="background:#0f172a; border:1px solid var(--border); border-radius:8px; padding:6px; color:#fff; font-size:0.8rem;">
+                    </div>
+                    {% endfor %}
+                    <p style="font-size:0.7rem; color:#64748b; margin-top:5px;">* 시간은 24시간 형식으로 입력해 주세요. 공란은 휴무로 간주됩니다.</p>
+                </div>
+            </div>
+
+            <div class="agreement-box" style="margin-top:1.5rem;">
+                <label class="agreement-item">
+                    <input type="checkbox" name="agree_labor" id="agree_labor" required>
+                    <span><strong>근로기준법 준수</strong> 공지 사항에 <span class="important-text">동의합니다</span>.</span>
+                </label>
+                <div id="labor-terms" style="font-size:0.7rem; color:#64748b; padding-left:28px; margin-bottom:10px; display:none;">
+                    • 법정 근로시간 및 휴게규정을 준수합니다.<br>
+                    • 주휴수당 및 연장근로수당은 시급에 따라 정산됩니다.<br>
+                    • 근로계약 효력은 관리자 승인 시점부터 발생합니다.
+                </div>
                 <label class="agreement-item">
                     <input type="checkbox" name="agree_profit" required>
                     <span>본 서비스의 이용 규정에 <span class="important-text">동의합니다</span>.</span>
@@ -115,10 +153,6 @@
                 <label class="agreement-item">
                     <input type="checkbox" name="agree_not_robot" required>
                     <span>본인은 <span class="important-text">로봇이 아니며</span> 직접 가입을 진행하고 있습니다.</span>
-                </label>
-                <label class="agreement-item">
-                    <input type="checkbox" name="agree_termination" required>
-                    <span>서비스 중단 시 <span class="important-text">해당 시점 기준 정산 원칙</span>에 동의합니다.</span>
                 </label>
             </div>
 
@@ -148,9 +182,26 @@
         document.getElementById('role-selector').style.display = 'none';
         document.getElementById('signup-form').style.display = 'block';
         document.getElementById('login-hint').style.display = 'none';
+
+        // 근로자 섹션 노출 여부
+        const workerSec = document.getElementById('worker-schedule-section');
+        const laborTerms = document.getElementById('labor-terms');
+        const laborCheck = document.getElementById('agree_labor');
+        
+        if (role === 'worker') {
+            workerSec.style.display = 'block';
+            laborTerms.style.display = 'block';
+            laborCheck.required = true;
+        } else {
+            workerSec.style.display = 'none';
+            laborTerms.style.display = 'none';
+            laborCheck.required = false;
+        }
+
         // 선택한 카드 강조
         document.querySelectorAll('.role-card').forEach(c => c.style.borderColor = '#334155');
-        document.querySelector(`[data-role="${role}"]`).style.borderColor = '#3b82f6';
+        const selectedCard = document.querySelector(`[data-role="${role}"]`);
+        if(selectedCard) selectedCard.style.borderColor = '#3b82f6';
     }
 
     function resetRole() {
@@ -159,6 +210,23 @@
         document.getElementById('signup-form').style.display = 'none';
         document.getElementById('login-hint').style.display = 'block';
     }
+    // [신규] URL 파라미터를 통해 가입 프로세스 자동화 (예: 직원 등록 버튼)
+    window.onload = () => {
+        const params = new URLSearchParams(window.location.search);
+        const urlRole = params.get('role');
+        const urlStoreId = params.get('store_id');
+
+        if (urlRole && roleNotices[urlRole]) {
+            const labels = {'owner':'매장 점주','manager':'점장','worker':'현장 근로자','staff':'제휴 파트너'};
+            const emojis = {'owner':'🏪','manager':'👔','worker':'👷','staff':'🤝'};
+            selectRole(urlRole, labels[urlRole], emojis[urlRole]);
+        }
+        if (urlStoreId) {
+            document.getElementById('prefilled-store').value = urlStoreId;
+            // 안내 문구에 업소 코드 명시
+            document.getElementById('role-notice').innerHTML += `<br>🔗 <b>연결된 업소 ID:</b> <span style="color:white;">${urlStoreId}</span>`;
+        }
+    };
     </script>
 </body>
 </html>

@@ -66,12 +66,15 @@ def store_access_required(f):
         # 어드민은 프리패스
         if role == 'admin':
             return f(slug, *args, **kwargs)
-        
-        # 파트너(staff)는 본인 하위 매장만 접근 가능
+
+        # 파트너(staff)는 본인 하위 매장만 접근 가능 (demo 포함)
+        from models import db, Store
+        store = db.session.get(Store, slug)
         if role == 'staff':
-            # Note: app.py의 DB 체크 로직을 활용할 수 있게 slug만 넘기고 라우트 내부에서 검증 권장
-            # 하지만 여기서 최소한의 필터링은 필요
-            return f(slug, *args, **kwargs)
+            # staff_id가 등록된 경우만 통과 (이미 추천인인 경우)
+            if store and store.recommended_by == user_id:
+                return f(slug, *args, **kwargs)
+            return render_template('access_denied.html')
             
         # 사장님(owner)과 점장(manager)은 본인 소속 매장(slug)인지만 체크
         if role in ['owner', 'manager']:

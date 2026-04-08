@@ -298,19 +298,23 @@
                     btnOut.style.display = 'flex';
                     pendingMsg.style.display = 'none';
                     activeTimer.style.display = 'flex';
+                    document.getElementById('action-area').style.display = 'block';
                 } else if (data.status.startsWith('pending')) {
-                    tag.innerText = '대기 중'; tag.className = 'status-badge status-home';
+                    // 이제 대기 상태는 기본적으로 발생하지 않아야 함 (자동 승인되므로)
+                    // 하지만 예외 케이스를 위해 유지
+                    tag.innerText = '승인 대기'; tag.className = 'status-badge status-home';
                     btnIn.style.display = 'none';
                     btnOut.style.display = 'none';
                     pendingMsg.style.display = 'block';
                     activeTimer.style.display = 'none';
                 } else {
                     checkInTime = null;
-                    tag.innerText = '업무 외'; tag.className = 'status-badge status-home';
+                    tag.innerText = '업무 전/후'; tag.className = 'status-badge status-home';
                     btnIn.style.display = 'flex';
                     btnOut.style.display = 'none';
                     pendingMsg.style.display = 'none';
                     activeTimer.style.display = 'none';
+                    document.getElementById('action-area').style.display = 'block';
                 }
             } catch (e) { 
                 console.error('Status Load Error:', e); 
@@ -318,29 +322,29 @@
         }
 
         async function checkIn() {
-            if (!confirm('출근 요청?')) return;
             try {
                 const res = await fetch(`/api/${slug}/attendance/check-in`, { method: 'POST' });
                 const result = await res.json();
                 if (result.status === 'success') {
-                    loadStatus();
+                    alert(result.message || '출근 처리되었습니다.');
+                    location.reload();
                 } else {
-                    alert(result.message);
+                    alert('출근 불가\n' + result.message);
                 }
-            } catch(e) { alert('오류 발생'); }
+            } catch(e) { alert('통신 오류'); }
         }
 
         async function checkOut() {
-            if (!confirm('퇴근 요청?')) return;
             try {
                 const res = await fetch(`/api/${slug}/attendance/check-out`, { method: 'POST' });
                 const result = await res.json();
                 if (result.status === 'success') {
-                    loadStatus();
+                    alert(result.message || '퇴근 처리되었습니다.');
+                    location.reload();
                 } else {
-                    alert(result.message);
+                    alert('퇴근 불가\n' + result.message);
                 }
-            } catch(e) { alert('오류 발생'); }
+            } catch(e) { alert('통신 오류'); }
         }
 
         lucide.createIcons();

@@ -20,6 +20,12 @@ class User(db.Model):
     hourly_rate = db.Column(db.Integer, default=10000) # 시급 기본값 10,000원
     position = db.Column(db.String(50), nullable=True) # 담당 (조리, 서빙 등)
     
+    # [추가] 요일별 정해진 출퇴근 시간 및 계약 기간
+    # work_schedule 예시: {"mon": {"in": "09:00", "out": "18:00"}, "tue": ...}
+    work_schedule = db.Column(db.JSON, nullable=True)
+    contract_start = db.Column(db.Date, nullable=True)
+    contract_end = db.Column(db.Date, nullable=True)
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class Store(db.Model):
@@ -41,6 +47,15 @@ class Store(db.Model):
     business_type = db.Column(db.String(50))
     business_item = db.Column(db.String(100))
     business_email = db.Column(db.String(100))
+    is_public = db.Column(db.Boolean, default=False) # 공개용 샘플 업소 여부
+    
+    # [신규] 전문 영업 및 계약용 필드
+    signature_owner = db.Column(db.Text, nullable=True)   # 점주 서명 데이터 (Base64)
+    signature_partner = db.Column(db.Text, nullable=True) # 파트너 서명 데이터
+    theme_color = db.Column(db.String(20), default='#3b82f6') # 주문창 UI 색상
+    contact_phone = db.Column(db.String(50), nullable=True)    # 예약/배달용 번호
+    point_ratio = db.Column(db.Float, default=0.0)             # 포인트 적립 비율
+    waiting_sms_no = db.Column(db.String(50), nullable=True)   # 웨이팅 발신 번호
 
     # 영업 담당자 (직원)
     recommended_by = db.Column(db.Integer, db.ForeignKey('users.id'))

@@ -81,6 +81,20 @@
                     <div class="form-group"><label>대표자 성함</label><input type="text" name="ceo_name" value="{{ store.ceo_name or '' }}"></div>
                     <div class="form-group"><label>정산 알림 이메일</label><input type="email" name="business_email" value="{{ store.business_email or '' }}" placeholder="receipt@company.com"></div>
                     
+                    {% if session['role'] == 'admin' %}
+                    <div class="form-group" style="grid-column: span 2; display: flex; align-items: center; gap: 15px; background: rgba(59, 130, 246, 0.1); padding: 15px; border-radius: 12px; border: 1px solid rgba(59, 130, 246, 0.3);">
+                        <i data-lucide="eye" style="color: var(--primary);"></i>
+                        <div style="flex:1;">
+                            <label style="margin-bottom:2px; color:white;">공개 샘플 업소 설정</label>
+                            <p style="font-size:0.75rem; color:#94a3b8; margin:0;">* 활성화 시 모든 파트너사가 시연용으로 본 업소에 접근할 수 있습니다.</p>
+                        </div>
+                        <label class="switch" style="width: 50px; position:relative; display:inline-block; height: 26px;">
+                            <input type="checkbox" name="is_public" {% if store.is_public %}checked{% endif %} style="display:none;" id="is_public_check">
+                            <span style="position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background-color: #334155; transition: .4s; border-radius: 34px;" onclick="this.previousElementSibling.click(); this.style.backgroundColor = this.previousElementSibling.checked ? '#334155' : 'var(--primary)';"></span>
+                        </label>
+                    </div>
+                    {% endif %}
+                    
                     <div class="form-group" style="grid-column: span 2;">
                         <label>담당 관리 직원 (영업 실적 분석용)</label>
                         {% if session['role'] == 'admin' %}
