@@ -103,17 +103,34 @@ with app.app_context():
                 else:
                     print(f"⚠️ [주의] users.{col} 추가 실패: {e}")
 
-        # 2. Stores 테이블 컬럼 보강
-        try:
-            db.session.execute(text("ALTER TABLE stores ADD COLUMN monthly_fee INTEGER DEFAULT 50000"))
-            db.session.execute(text("ALTER TABLE stores ADD COLUMN attendance_pin VARCHAR(4) DEFAULT '1234'"))
-            db.session.execute(text("ALTER TABLE stores ADD COLUMN recommended_by INTEGER REFERENCES users(id)"))
-            db.session.execute(text("ALTER TABLE stores ADD COLUMN is_public BOOLEAN DEFAULT FALSE"))
-            db.session.commit()
-            print("✅ [성공] stores 테이블에 monthly_fee, attendance_pin, recommended_by, is_public 컬럼이 추가되었습니다.")
-        except Exception as e:
-            db.session.rollback()
-            print(f"ℹ️ [알림] stores 컬럼 체크 완료 ({'이미 존재함' if 'already exists' in str(e).lower() else e})")
+        # 2. Stores 테이블 컬럼 보강 (개별 체크 방식)
+        store_cols = [
+            ("monthly_fee", "INTEGER DEFAULT 50000"),
+            ("attendance_pin", "VARCHAR(10) DEFAULT '0000'"),
+            ("recommended_by", "INTEGER"),
+            ("is_public", "BOOLEAN DEFAULT FALSE"),
+            ("signature_owner", "TEXT"),
+            ("signature_partner", "TEXT"),
+            ("theme_color", "VARCHAR(20) DEFAULT '#3b82f6'"),
+            ("contact_phone", "VARCHAR(50)"),
+            ("point_ratio", "FLOAT DEFAULT 0.0"),
+            ("waiting_sms_no", "VARCHAR(50)"),
+            ("business_type", "VARCHAR(50)"),
+            ("business_item", "VARCHAR(100)"),
+            ("business_email", "VARCHAR(100)")
+        ]
+        for col, dtype in store_cols:
+            try:
+                db.session.execute(text(f"ALTER TABLE stores ADD COLUMN {col} {dtype}"))
+                db.session.commit()
+                print(f"✅ [성공] stores 테이블에 {col} 컬럼이 추가되었습니다.")
+            except Exception as e:
+                db.session.rollback()
+                if "already exists" in str(e).lower() or "duplicate column" in str(e).lower():
+                    # print(f"ℹ️ [알림] stores.{col} 컬럼이 이미 존재합니다.")
+                    pass
+                else:
+                    print(f"⚠️ [주의] stores.{col} 추가 실패: {e}")
 
         # 3. 초기 계정 '대표' (Owner) 생성 로직
         default_owner = User.query.filter_by(username='대표').first()
