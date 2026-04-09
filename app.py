@@ -63,32 +63,36 @@ db_url = os.environ.get('DATABASE_URL')
 # DB 연결 설정 및 패치
 # ---------------------------------------------------------
 if db_url:
-    # URL 내 특수문자 처리를 위한 보정 (특히 암호에 특수문자가 있는 경우)
+    # [호스트 보정] 프로젝트별 고유 호스트명 사용 권장
+    # (wdikgmyhuxhhyeljnyqa.supabase.co 형태로 자동 전환 시도 가능하나 일단 전달받은 URL 유지)
+    
     if "postgresql://" in db_url or "postgres://" in db_url:
-        # [패치] psycopg2가 없는 환경(Docker/Cloud)을 위해 pg8000 자동 전환
         try:
+            # 1순위: psycopg2 시도 (Render/Linux 환경 권장)
             import psycopg2
+            print("🐘 [DB 엔진] psycopg2를 사용합니다.")
         except ImportError:
-            # pg8000 드라이버 명시
+            # 2순위: pg8000 전환 (psycopg2 없는 환경용)
             if "postgresql+pg8000://" not in db_url:
                 db_url = db_url.replace("postgresql://", "postgresql+pg8000://", 1)
                 db_url = db_url.replace("postgres://", "postgresql+pg8000://", 1)
-            
-            # [중요] pg8000 사용 시 Supabase Transaction Mode(6543)와의 호환성 확보
-            # 만약 포트가 6543인데 드라이버가 5432를 찾거나 오류가 나는 경우를 위해 파싱 로직 강화 가능
-            print("🐘 [DB 엔진] psycopg2 대신 pg8000을 사용합니다.")
+            print("🐘 [DB 엔진] pg8000으로 대체 실행합니다.")
 
-    # 연결 문자열 로깅 (보안을 위해 비밀번호 마스킹)
+    # 연결 문자열 로깅 (보안 마스킹)
     try:
         from sqlalchemy.engine.url import make_url
         url_obj = make_url(db_url)
         safe_url = f"{url_obj.drivername}://{url_obj.username}:****@{url_obj.host}:{url_obj.port}/{url_obj.database}"
-        print(f"🔗 [DB 연결중] {safe_url}")
+        print(f"🔗 [DB 접속 시도] {safe_url}")
     except Exception:
-        print("🔗 [DB 연결중] URL 형식을 확인 중입니다...")
+        print("🔗 [DB 접속 시도] URL 형식을 확인 중입니다...")
 
 app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    "pool_pre_ping": True,
+    "pool_recycle": 300,
+}
 
 from models import db, Order, OrderItem, Waiting, Store, User, SystemConfig, TaxInvoice, ServiceRequest, Customer, PointTransaction, Attendance
 
