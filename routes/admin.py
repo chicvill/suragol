@@ -90,11 +90,23 @@ def init_admin_routes(app):
             return redirect(url_for('admin_stores'))
         
         try:
-            # 연관된 데이터(주문 등)는 모델의 cascade 설정에 따라 함께 처리되거나 수동 삭제 필요
-            # 간단히 매장 인스턴스 삭제
+            # [연쇄 정리] 삭제 전 매장 관련 데이터 모두 업데이트/삭제
+            from models import Attendance, Waiting, PointTransaction, Customer
+            
+            # 1. 해당 매장 소속 유저들 무소속으로 업데이트
+            User.query.filter_by(store_id=slug).update({User.store_id: None})
+            
+            # 2. 관련 데이터 일괄 삭제
+            Order.query.filter_by(store_id=slug).delete()
+            Attendance.query.filter_by(store_id=slug).delete()
+            Waiting.query.filter_by(store_id=slug).delete()
+            PointTransaction.query.filter_by(store_id=slug).delete()
+            Customer.query.filter_by(store_id=slug).delete()
+
+            # 3. 매장 본체 삭제
             db.session.delete(store)
             db.session.commit()
-            flash(f"✅ 매장 [{store.name}] 인스턴스가 성공적으로 영구 삭제되었습니다.")
+            flash(f"✅ 매장 [{store.name}] 및 관련 모든 데이터가 영구 삭제되었습니다.")
         except Exception as e:
             db.session.rollback()
             flash(f"❌ 삭제 중 오류가 발생했습니다: {e}")

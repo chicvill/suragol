@@ -1,30 +1,34 @@
 :root {
-  /* MQnet Ultra-Minimalist Brand Colors */
-  --mq-navy: #0F172A;        /* Deep Midnight Navy (Stability, Tech) */
-  --mq-green: #10B981;       /* Vibrant Emerald (Growth, Smart Farm) */
-  --mq-gold: #F59E0B;        /* Digital Gold (Payment, Premium) */
+  /* MQnet Premium Dark Theme */
+  --mq-navy: #0F172A;        /* Deep Midnight Navy */
+  --mq-green: #10B981;       /* Vibrant Emerald */
+  --mq-gold: #F59E0B;        /* Digital Gold */
   
-  --mq-bg: #F8FAFC;          /* Light Background */
-  --mq-card: #FFFFFF;        /* Card Surface */
-  --mq-text-main: #1E293B;   /* Main Text Color */
-  --mq-text-sub: #64748B;    /* Subtitle Color */
+  --mq-bg: #0B1120;          /* Ultra Dark Background */
+  --mq-card: #1E293B;        /* Slate Card Background */
+  --mq-border: rgba(255, 255, 255, 0.08);
+  --mq-text-main: #F8FAFC;   /* High Contrast White */
+  --mq-text-sub: #94A3B8;    /* Muted Slate Text */
   
   --radius-sm: 8px;
   --radius-md: 16px;
-  --radius-lg: 24px;
+  --radius-lg: 30px;
   
-  --shadow-sm: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-  --shadow-md: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+  --shadow-sm: 0 4px 6px -1px rgb(0 0 0 / 0.3);
+  --shadow-md: 0 20px 25px -5px rgb(0 0 0 / 0.4);
   --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Base Styles */
+/* Base Dark Styles */
 body {
   background-color: var(--mq-bg);
+  background-image: radial-gradient(circle at top right, #1e293b 0%, #0b1120 100%);
   color: var(--mq-text-main);
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   margin: 0;
-  -webkit-tap-highlight-color: transparent; /* Mobile optimization */
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
 /* MQnet Premium Button Styles */

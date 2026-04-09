@@ -1,26 +1,8 @@
-# 가상환경
-.venv/
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
-
-# 파일/폴더
-__pycache__/
+﻿node_modules/
+android/app/build/
+android/.gradle/
+android/local.properties
+android/app/release/
 *.pyc
-
-# 중요 보안 정보 (DB, API 키)
+__pycache__/
 .env
-*.db
-*.sqlite3
-instance/
-
-# 에디터
-.vscode/
-.idea/
-
-# 임시 파일
-tmp/
-*.tmp
-*.bak

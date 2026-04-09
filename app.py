@@ -82,187 +82,104 @@ db.init_app(app)
 
 # [진짜 최종 마이그레이션] PostgreSQL 호환성 및 부족한 컬럼 자동 생성
 with app.app_context():
-    print("🔍 [DB 점검] 테이블 및 컬럼 상태를 확인합니다...")
-    try:
-        db.create_all()
-        
-        # 1. Users 테이블 컬럼 보강
-        user_cols = [
-            ("is_approved", "BOOLEAN DEFAULT FALSE"),
-            ("agreed_at", "TIMESTAMP WITH TIME ZONE"),
-            ("full_name", "VARCHAR(100)"),
-            ("phone", "VARCHAR(50)"),
-            ("hourly_rate", "INTEGER DEFAULT 10000"),
-            ("position", "VARCHAR(50)"),
-            ("work_schedule", "JSON"),
-            ("contract_start", "DATE"),
-            ("contract_end", "DATE")
-        ]
-        for col, dtype in user_cols:
-            try:
-                db.session.execute(text(f"ALTER TABLE users ADD COLUMN {col} {dtype}"))
-                db.session.commit()
-                print(f"✅ [성공] users 테이블에 {col} 컬럼이 추가되었습니다.")
-            except Exception as e:
-                db.session.rollback()
-                if "already exists" in str(e).lower():
-                    print(f"ℹ️ [알림] users.{col} 컬럼이 이미 존재합니다.")
-                else:
-                    print(f"⚠️ [주의] users.{col} 추가 실패: {e}")
-
-        # 2. Stores 테이블 컬럼 보강 (개별 체크 방식)
-        store_cols = [
-            ("monthly_fee", "INTEGER DEFAULT 50000"),
-            ("attendance_pin", "VARCHAR(255) DEFAULT '0000'"),
-            ("recommended_by", "INTEGER"),
-            ("is_public", "BOOLEAN DEFAULT FALSE"),
-            ("signature_owner", "TEXT"),
-            ("signature_partner", "TEXT"),
-            ("theme_color", "VARCHAR(20) DEFAULT '#3b82f6'"),
-            ("contact_phone", "VARCHAR(50)"),
-            ("point_ratio", "FLOAT DEFAULT 0.0"),
-            ("waiting_sms_no", "VARCHAR(50)"),
-            ("business_type", "VARCHAR(50)"),
-            ("business_item", "VARCHAR(100)"),
-            ("business_email", "VARCHAR(100)"),
-            ("stats_reset_at", "TIMESTAMP WITH TIME ZONE"),
-            ("timezone", "VARCHAR(50) DEFAULT 'Asia/Seoul'")
-        ]
-        for col, dtype in store_cols:
-            try:
-                db.session.execute(text(f"ALTER TABLE stores ADD COLUMN {col} {dtype}"))
-                db.session.commit()
-                print(f"✅ [성공] stores 테이블에 {col} 컬럼이 추가되었습니다.")
-            except Exception as e:
-                db.session.rollback()
-                if "already exists" in str(e).lower() or "duplicate column" in str(e).lower():
-                    pass
-                else:
-                    print(f"⚠️ [주의] stores.{col} 추가 실패: {e}")
-
-        # 2-1. [데이터 공간 확보] attendance_pin 길이를 255로 강제 확장 (기존 10자리인 경우 대비)
+    # 로컬에서 Supabase 접속 시 락(Lock) 충돌 방지를 위해 마이그레이션 건너뛰기 옵션 추가
+    if os.environ.get('LOCAL_SKIP_MIGRATION') == 'true':
+        print("⏭️ [DB] 마이그레이션을 건너뛰고 바로 연결합니다. (로컬 모드)")
+    else:
+        print("🔍 [DB 점검] 테이블 및 컬럼 상태를 확인합니다...")
         try:
-            db.session.execute(text("ALTER TABLE stores ALTER COLUMN attendance_pin TYPE VARCHAR(255)"))
-            db.session.commit()
-            print("✅ [성공] attendance_pin 컬럼 공간을 255자로 확장했습니다.")
-        except Exception as e:
-            db.session.rollback()
+            db.create_all()
+            
+            # [컬럼 보강] 반복 로직 통합 처리
+            tables_cols = {
+                "users": [
+                    ("is_approved", "BOOLEAN DEFAULT FALSE"),
+                    ("agreed_at", "TIMESTAMP WITH TIME ZONE"),
+                    ("full_name", "VARCHAR(100)"),
+                    ("phone", "VARCHAR(50)"),
+                    ("hourly_rate", "INTEGER DEFAULT 10000"),
+                    ("position", "VARCHAR(50)"),
+                    ("work_schedule", "JSON"),
+                    ("contract_start", "DATE"),
+                    ("contract_end", "DATE")
+                ],
+                "stores": [
+                    ("monthly_fee", "INTEGER DEFAULT 50000"),
+                    ("attendance_pin", "VARCHAR(255) DEFAULT '0000'"),
+                    ("recommended_by", "INTEGER"),
+                    ("is_public", "BOOLEAN DEFAULT FALSE"),
+                    ("signature_owner", "TEXT"),
+                    ("signature_partner", "TEXT"),
+                    ("theme_color", "VARCHAR(20) DEFAULT '#3b82f6'"),
+                    ("contact_phone", "VARCHAR(50)"),
+                    ("point_ratio", "FLOAT DEFAULT 0.0"),
+                    ("waiting_sms_no", "VARCHAR(50)"),
+                    ("business_type", "VARCHAR(50)"),
+                    ("business_item", "VARCHAR(100)"),
+                    ("business_email", "VARCHAR(100)"),
+                    ("stats_reset_at", "TIMESTAMP WITH TIME ZONE"),
+                    ("timezone", "VARCHAR(50) DEFAULT 'Asia/Seoul'")
+                ]
+            }
+            
+            for table, cols in tables_cols.items():
+                for col, dtype in cols:
+                    try:
+                        db.session.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {dtype}"))
+                        db.session.commit()
+                    except Exception:
+                        db.session.rollback()
 
-        # 3. Attendance 테이블 컨럼 보강 (예정 출돌근 시각 저장용)
-        for col, dtype in [("scheduled_in", "TIMESTAMP WITH TIME ZONE"), ("scheduled_out", "TIMESTAMP WITH TIME ZONE")]:
+            # PIN 자리수 확장 (중요)
             try:
-                db.session.execute(text(f"ALTER TABLE attendance ADD COLUMN {col} {dtype}"))
+                db.session.execute(text("ALTER TABLE stores ALTER COLUMN attendance_pin TYPE VARCHAR(255)"))
                 db.session.commit()
-            except Exception as e:
+            except Exception:
                 db.session.rollback()
-                if not ("already exists" in str(e).lower() or "duplicate column" in str(e).lower()):
-                    print(f"\u26a0\ufe0f [attendance.{col}] 추가 실패: {e}")
 
-        # 4. SystemConfig 테이블 컨럼 보강
-        for col, dtype in [("site_name", "VARCHAR(100) DEFAULT 'MQnet Central'"), ("maintenance_mode", "BOOLEAN DEFAULT FALSE")]:
-            try:
-                db.session.execute(text(f"ALTER TABLE system_configs ADD COLUMN {col} {dtype}"))
-                db.session.commit()
-            except Exception as e:
-                db.session.rollback()
-                if not ("already exists" in str(e).lower() or "duplicate column" in str(e).lower()):
-                    print(f"\u26a0\ufe0f [system_configs.{col}] 추가 실패: {e}")
-
-        # 4-1. Orders 테이블 컬럼 보강
-        try:
-            db.session.execute(text("ALTER TABLE orders ADD COLUMN order_no VARCHAR(10)"))
+            # 초기 관리자/대표 계정 생성
+            for uname, role_name in [('admin', 'admin'), ('대표', 'owner')]:
+                if not User.query.filter_by(username=uname).first():
+                    nu = User(username=uname, password=generate_password_hash('1111'), role=role_name, is_approved=True, full_name=f'초기 {role_name}')
+                    db.session.add(nu)
             db.session.commit()
-            print("✅ [성공] orders 테이블에 order_no 컬럼이 추가되었습니다.")
+
+            print("🚀 [완료] 데이터베이스 구조 동기화 완료.")
         except Exception as e:
-            db.session.rollback()
-            if not ("already exists" in str(e).lower() or "duplicate column" in str(e).lower()):
-                print(f"⚠️ [orders.order_no] 추가 실패: {e}")
+            print(f"❌ [에러] 초기화 중 문제 발생: {e}")
 
-        # 5. [PIN 해시 마이그레이션] 기존 평문 PIN을 bcrypt 해시로 변환
-        try:
-            raw_stores = db.session.execute(text("SELECT id, attendance_pin FROM stores")).fetchall()
-            pin_migrated = 0
-            for row in raw_stores:
-                pin_val = row[1] or '0000'
-                if not pin_val.startswith('pbkdf2:'):
-                    hashed = generate_password_hash(pin_val)
-                    db.session.execute(text("UPDATE stores SET attendance_pin = :h WHERE id = :id"), {'h': hashed, 'id': row[0]})
-                    pin_migrated += 1
-            db.session.commit()
-            if pin_migrated > 0:
-                print(f"\u2705 [PIN 해시화] {pin_migrated}개 매장의 평문 PIN이 보안 해시로 변환되었습니다.")
-        except Exception as e:
-            db.session.rollback()
-            print(f"\u26a0\ufe0f [PIN 해시화] 실패: {e}")
-
-        # 6. 초기 계정 '대표' (Owner) 생성 로직
-        default_owner = User.query.filter_by(username='대표').first()
-        if not default_owner:
-            new_owner = User(
-                username='대표', 
-                password=generate_password_hash('1111'),
-                role='owner',
-                full_name='통합 대표',
-                is_approved=True
-            )
-            db.session.add(new_owner)
-            db.session.commit()
-            print("\ud83d\udc64 [초기화] '대표' (PW: 1111) 계정이 생성되었습니다.")
-
-        print("🚀 [완료] 모든 데이터베이스 구조 및 초기 데이터가 동기화되었습니다.")
-    except Exception as e:
-        print(f"\u274c [치명적 오류] DB 초기화 실패: {e}")
-        db.session.rollback()
-
-
+# --- 라우트 및 소켓 초기 설정 ---
 from extensions import socketio
 socketio.init_app(app)
 
-# 분리된 소켓 이벤트 모듈 등록 (1단계 리팩토링)
 from sockets import register_socketio_events
 register_socketio_events(socketio)
 
-# 분리된 라우트(블루프린트) 등록 (2단계 리팩토링)
 from routes.attendance import attendance_bp
 app.register_blueprint(attendance_bp)
 
-# 인증 라우트 모듈 등록 (3단계 리팩토링)
 from routes.auth import init_auth_routes
 init_auth_routes(app)
 
-# 관리자 라우트 모듈 등록 (4단계 리팩토링)
 from routes.admin import init_admin_routes
 init_admin_routes(app)
 
-# MQutils Integration (Solapi SMS)
-try:
-    from MQutils import SolapiMessenger
-except ImportError:
-    class SolapiMessenger:
-        def __init__(self, *args, **kwargs): pass
-        def send_sms(self, to, msg): print(f"[SIM] Missing MQutils. SMS to {to}: {msg}")
+from routes.store import init_store_routes
+init_store_routes(app)
 
-# ---------------------------------------------------------
-# 공통 유틸리티 및 권한 제어 (MQutils 패키지)
-# ---------------------------------------------------------
 from MQutils import (
     login_required, admin_required, staff_required, manager_required, owner_only_required,
     store_access_required, send_waiting_sms, check_nearby_waiting,
     format_phone, calculate_commission, get_staff_performance, send_daily_backup
 )
 
-# 템플릿 전역 변수 설정
 @app.context_processor
 def inject_globals():
     return {'timedelta': timedelta, 'now': datetime.now()}
 
-# 전역 필터 등록
 app.jinja_env.filters['format_phone'] = format_phone
 
-# ---------------------------------------------------------
-# 통합 관리자 센터 (MQnet Central)
-# ---------------------------------------------------------
-
+# MQnet Central Index
 @app.route('/')
 def index():
     user_id = session.get('user_id')
@@ -276,46 +193,26 @@ def index():
         
     role = user.role
     store_id = user.store_id
-    
-    # [추가 보정] 사장님이 특정 매장의 '담당 관리 직원'으로 등록되어 있다면, 소속 매장으로 자동 인정
     if role == 'owner' and not store_id:
         managed_store = Store.query.filter_by(recommended_by=user.id).first()
         if managed_store:
             store_id = managed_store.id
-            user.store_id = store_id # DB에도 살짝 기록
+            user.store_id = store_id
             db.session.commit()
-            session['store_id'] = store_id # 세션 동기화
+            session['store_id'] = store_id
             
     store = db.session.get(Store, store_id) if store_id else None
-    
-    # 최고 관리자용 전체 매장 목록
     stores = []
     if role == 'admin':
         stores = Store.query.all()
     elif role == 'staff':
-        # 직원은 본인이 담당한 매장 목록 (is_public은 이제 클론 방식으로 대체 중이므로 추천 매장 우선)
-        # 만약 is_public 필드가 있다면 포함, 없다면 본인 추천 매장만
         try:
             stores = Store.query.filter(or_(Store.recommended_by == user_id, Store.is_public == True)).all()
         except:
             stores = Store.query.filter_by(recommended_by=user_id).all()
         
-    # 승인 대기 명단 (매니저/사장님 승인용 - 본인 매장 소속인 경우만 필터링하도록 템플릿 전달 전 최적화 가능)
-    # 일단 전체를 보내되 템플릿에서 role에 따라 처리
     users_pending = User.query.filter_by(is_approved=False).all()
-        
-    return render_template('index.html', 
-                         logged_in=True, 
-                         user=user, 
-                         role=role, 
-                         store=store, 
-                         stores=stores,
-                         users_pending=users_pending)
-# ---------------------------------------------------------
-# 매장별 서비스 라우트 (와일드카드 처리를 위해 맨 뒤로 배치)
-# ---------------------------------------------------------
-from routes.store import init_store_routes
-init_store_routes(app)
+    return render_template('index.html', logged_in=True, user=user, role=role, store=store, stores=stores, users_pending=users_pending)
 
 
 
