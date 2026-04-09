@@ -71,12 +71,14 @@
                 <i data-lucide="copy"></i>
                 <span class="action-label" style="color:var(--accent);">시연용 복제</span>
             </button>
-            {% if s.id.startswith('demo_') %}
+            {% endif %}
+
+            {# [보강] 관리자(Admin)는 모든 매장 삭제 가능, 담당직원(Staff)은 데모 매장 삭제 가능 #}
+            {% if (current_role == 'admin') or (current_role == 'staff' and s.id.startswith('demo_')) %}
             <button onclick="deleteDemo('{{ s.id }}')" class="action-item" style="background: rgba(239, 68, 68, 0.08); border-color: var(--danger); color: var(--danger); cursor: pointer; height: auto;">
                 <i data-lucide="trash-2"></i>
-                <span class="action-label" style="color:var(--danger);">DEMO 삭제</span>
+                <span class="action-label" style="color:var(--danger);">매장 삭제</span>
             </button>
-            {% endif %}
             {% endif %}
         </div>
     </div>
