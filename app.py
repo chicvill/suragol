@@ -140,6 +140,14 @@ with app.app_context():
                 else:
                     print(f"⚠️ [주의] stores.{col} 추가 실패: {e}")
 
+        # 2-1. [데이터 공간 확보] attendance_pin 길이를 255로 강제 확장 (기존 10자리인 경우 대비)
+        try:
+            db.session.execute(text("ALTER TABLE stores ALTER COLUMN attendance_pin TYPE VARCHAR(255)"))
+            db.session.commit()
+            print("✅ [성공] attendance_pin 컬럼 공간을 255자로 확장했습니다.")
+        except Exception as e:
+            db.session.rollback()
+
         # 3. Attendance 테이블 컨럼 보강 (예정 출돌근 시각 저장용)
         for col, dtype in [("scheduled_in", "TIMESTAMP WITH TIME ZONE"), ("scheduled_out", "TIMESTAMP WITH TIME ZONE")]:
             try:
