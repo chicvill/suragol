@@ -60,8 +60,8 @@ class Store(db.Model):
     # 영업 담당자 (직원)
     recommended_by = db.Column(db.Integer, db.ForeignKey('users.id'))
 
-    # 출퇴근 승인용 보안 PIN (기본값: 0000)
-    attendance_pin = db.Column(db.String(10), default='0000')
+    # 출퇴근 승인용 보안 PIN (bcrypt 해시 저장)
+    attendance_pin = db.Column(db.String(255), default='0000')
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
@@ -149,8 +149,8 @@ class Waiting(db.Model):
 class SystemConfig(db.Model):
     __tablename__ = 'system_configs'
     id = db.Column(db.Integer, primary_key=True)
-    key = db.Column(db.String(100), unique=True, nullable=False)
-    value = db.Column(db.String(255), nullable=False)
+    site_name = db.Column(db.String(100), default='MQnet Central')
+    maintenance_mode = db.Column(db.Boolean, default=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 class TaxInvoice(db.Model):
@@ -224,6 +224,8 @@ class Attendance(db.Model):
     store_id = db.Column(db.String(50), db.ForeignKey('stores.id'), nullable=False)
     check_in_at = db.Column(db.DateTime, default=datetime.utcnow)
     check_out_at = db.Column(db.DateTime, nullable=True)
+    scheduled_in = db.Column(db.DateTime, nullable=True)  # 예정된 출근 시각 (UTC)
+    scheduled_out = db.Column(db.DateTime, nullable=True) # 예정된 퇴근 시각 (UTC)
     total_minutes = db.Column(db.Integer, default=0) # 자동 산출된 분 단위 근무시간
     status = db.Column(db.String(20), default='working') # working, completed
     

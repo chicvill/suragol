@@ -113,7 +113,7 @@ with app.app_context():
         # 2. Stores 테이블 컬럼 보강 (개별 체크 방식)
         store_cols = [
             ("monthly_fee", "INTEGER DEFAULT 50000"),
-            ("attendance_pin", "VARCHAR(10) DEFAULT '0000'"),
+            ("attendance_pin", "VARCHAR(255) DEFAULT '0000'"),
             ("recommended_by", "INTEGER"),
             ("is_public", "BOOLEAN DEFAULT FALSE"),
             ("signature_owner", "TEXT"),
@@ -124,7 +124,8 @@ with app.app_context():
             ("waiting_sms_no", "VARCHAR(50)"),
             ("business_type", "VARCHAR(50)"),
             ("business_item", "VARCHAR(100)"),
-            ("business_email", "VARCHAR(100)")
+            ("business_email", "VARCHAR(100)"),
+            ("stats_reset_at", "TIMESTAMP WITH TIME ZONE")
         ]
         for col, dtype in store_cols:
             try:
@@ -134,12 +135,48 @@ with app.app_context():
             except Exception as e:
                 db.session.rollback()
                 if "already exists" in str(e).lower() or "duplicate column" in str(e).lower():
-                    # print(f"ℹ️ [알림] stores.{col} 컬럼이 이미 존재합니다.")
                     pass
                 else:
                     print(f"⚠️ [주의] stores.{col} 추가 실패: {e}")
 
-        # 3. 초기 계정 '대표' (Owner) 생성 로직
+        # 3. Attendance 테이블 컨럼 보강 (예정 출돌근 시각 저장용)
+        for col, dtype in [("scheduled_in", "TIMESTAMP WITH TIME ZONE"), ("scheduled_out", "TIMESTAMP WITH TIME ZONE")]:
+            try:
+                db.session.execute(text(f"ALTER TABLE attendance ADD COLUMN {col} {dtype}"))
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                if not ("already exists" in str(e).lower() or "duplicate column" in str(e).lower()):
+                    print(f"\u26a0\ufe0f [attendance.{col}] 추가 실패: {e}")
+
+        # 4. SystemConfig 테이블 컨럼 보강
+        for col, dtype in [("site_name", "VARCHAR(100) DEFAULT 'MQnet Central'"), ("maintenance_mode", "BOOLEAN DEFAULT FALSE")]:
+            try:
+                db.session.execute(text(f"ALTER TABLE system_configs ADD COLUMN {col} {dtype}"))
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                if not ("already exists" in str(e).lower() or "duplicate column" in str(e).lower()):
+                    print(f"\u26a0\ufe0f [system_configs.{col}] 추가 실패: {e}")
+
+        # 5. [PIN 해시 마이그레이션] 기존 평문 PIN을 bcrypt 해시로 변환
+        try:
+            raw_stores = db.session.execute(text("SELECT id, attendance_pin FROM stores")).fetchall()
+            pin_migrated = 0
+            for row in raw_stores:
+                pin_val = row[1] or '0000'
+                if not pin_val.startswith('pbkdf2:'):
+                    hashed = generate_password_hash(pin_val)
+                    db.session.execute(text("UPDATE stores SET attendance_pin = :h WHERE id = :id"), {'h': hashed, 'id': row[0]})
+                    pin_migrated += 1
+            db.session.commit()
+            if pin_migrated > 0:
+                print(f"\u2705 [PIN 해시화] {pin_migrated}개 매장의 평문 PIN이 보안 해시로 변환되었습니다.")
+        except Exception as e:
+            db.session.rollback()
+            print(f"\u26a0\ufe0f [PIN 해시화] 실패: {e}")
+
+        # 6. 초기 계정 '대표' (Owner) 생성 로직
         default_owner = User.query.filter_by(username='대표').first()
         if not default_owner:
             new_owner = User(
@@ -151,12 +188,13 @@ with app.app_context():
             )
             db.session.add(new_owner)
             db.session.commit()
-            print("👤 [초기화] '대표' (PW: 1111) 계정이 생성되었습니다.")
+            print("\ud83d\udc64 [초기화] '대표' (PW: 1111) 계정이 생성되었습니다.")
 
         print("🚀 [완료] 모든 데이터베이스 구조 및 초기 데이터가 동기화되었습니다.")
     except Exception as e:
-        print(f"❌ [치명적 오류] DB 초기화 실패: {e}")
+        print(f"\u274c [치명적 오류] DB 초기화 실패: {e}")
         db.session.rollback()
+
 
 socketio = SocketIO(app, cors_allowed_origins="*")
 
@@ -820,6 +858,7 @@ def signup_new_store():
     return render_template('signup/new_store.html', partner_id=partner_id)
 
 @app.route('/admin/stores/setup/<slug>', methods=['GET', 'POST'])
+@login_required
 def admin_store_setup(slug):
     store = db.session.get(Store, slug)
     if not store: return "Store not found", 404
@@ -919,9 +958,13 @@ def api_status_toggle():
 @app.route('/api/admin/upload', methods=['POST'])
 @staff_required
 def api_upload_image():
+    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
     file = request.files.get('file')
     if not file: return jsonify({'error': 'No file'}), 400
-    filename = str(uuid.uuid4())[:12] + "_" + file.filename
+    ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else ''
+    if ext not in ALLOWED_EXTENSIONS:
+        return jsonify({'error': f'허용되지 않는 파일 형식입니다. ({ext}). 허용: {ALLOWED_EXTENSIONS}'}), 400
+    filename = str(uuid.uuid4()) + '.' + ext  # 원본 파일명을 UUID로 완전 대체 (Path Traversal 방지)
     file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
     return jsonify({'status': 'success', 'url': f'/static/images/{filename}'})
 # ---------------------------------------------------------
@@ -957,7 +1000,10 @@ def customer_view(slug, table_id):
         db.session.commit()
         print(f"🛠 [복구] {slug} 매장에 기본 카테고리를 생성했습니다.")
         
-    if 'uid' not in session: session['uid'] = str(random.randint(100, 999))
+    if 'uid' not in session:
+        # uuid4를 사용하여 900개 충돌 문제 해결 (기존 randint(100,999)는 충돌 위험 높음)
+        session['uid'] = str(uuid.uuid4())[:12]
+        session.modified = True
     return render_template('customer.html', store=store, table_id=table_id, session_id=session['uid'])
 
 @app.route('/<slug>/counter')
@@ -1042,21 +1088,24 @@ def stats_view(slug):
 @store_access_required
 def api_get_stats(slug):
     period = request.args.get('period', 'today')
-    now = datetime.now()
+    # [수정] UTC 기준으로 통일 (기존 datetime.now()는 KST로 저장된 UTC 데이터와 9시간 시차 발생)
+    now = datetime.utcnow()
     
     if period == 'week':
-        # 이번 주 월요일 00:00부터
         start_date = (now - timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
     elif period == 'month':
-        # 이번 달 1일 00:00부터
         start_date = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     elif period == 'year':
-        # 올해 1월 1일 00:00부터
         start_date = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
     else:
-        # 오늘 00:00부터
         start_date = now.replace(hour=0, minute=0, second=0, microsecond=0)
     
+    # [수정] 통계 리셋 기준점 반영 (실제 데이터 변조 없이 기준 시각으로 필터링)
+    store = db.session.get(Store, slug)
+    if store and store.stats_reset_at:
+        start_date = max(start_date, store.stats_reset_at)
+    
+
     # 1. 기간 총 매출
     total_sales = db.session.query(func.sum(Order.total_price))\
         .filter(Order.store_id == slug, Order.status == 'paid', Order.paid_at >= start_date)\
@@ -1090,19 +1139,21 @@ def api_get_store_customers(slug):
         'points': c.points
     } for c in custs])
 
+
+
+
+
+
 @app.route('/api/<slug>/stats/reset', methods=['POST'])
 @store_access_required
 def api_reset_stats(slug):
-    # 실제로는 데이터를 삭제하지 않고 통계 기준점을 업데이트하는 방식이 권장되지만,
-    # 여기서는 간단하게 오늘 결제된 건들의 paid_at을 어제로 변경하여 초기화 효과를 냅니다.
-    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
-    yesterday = today_start - timedelta(seconds=1)
-    
-    Order.query.filter(Order.store_id == slug, Order.status == 'paid', Order.paid_at >= today_start)\
-        .update({Order.paid_at: yesterday}, synchronize_session=False)
-    
+    """[수정] 실제 데이터(paid_at)를 변조하지 않고 리셋 기준시각을 저장하는 방식화"""
+    store = db.session.get(Store, slug)
+    if not store:
+        return jsonify({'status': 'error', 'message': '매장을 찾을 수 없습니다.'}), 404
+    store.stats_reset_at = datetime.utcnow()
     db.session.commit()
-    return jsonify({'status': 'success'})
+    return jsonify({'status': 'success', 'reset_at': store.stats_reset_at.isoformat()})
 
 @app.route('/<slug>/waiting')
 def waiting_view(slug):
@@ -1120,16 +1171,12 @@ def api_create_service_request(slug):
     content = data.get('content')
     table_id = data.get('table_id')
     if not content or not table_id: return jsonify({'error': 'Missing data'}), 400
-    
     new_req = ServiceRequest(store_id=slug, table_id=table_id, content=content)
     db.session.add(new_req)
     db.session.commit()
-    
-    # Notify staff via SocketIO
     socketio.emit('new_service_request', new_req.to_dict(), room=slug)
     return jsonify({'status': 'success', 'request': new_req.to_dict()})
 
-@app.route('/api/<slug>/service_requests')
 @app.route('/api/<slug>/service_requests')
 @store_access_required
 def api_get_service_requests(slug):
@@ -1141,6 +1188,7 @@ def api_get_active_orders(slug):
     """현재 결제되지 않은(식사 중이거나 조리 중인) 모든 주문 내역을 반환합니다."""
     orders = Order.query.filter(Order.store_id == slug, Order.status != 'paid').all()
     return jsonify([o.to_dict() for o in orders])
+
 
 @app.route('/api/<slug>/service_request/<int:req_id>/complete', methods=['POST'])
 @store_access_required
@@ -1298,21 +1346,22 @@ def api_bulk_approve_attendance(slug):
     selected_ids = data.get('ids', []) # 사장님이 체크한 ID 리스트
     
     store = db.session.get(Store, slug)
-    if not store or store.attendance_pin != pin:
+    if not store or not check_password_hash(store.attendance_pin, pin):
         return jsonify({'status': 'error', 'message': '보안 코드가 일치하지 않습니다.'}), 400
     
     # 사장님이 선택한 ID들만 필터링하여 승인
     pending_list = Attendance.query.filter(Attendance.id.in_(selected_ids)).all()
     
     count = 0
-    now = datetime.utcnow()
     for att in pending_list:
         if att.status == 'pending_in':
-            att.check_in_at = now
+            # [수정] 승인 시각(now) 대신 예정 출근 시각(scheduled_in) 기준으로 기록
+            att.check_in_at = att.scheduled_in or att.check_in_at
             att.status = 'working'
             count += 1
         elif att.status == 'pending_out':
-            att.check_out_at = now
+            # [수정] 승인 시각(now) 대신 예정 퇴근 시각(scheduled_out) 기준으로 기록
+            att.check_out_at = att.scheduled_out or att.check_out_at
             diff = att.check_out_at - att.check_in_at
             att.total_minutes = max(0, int(diff.total_seconds() / 60))
             att.status = 'completed'
@@ -1332,18 +1381,18 @@ def api_approve_attendance(slug):
     pin = data.get('pin')
     
     store = db.session.get(Store, slug)
-    if not store or store.attendance_pin != pin:
+    if not store or not check_password_hash(store.attendance_pin, pin):
         return jsonify({'status': 'error', 'message': '보안 코드가 일치하지 않습니다.'}), 400
         
     att = db.session.get(Attendance, att_id)
     if not att: return jsonify({'error': 'Not found'}), 404
     
     if att.status == 'pending_in':
-        att.check_in_at = datetime.utcnow()
+        # [수정] 승인 시각 대신 예정 시각 기준으로 기록
+        att.check_in_at = att.scheduled_in or att.check_in_at
         att.status = 'working'
     elif att.status == 'pending_out':
-        att.check_out_at = datetime.utcnow()
-        # 근무 시간(분) 계산
+        att.check_out_at = att.scheduled_out or att.check_out_at
         diff = att.check_out_at - att.check_in_at
         att.total_minutes = max(0, int(diff.total_seconds() / 60))
         att.status = 'completed'
@@ -1365,14 +1414,15 @@ def api_update_attendance_pin(slug):
     store = db.session.get(Store, slug)
     if not store: return jsonify({'error': 'Not found'}), 404
     
-    # 현재 비밀번호 확인 절차 (보안 강화)
-    if store.attendance_pin != old_pin:
+    # [수정] 현재 PIN 해시 보안 비교
+    if not check_password_hash(store.attendance_pin, old_pin):
         return jsonify({'status': 'error', 'message': '현재 보안 코드가 일치하지 않아 변경할 수 없습니다.'}), 400
         
-    if not new_pin or len(new_pin) != 4:
+    if not new_pin or len(new_pin) != 4 or not new_pin.isdigit():
         return jsonify({'status': 'error', 'message': '새 보안 코드는 4자리 숫자여야 합니다.'}), 400
         
-    store.attendance_pin = new_pin
+    # [수정] 새 PIN을 bcrypt 해시로 저장
+    store.attendance_pin = generate_password_hash(new_pin)
     db.session.commit()
     return jsonify({'status': 'success'})
 
@@ -1548,11 +1598,14 @@ def api_create_waiting(slug):
     phone = data.get('phone', '010-0000-0000')
     people = int(data.get('people', 1))
     
-    # 오늘 접수된 대기 팀 수 계산 (대기 번호 부여용)
+    # [수정] 취소/입장 제외한 실제 대기 중인 팀 수 기반으로 번호 부여 (기존: 전체 카운트 → 번호 급증 문제)
     now_local = datetime.now()
-    count = Waiting.query.filter_by(store_id=slug).filter(Waiting.created_at >= datetime(now_local.year, now_local.month, now_local.day)).count()
+    today_start = datetime(now_local.year, now_local.month, now_local.day)
+    today_count = Waiting.query.filter_by(store_id=slug).filter(
+        Waiting.created_at >= today_start
+    ).count()  # 오늘 접수된 전체 수 (연번 부여용)
     
-    new_wait = Waiting(store_id=slug, phone=phone, people=people, waiting_no=count+1)
+    new_wait = Waiting(store_id=slug, phone=phone, people=people, waiting_no=today_count+1)
     db.session.add(new_wait)
     db.session.commit()
     
@@ -1712,8 +1765,11 @@ def on_set_served(data):
     sid = data.get('session_id')
     slug = data.get('store_id')
     orders = Order.query.filter_by(store_id=slug, session_id=sid, status='ready').all()
-    # 첫 번째 주문에서 table_id 추출 (현황판 삭제용)
-    tid = orders[0].table_id if orders else None
+    if not orders:
+        # [수정] 주문이 없을 경우 조기 종료 (tid=None으로 emit하던 버그 방지)
+        print(f"⚠️ [set_served] 처리할 주문 없음 (session_id={sid})")
+        return
+    tid = orders[0].table_id
     for o in orders:
         o.status = 'served'
     db.session.commit()
@@ -1746,8 +1802,10 @@ def on_set_paid(data):
                 cust.points -= actual_use
                 db.session.add(PointTransaction(customer_id=cust.id, store_id=slug, amount=-actual_use, description="포인트 사용 포인트 감면"))
             
-            # Point Accumulation (1% of total)
-            acc_amount = int(total_sum * 0.01)
+            # [수정] 포인트 적립륙 동적화: store.point_ratio 설정값 사용 (1% 하드코딩에서 변경)
+            store_for_ratio = db.session.get(Store, slug)
+            ratio = (store_for_ratio.point_ratio if store_for_ratio and store_for_ratio.point_ratio and store_for_ratio.point_ratio > 0 else 0.01)
+            acc_amount = int(total_sum * ratio)
             cust.points += acc_amount
             cust.visit_count += 1
             cust.total_spent += total_sum
