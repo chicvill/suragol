@@ -3,8 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MQnet Central | 통합 관리 포털</title>
+    <title>MQnet | Smart Automation & POS</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v={{ range(1, 9999) | random }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/mqnet_style.css') }}">
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <meta name="theme-color" content="#0F172A">
     <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body>
@@ -81,20 +84,26 @@
 
     <div class="portal-container">
         {% if not logged_in %}
-            <div style="text-align: center; padding: 100px 0;">
-                <h1 style="font-size: 3.5rem; font-weight: 950; margin-bottom: 10px;">MQNET <span style="color:var(--primary);">Central</span></h1>
-                <p style="color:#64748b; margin-bottom: 40px; font-size: 1.2rem; font-weight: 700;">지능형 매장 자동화 포털</p>
-                <div style="max-width: 400px; margin: 0 auto; background: var(--card); padding: 40px; border-radius: 25px; border: 1px solid var(--border);">
+            <div style="text-align: center; padding: 60px 0;">
+                <img src="{{ url_for('static', filename='images/mqnet_logo.png') }}" alt="MQnet" style="width: 120px; margin-bottom: 20px;">
+                <h1 style="font-size: 3.5rem; font-weight: 950; margin-bottom: 5px; color: var(--mq-navy);">MQnet</h1>
+                <p style="color:var(--mq-green); margin-bottom: 40px; font-size: 1.1rem; font-weight: 800; text-transform: uppercase; letter-spacing: 2px;">Smart Automation Platform</p>
+                <div style="max-width: 400px; margin: 0 auto; background: white; padding: 40px; border-radius: 30px; box-shadow: var(--shadow-md); border: 1px solid rgba(15, 23, 42, 0.05);">
                     <form action="/login" method="POST">
-                        <input type="text" name="username" placeholder="ID" required style="width:100%; padding:18px; margin-bottom:15px; border-radius:15px; background:#0b1121; border:1px solid var(--border); color:#fff; box-sizing:border-box; font-size: 1rem;">
-                        <input type="password" name="password" placeholder="PW" required style="width:100%; padding:18px; margin-bottom:25px; border-radius:15px; background:#0b1121; border:1px solid var(--border); color:#fff; box-sizing:border-box; font-size: 1rem;">
-                        <button type="submit" style="width:100%; padding:20px; border-radius:15px; background:var(--primary); color:white; border:none; font-weight:900; font-size: 1.1rem; cursor:pointer; margin-bottom: 20px;">로그인</button>
+                        <input type="text" name="username" placeholder="매장 ID 또는 계정" required style="width:100%; padding:18px; margin-bottom:15px; border-radius:15px; background:#f1f5f9; border:1px solid #e2e8f0; color:#0f172a; box-sizing:border-box; font-size: 1rem;">
+                        <input type="password" name="password" placeholder="비밀번호" required style="width:100%; padding:18px; margin-bottom:25px; border-radius:15px; background:#f1f5f9; border:1px solid #e2e8f0; color:#0f172a; box-sizing:border-box; font-size: 1rem;">
+                        <button type="submit" class="mq-btn-primary" style="width:100%; justify-content: center; font-size: 1.2rem; padding: 20px;">시스템 시작하기</button>
                     </form>
                     <div style="text-align: center; border-top: 1px solid var(--border); padding-top: 20px;">
                         <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 15px;">아직 계정이 없으신가요?</p>
                         <a href="/signup" style="color: var(--primary); text-decoration: none; font-weight: 800; font-size: 1rem; display: flex; align-items: center; justify-content: center; gap: 8px;">
                             <i data-lucide="user-plus" size="18"></i> 파트너 및 근로자 가입하기
                         </a>
+                    </div>
+                    <div style="margin-top: 30px; font-size: 0.75rem; color: #94a3b8;">
+                        <a href="/terms" style="color: inherit;">이용약관</a> | 
+                        <a href="/privacy" style="color: inherit; font-weight: bold;">개인정보 처리방침</a>
+                        <p style="margin-top: 10px;">&copy; 2026 MQnet Platforms</p>
                     </div>
                 </div>
             </div>

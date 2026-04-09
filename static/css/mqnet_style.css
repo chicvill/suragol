@@ -1,0 +1,76 @@
+:root {
+  /* MQnet Ultra-Minimalist Brand Colors */
+  --mq-navy: #0F172A;        /* Deep Midnight Navy (Stability, Tech) */
+  --mq-green: #10B981;       /* Vibrant Emerald (Growth, Smart Farm) */
+  --mq-gold: #F59E0B;        /* Digital Gold (Payment, Premium) */
+  
+  --mq-bg: #F8FAFC;          /* Light Background */
+  --mq-card: #FFFFFF;        /* Card Surface */
+  --mq-text-main: #1E293B;   /* Main Text Color */
+  --mq-text-sub: #64748B;    /* Subtitle Color */
+  
+  --radius-sm: 8px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  
+  --shadow-sm: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  --shadow-md: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+  --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Base Styles */
+body {
+  background-color: var(--mq-bg);
+  color: var(--mq-text-main);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  margin: 0;
+  -webkit-tap-highlight-color: transparent; /* Mobile optimization */
+}
+
+/* MQnet Premium Button Styles */
+.mq-btn-primary {
+  background: var(--mq-navy);
+  color: white;
+  padding: 12px 24px;
+  border-radius: var(--radius-md);
+  border: none;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: var(--transition);
+  box-shadow: var(--shadow-sm);
+}
+
+.mq-btn-primary:hover {
+  background: #1e293b;
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.mq-btn-primary:active {
+  transform: scale(0.98);
+}
+
+/* Growth Accent Style */
+.mq-accent-green {
+  color: var(--mq-green);
+  font-weight: 700;
+}
+
+/* PWA Navigation Support */
+.mobile-nav-bottom {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 64px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid rgba(0,0,0,0.05);
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  z-index: 1000;
+}

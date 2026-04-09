@@ -358,6 +358,14 @@ if not scheduler.get_job('keep_alive_job'):
 
 scheduler.start()
 
+@app.route('/privacy')
+def privacy_page():
+    return render_template('privacy.html')
+
+@app.route('/terms')
+def terms_page():
+    return render_template('terms.html')
+
 if __name__ == '__main__':
     # [1단계] Render는 PORT 환경변수를 통해 동적으로 포트를 할당합니다.
     port = int(os.environ.get('PORT', 10000))
