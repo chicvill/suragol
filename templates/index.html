@@ -23,41 +23,50 @@
         </div>
         
         <div class="action-bar">
+            <!-- 1. 주문판 -->
+            <a href="/{{ s.id }}" class="action-item" style="color: #fff; background: rgba(255, 255, 255, 0.05);">
+                <i data-lucide="shopping-bag"></i>
+                <span class="action-label">주문판</span>
+            </a>
+            
+            <!-- 2. 카운터 -->
             <a href="/{{ s.id }}/counter" class="action-item" style="background: rgba(59, 130, 246, 0.08); border-color: var(--primary); color: white;">
                 <i data-lucide="monitor"></i>
                 <span class="action-label" style="color:var(--primary);">카운터</span>
             </a>
+            
+            <!-- 3. 주방 -->
             <a href="/{{ s.id }}/kitchen" class="action-item" style="background: rgba(59, 130, 246, 0.08); border-color: var(--primary); color: white;">
                 <i data-lucide="chef-hat"></i>
-                <span class="action-label" style="color:var(--primary);">주방룸</span>
+                <span class="action-label" style="color:var(--primary);">주방</span>
             </a>
-            <a href="/signup?role=worker&store_id={{ s.id }}" class="action-item" style="border-color: var(--accent); background: rgba(16, 185, 129, 0.08);">
-                <i data-lucide="user-plus" style="color: var(--accent);"></i>
-                <span class="action-label" style="color:var(--accent);">직원 등록</span>
-            </a>
-            <a href="/admin/stores/{{ s.id }}/config" class="action-item" style="border-color: var(--accent); background: rgba(16, 185, 129, 0.08);">
-                <i data-lucide="clipboard-list" style="color: var(--accent);"></i>
-                <span class="action-label" style="color:var(--accent);">메뉴 및 매장 관리</span>
-            </a>
-            <a href="/admin/staff?slug={{ s.id }}" class="action-item" style="border-color: var(--warning); background: rgba(245, 158, 11, 0.08);">
-                <i data-lucide="clipboard-check" style="color: var(--warning);"></i>
-                <span class="action-label" style="color:var(--warning);">근태/스케줄</span>
-            </a>
-            <a href="/{{ s.id }}/stats" class="action-item">
-                <i data-lucide="bar-chart-3"></i>
-                <span class="action-label">통계분석</span>
+            
+            <!-- 4. 전광판 & QR 인쇄 -->
+            <a href="/{{ s.id }}/display" class="action-item" target="_blank" style="background: rgba(168, 85, 247, 0.08); border-color: #a855f7;">
+                <i data-lucide="tv-2" style="color: #a855f7;"></i>
+                <span class="action-label" style="color: #a855f7;">전광판</span>
             </a>
             <a href="/{{ s.id }}/qr-print" class="action-item" target="_blank">
                 <i data-lucide="printer"></i>
                 <span class="action-label">QR 인쇄</span>
             </a>
-            <a href="/{{ s.id }}" class="action-item" style="color: #fff; background: rgba(255, 255, 255, 0.05);">
-                <i data-lucide="shopping-bag"></i>
-                <span class="action-label">주문판</span>
+            
+            <!-- 5. 직원 등록 -->
+            <a href="/signup?role=worker&store_id={{ s.id }}" class="action-item" style="border-color: var(--accent); background: rgba(16, 185, 129, 0.08);">
+                <i data-lucide="user-plus" style="color: var(--accent);"></i>
+                <span class="action-label" style="color:var(--accent);">직원 등록</span>
             </a>
-            <a href="/{{ s.id }}/display" class="action-item" target="_blank" style="background: rgba(168, 85, 247, 0.08); border-color: #a855f7;">
-                <i data-lucide="tv-2" style="color: #a855f7;"></i>
-                <span class="action-label" style="color: #a855f7;">전광판</span>
+            
+            <!-- 6. 근태 -->
+            <a href="/admin/staff?slug={{ s.id }}" class="action-item" style="border-color: var(--warning); background: rgba(245, 158, 11, 0.08);">
+                <i data-lucide="clipboard-check" style="color: var(--warning);"></i>
+                <span class="action-label" style="color:var(--warning);">근태</span>
+            </a>
+            
+            <!-- 7. 메뉴 및 매장관리 / 설정 -->
+            <a href="/admin/stores/{{ s.id }}/config" class="action-item" style="border-color: var(--accent); background: rgba(16, 185, 129, 0.08);">
+                <i data-lucide="clipboard-list" style="color: var(--accent);"></i>
+                <span class="action-label" style="color:var(--accent);">메뉴 및 매장 관리</span>
             </a>
             {% if current_role == 'admin' %}
             <a href="/admin/stores/{{ s.id }}/config" class="action-item">
@@ -66,6 +75,19 @@
             </a>
             {% endif %}
 
+            <!-- 8. 통계 분석 (전체통계, 매장통계) -->
+            {% if current_role == 'admin' %}
+            <a href="/admin/performance" class="action-item">
+                <i data-lucide="bar-chart-2" style="color:var(--primary);"></i>
+                <span class="action-label">전체통계</span>
+            </a>
+            {% endif %}
+            <a href="/{{ s.id }}/stats" class="action-item">
+                <i data-lucide="bar-chart-3"></i>
+                <span class="action-label">매장통계</span>
+            </a>
+
+            <!-- 9. 복제 (기존 기능 유지) -->
             {% if current_role == 'staff' %}
             <button onclick="cloneStore('{{ s.id }}')" class="action-item" style="background: rgba(16, 185, 129, 0.08); border-color: var(--accent); color: var(--accent); cursor: pointer; height: auto;">
                 <i data-lucide="copy"></i>
@@ -73,7 +95,7 @@
             </button>
             {% endif %}
 
-            {# [보강] 관리자(Admin)는 모든 매장 삭제 가능, 담당직원(Staff)은 데모 매장 삭제 가능 #}
+            <!-- 10. 삭제 -->
             {% if (current_role == 'admin') or (current_role == 'staff' and s.id.startswith('demo_')) %}
             <button onclick="deleteDemo('{{ s.id }}')" class="action-item" style="background: rgba(239, 68, 68, 0.08); border-color: var(--danger); color: var(--danger); cursor: pointer; height: auto;">
                 <i data-lucide="trash-2"></i>
@@ -218,20 +240,12 @@
                     </div>
                 {% endif %}
 
-                <div class="section-header">Managed Instances</div>
-                
                 {% set store_list = [] %}
                 {% if store %}{% do store_list.append(store) %}{% endif %}
                 {% if stores %}{% for s in stores %}{% if s not in store_list %}{% do store_list.append(s) %}{% endif %}{% endfor %}{% endif %}
 
-                <div class="store-tabs">
-                    {% for s in store_list %}
-                        <button class="store-tab-btn {% if loop.first %}active{% endif %}" onclick="switchStoreTab('{{ s.id }}', this)">
-                            {{ s.id }}
-                            <span class="tab-ko">{{ s.name }}</span>
-                        </button>
-                    {% endfor %}
-                </div>
+                <div class="section-header" style="margin-top: 40px; margin-bottom: 10px; border-left: 6px solid var(--primary); padding-left: 15px; font-size: 1rem; font-weight: 1000; color: #fff; letter-spacing: 1px;">MANAGED INSTANCES</div>
+                
                 <div class="store-tab-content">
                     {% for s in store_list %}
                         <div id="tab-pane-{{ s.id }}" class="store-pane {% if loop.first %}active{% endif %}">
@@ -239,6 +253,16 @@
                         </div>
                     {% endfor %}
                 </div>
+
+                {% if store_list|length > 1 %}
+                <div class="store-tabs" style="display: flex; justify-content: center; gap: 10px; margin-top: 30px; padding: 20px; background: rgba(255,255,255,0.02); border-radius: 20px; border: 1px solid var(--border);">
+                    {% for s in store_list %}
+                        <button class="store-tab-btn {% if loop.first %}active{% endif %}" onclick="switchStoreTab('{{ s.id }}', this)" style="padding: 10px 24px; font-size: 0.95rem; font-weight: 800; border-radius: 12px;">
+                            {{ s.name }}
+                        </button>
+                    {% endfor %}
+                </div>
+                {% endif %}
             {% endif %}
         {% endif %}
     </div>

@@ -156,16 +156,10 @@ with app.app_context():
             except Exception:
                 db.session.rollback()
 
-            # 초기 관리자/대표 계정 생성
-            for uname, role_name in [('admin', 'admin'), ('대표', 'owner')]:
-                if not User.query.filter_by(username=uname).first():
-                    nu = User(username=uname, password=generate_password_hash('1111'), role=role_name, is_approved=True, full_name=f'초기 {role_name}')
-                    db.session.add(nu)
-            db.session.commit()
-
             print("🚀 [완료] 데이터베이스 구조 동기화 완료.")
         except Exception as e:
             print(f"❌ [에러] 초기화 중 문제 발생: {e}")
+
 
 # --- 라우트 및 소켓 초기 설정 ---
 from extensions import socketio
@@ -297,7 +291,7 @@ if __name__ == '__main__':
                 from werkzeug.security import generate_password_hash
                 admin_user = User(
                     username='admin', 
-                    password=generate_password_hash('1111'), 
+                    password=generate_password_hash('1212'), 
                     role='admin', 
                     is_approved=True,
                     full_name='최고관리자'
