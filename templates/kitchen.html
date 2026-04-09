@@ -175,7 +175,7 @@
             }
 
             pendingOrders.forEach(order => {
-                const orderNoDisplay = order.session_id ? order.session_id : '현장';
+                const orderNoDisplay = order.order_no ? order.order_no : (order.session_id ? order.session_id : '현장');
                 const card = document.createElement('div');
                 card.className = 'table-card';
                 card.innerHTML = `

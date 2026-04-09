@@ -60,6 +60,9 @@ class Store(db.Model):
     # 영업 담당자 (직원)
     recommended_by = db.Column(db.Integer, db.ForeignKey('users.id'))
 
+    # [글로벌] 매장별 타임존 (기본 대한민국)
+    timezone = db.Column(db.String(50), default='Asia/Seoul')
+
     # 출퇴근 승인용 보안 PIN (bcrypt 해시 저장)
     attendance_pin = db.Column(db.String(255), default='0000')
 
@@ -91,6 +94,7 @@ class Order(db.Model):
     total_price = db.Column(db.Integer, default=0)
     status = db.Column(db.String(20), default='pending')  # pending, ready, served, paid
     session_id = db.Column(db.String(50), nullable=True)
+    order_no = db.Column(db.String(10), nullable=True) # [신규] 노출용 3자리 주문번호
     phone = db.Column(db.String(20), nullable=True) # For points
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     paid_at = db.Column(db.DateTime, nullable=True)
@@ -104,6 +108,7 @@ class Order(db.Model):
             'total_price': self.total_price,
             'status': self.status,
             'session_id': self.session_id,
+            'order_no': self.order_no,
             'phone': self.phone,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'items': [item.to_dict() for item in self.items]

@@ -90,7 +90,7 @@
             if (order.status === 'ready') {
                 if (!readyOrders.has(order.id)) {
                     readyOrders.set(order.id, {
-                        session_id: order.session_id || '---',
+                        order_no: order.order_no || (order.session_id || '---'),
                         table_id: order.table_id
                     });
                     playChime();
@@ -126,7 +126,7 @@
                 data.forEach(order => {
                     if (order.status === 'ready') {
                         readyOrders.set(order.id, {
-                            session_id: order.session_id || '---',
+                            order_no: order.order_no || (order.session_id || '---'),
                             table_id: order.table_id
                         });
                     }
@@ -146,11 +146,10 @@
                 return;
             }
 
-            // 중복된 session_id는 하나만 보여주거나 세션별로 묶어서 렌더링
-            // 여기서는 번호별 가독성을 위해 고유한 (session_id, table_id) 쌍을 추출
+            // 중복된 주문번호는 하나만 보여주거나 세션별로 묶어서 렌더링
             const uniqueDisplays = new Map();
             for (let info of readyOrders.values()) {
-                const key = `${info.session_id}-${info.table_id}`;
+                const key = `${info.order_no}-${info.table_id}`;
                 uniqueDisplays.set(key, info);
             }
 
@@ -158,7 +157,7 @@
                 const item = document.createElement('div');
                 item.className = 'ready-item';
                 item.innerHTML = `
-                    <div class="ready-session">#${info.session_id}</div>
+                    <div class="ready-session">#${info.order_no}</div>
                     <div class="ready-table">${info.table_id}번 테이블</div>
                 `;
                 container.appendChild(item);
