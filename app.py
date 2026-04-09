@@ -358,6 +358,7 @@ if not scheduler.get_job('keep_alive_job'):
 
 scheduler.start()
 
+# [최종] 라우트 추가 - 구글 플레이 필수 문서
 @app.route('/privacy')
 def privacy_page():
     return render_template('privacy.html')
@@ -367,22 +368,17 @@ def terms_page():
     return render_template('terms.html')
 
 if __name__ == '__main__':
-    # [1단계] Render는 PORT 환경변수를 통해 동적으로 포트를 할당합니다.
+    # Render는 PORT 환경변수를 사용합니다.
     port = int(os.environ.get('PORT', 10000))
-    print(f"🔥 [서버 구동] 포트 {port}번에서 MQnet Central을 기동합니다...")
+    print(f"🔥 [서버 구동] 포트 {port}번에서 MQnet Central 기동...")
     
-    # [2단계] 데이터베이스 점검 로직
     with app.app_context():
         try:
-            print(f"🔍 [DB 점검] 현재 {db_url.split('@')[-1] if '@' in db_url else 'SQLite'} 데이터베이스를 사용 중입니다.")
             db.create_all()
-            print("✅ [DB 준비 완료] 시스템이 가동됩니다.")
+            print("✅ [DB 준비 완료]")
         except Exception as e:
-            print(f"⚠️ [DB 경고] 데이터베이스 점검 중 오류 발생: {e}")
+            print(f"⚠️ [DB 경고] {e}")
 
-    # [3단계] 서버 실행
     is_render = 'RENDER' in os.environ
-    debug_mode = not is_render  # Render가 아닐 때만 디버그 모드 활성
-    
-    print(f"🚀 [최종 시스템 가동] 접속 가능 (포트: {port}, 디버그: {debug_mode})")
+    debug_mode = not is_render
     socketio.run(app, debug=debug_mode, host='0.0.0.0', port=port)
