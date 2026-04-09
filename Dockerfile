@@ -8,7 +8,8 @@ COPY --from=cloudflared_source /usr/local/bin/cloudflared /usr/local/bin/cloudfl
 # 3. 환경 설정
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
-ENV PORT 8888
+# [수정] Render가 동적으로 포트를 10000번으로 지정하므로 기본값 맞춤
+ENV PORT 10000
 
 WORKDIR /app
 
@@ -20,8 +21,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 RUN chmod +x run_cloud.sh
 
-# 6. SaaS 통합 포트 오픈
-EXPOSE 8888
+# 6. 포트 오픈 (Render 기본 포트 10000)
+EXPOSE 10000
 
 # 7. 서버와 터널을 동시에 실행하는 쉘 스크립트 호출
 CMD ["./run_cloud.sh"]
