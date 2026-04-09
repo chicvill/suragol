@@ -1726,7 +1726,7 @@ def on_place_order(data):
             print("⚠️ [주문 오류] 빈 주문 목록이 전송되었습니다.")
             return
 
-        order_id = str(uuid.uuid4())[:8]
+        order_id = str(random.randint(100, 999))
         new_order = Order(id=order_id, store_id=slug, table_id=table_id, session_id=session_id, total_price=total_price, phone=phone)
         db.session.add(new_order)
         
