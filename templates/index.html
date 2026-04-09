@@ -87,8 +87,7 @@
     <div class="portal-container">
         {% if not logged_in %}
             <div style="text-align: center; padding: 60px 0;">
-                <img src="{{ url_for('static', filename='images/mqnet_logo.png') }}" alt="MQnet" style="width: 120px; margin-bottom: 20px;">
-                <h1 style="font-size: 3.5rem; font-weight: 950; margin-bottom: 5px; color: var(--mq-navy);">MQnet</h1>
+                <h1 style="font-size: 4rem; font-weight: 1000; margin-bottom: 5px; color: var(--mq-navy); letter-spacing: -2px;">MQnet</h1>
                 <p style="color:var(--mq-green); margin-bottom: 40px; font-size: 1.1rem; font-weight: 800; text-transform: uppercase; letter-spacing: 2px;">Smart Automation Platform</p>
                 <div style="max-width: 400px; margin: 0 auto; background: white; padding: 40px; border-radius: 30px; box-shadow: var(--shadow-md); border: 1px solid rgba(15, 23, 42, 0.05);">
                     <form action="/login" method="POST">

@@ -375,6 +375,21 @@ if __name__ == '__main__':
     with app.app_context():
         try:
             db.create_all()
+            
+            # [자동 생성] 초기 관리자 계정이 없는 경우 생성 (테스트용)
+            if not User.query.filter_by(username='admin').first():
+                from werkzeug.security import generate_password_hash
+                admin_user = User(
+                    username='admin', 
+                    password=generate_password_hash('1111'), 
+                    role='admin', 
+                    is_approved=True,
+                    full_name='최고관리자'
+                )
+                db.session.add(admin_user)
+                db.session.commit()
+                print("👤 [계정] 초기 관리자 계정(admin/1111)이 생성되었습니다.")
+
             print("✅ [DB 준비 완료]")
         except Exception as e:
             print(f"⚠️ [DB 경고] {e}")
