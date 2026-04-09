@@ -90,6 +90,15 @@
                 <h1 style="font-size: 4rem; font-weight: 1000; margin-bottom: 5px; color: white; letter-spacing: -2px; text-shadow: 0 4px 10px rgba(0,0,0,0.3);">MQnet</h1>
                 <p style="color:var(--mq-green); margin-bottom: 40px; font-size: 1.1rem; font-weight: 800; text-transform: uppercase; letter-spacing: 4px; opacity: 0.9;">Smart Automation Platform</p>
                 <div style="max-width: 400px; margin: 0 auto; background: var(--mq-card); padding: 40px; border-radius: var(--radius-lg); box-shadow: var(--shadow-md); border: 1px solid var(--mq-border);">
+                    {% with messages = get_flashed_messages() %}
+                        {% if messages %}
+                            {% for message in messages %}
+                                <div style="background: rgba(239, 68, 68, 0.1); color: #ef4444; padding: 15px; border-radius: 12px; margin-bottom: 20px; font-size: 0.9rem; font-weight: 700; border: 1px solid rgba(239, 68, 68, 0.2); text-align: center;">
+                                    {{ message }}
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
                     <form action="/login" method="POST">
                         <input type="text" name="username" placeholder="매장 ID 또는 계정" required style="width:100%; padding:18px; margin-bottom:15px; border-radius:15px; background: rgba(0,0,0,0.2); border:1px solid var(--mq-border); color:white; box-sizing:border-box; font-size: 1rem;">
                         <input type="password" name="password" placeholder="비밀번호" required style="width:100%; padding:18px; margin-bottom:25px; border-radius:15px; background: rgba(0,0,0,0.2); border:1px solid var(--mq-border); color:white; box-sizing:border-box; font-size: 1rem;">
