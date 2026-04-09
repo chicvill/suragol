@@ -52,6 +52,10 @@
                 <i data-lucide="shopping-bag"></i>
                 <span class="action-label">주문판</span>
             </a>
+            <a href="/{{ s.id }}/display" class="action-item" target="_blank" style="background: rgba(168, 85, 247, 0.08); border-color: #a855f7;">
+                <i data-lucide="tv-2" style="color: #a855f7;"></i>
+                <span class="action-label" style="color: #a855f7;">전광판</span>
+            </a>
             {% if current_role == 'admin' %}
             <a href="/admin/stores/{{ s.id }}/config" class="action-item">
                 <i data-lucide="settings"></i>
