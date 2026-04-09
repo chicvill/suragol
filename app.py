@@ -1765,6 +1765,27 @@ def on_set_paid(data):
 def forbidden(e):
     return render_template('access_denied.html'), 403
 
+# ---------------------------------------------------------
+# [Keep-Alive] Render 슬립 방지 핑 (10분마다 자기 자신에게 요청)
+# ---------------------------------------------------------
+def keep_alive_ping():
+    """Render 무료 플랜 서버가 잠들지 않도록 주기적으로 자기 자신에게 핑을 보냅니다."""
+    import urllib.request
+    render_url = os.environ.get('RENDER_EXTERNAL_URL')
+    if not render_url:
+        return  # 로컬 또는 Render가 아닌 환경에서는 동작하지 않음
+    try:
+        ping_url = f"{render_url.rstrip('/')}/ping"
+        req = urllib.request.urlopen(ping_url, timeout=10)
+        print(f"✅ [Keep-Alive] 핑 성공 → {ping_url} (HTTP {req.status})")
+    except Exception as e:
+        print(f"⚠️ [Keep-Alive] 핑 실패: {e}")
+
+@app.route('/ping')
+def ping():
+    """Keep-Alive 헬스 체크 엔드포인트"""
+    return jsonify({'status': 'ok', 'timestamp': datetime.utcnow().isoformat()}), 200
+
 # [백업 스케줄러] 매주 월요일 자정 0시 실행
 if not scheduler.get_job('weekly_backup_job'):
     models_to_backup = [
@@ -1772,7 +1793,12 @@ if not scheduler.get_job('weekly_backup_job'):
         ('포인트 트랜잭션', PointTransaction), ('고객 명단', Customer)
     ]
     scheduler.add_job(id='weekly_backup_job', func=send_daily_backup, args=(app, db, models_to_backup), trigger='cron', day_of_week='mon', hour=0, minute=0)
-    scheduler.start()
+
+# [Keep-Alive] 10분마다 핑 (Render 무료 플랜 슬립 방지 - 15분 타임아웃보다 여유있게 설정)
+if not scheduler.get_job('keep_alive_job'):
+    scheduler.add_job(id='keep_alive_job', func=keep_alive_ping, trigger='interval', minutes=10)
+
+scheduler.start()
 
 if __name__ == '__main__':
     # [1단계] Render는 PORT 환경변수를 통해 동적으로 포트를 할당합니다.
