@@ -5,7 +5,8 @@ services:
     plan: free # 무료 티어 또는 유료(starter) 선택 가능
     # [Keep-Alive 스케줄러 중복 방지] APScheduler는 프로세스당 1개만 실행되어야 함
     # gunicorn 멀티 워커 사용 시 스케줄러가 워커 수만큼 중복 실행되는 문제 방지
-    startCommand: gunicorn --worker-class eventlet -w 1 --timeout 120 app:app
+    # startCommand는 Dockerfile의 CMD(["./run_cloud.sh"])와 충돌하므로 제거합니다.
+    # 이제 run_cloud.sh가 서버와 Cloudflare 터널을 동시에 실행합니다.
     # Render가 사용할 기본 포트를 10000번으로 일치시킵니다.
     envVars:
       - key: PORT
