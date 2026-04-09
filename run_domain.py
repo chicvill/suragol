@@ -114,7 +114,7 @@ def main():
 
     # 4. 보안 터널 가동
     print("\n[3/3] 보안 연결을 수립합니다. 잠시만 기다려 주세요...")
-    cf_path = r"C:\Users\USER\Dev\YTDownloader_v2\cloudflared.exe"
+    cf_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cloudflared.exe")
     
     if token:
         print(f"\n✨ 고정 주소로 안전한 통로를 만들고 있습니다...")
