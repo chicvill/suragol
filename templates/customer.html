@@ -29,9 +29,22 @@
             .brand-korean { font-size: 1.1rem; }
             .order-badge { font-size: 0.65rem; }
         }
+        #payment-sticky-bar {
+            position: fixed; top: 0; left: 0; width: 100%; z-index: 2000;
+            background: linear-gradient(90deg, #D4AF37, #B8860B);
+            color: #000; padding: 12px; text-align: center; font-weight: 810; font-size: 0.85rem;
+            display: none; cursor: pointer; border-bottom: 2px solid rgba(0,0,0,0.1);
+            animation: slideDown 0.5s ease;
+        }
+        @keyframes slideDown { from { transform: translateY(-100%); } to { transform: translateY(0); } }
     </style>
 </head>
 <body>
+    <!-- [신규] 상단 입금 안내 바 -->
+    <div id="payment-sticky-bar" onclick="reopenBankModal()">
+        <span>🏦 입금 대기 중: </span>
+        <span id="sticky-bank-info" style="text-decoration: underline;">계좌정보 확인하기</span>
+    </div>
     <header style="display: flex; justify-content: space-between; align-items: center; padding: 10px 15px;">
         <div class="header-left" style="display: flex; align-items: center; gap: 8px; overflow: hidden;">
             <div class="brand-korean" style="font-weight: 900; color: var(--secondary-color); font-size: 1.1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px;">{{ store.name }}</div>
@@ -406,6 +419,14 @@
             // alert 로직은 서버 응답(order_success)을 받은 후 처리하도록 이동합니다.
         }
 
+        let lastBankData = null;
+
+        function reopenBankModal() {
+            if (lastBankData) {
+                document.getElementById('success-modal').classList.add('show');
+            }
+        }
+
         socket.on('order_success', (data) => {
             const modal = document.getElementById('success-modal');
             const title = document.getElementById('success-title');
@@ -413,7 +434,12 @@
             const bankBox = document.getElementById('bank-info-box');
             
             if (data.depositor_name) {
-                // 무통장 입금인 경우
+                // 무통장 입금인 경우 -> 상단 안내 바 활성화
+                lastBankData = data;
+                const stickyBar = document.getElementById('payment-sticky-bar');
+                stickyBar.style.display = 'block';
+                document.body.style.paddingTop = '45px'; // 상단바 공간 확보
+
                 title.innerText = "입금 대기 중";
                 msg.innerHTML = `주문번호: <b>#${data.order_no}</b><br>입금 자명 뒤에 번호를 꼭 적어주세요.<br><span style="color:#D4AF37; font-weight:bold;">[${data.depositor_name}${data.order_no}]</span>`;
                 
@@ -448,8 +474,19 @@
             // 장바구니 비우기 및 초기화
             cart = [];
             saveCart();
-            toggleCartModal(false);
-            updateCartBar();
+            toggleCartBar();
+            if(document.getElementById('cart-modal').classList.contains('show')) toggleCartModal();
+        });
+
+        // 실시간 주문 상태 업데이트 감지 (입금 확인 시 상단바 제거)
+        socket.on('order_update', (data) => {
+            if (lastBankData && data.order_id === lastBankData.order_id) {
+                if (data.payment_status === 'paid' || data.status === 'paid') {
+                    document.getElementById('payment-sticky-bar').style.display = 'none';
+                    document.body.style.paddingTop = '0';
+                    showToast("✅ 입금이 확인되었습니다. 감사합니다!");
+                }
+            }
         });
 
         function closeSuccessModal() {
