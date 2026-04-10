@@ -195,6 +195,17 @@
                 <div class="instruction">시스템 사용법 안내</div>
             </div>
 
+            <!-- [신규] 계좌이체 안내 QR -->
+            <div class="qr-card" style="border-color: #D4AF37;">
+                <div class="store-name" style="color: #D4AF37;">[ 계좌이체 안내 ]</div>
+                <div class="qr-wrapper">
+                    <div id="qr-bank" class="qr-placeholder"></div>
+                    <div class="mq-logo-overlay" style="color:#D4AF37; border-color:#D4AF37;">MQ</div>
+                </div>
+                <div class="table-no" style="background: #D4AF37; color: #000;">입금 QR</div>
+                <div class="instruction">스캔하여 계좌번호 확인</div>
+            </div>
+
             {# 테이블별 QR 반복문 #}
             {% set table_limit = 6 if '왕궁' in store.name else (store.tables_count or 0) %}
             {% for i in range(1, table_limit + 1) %}
@@ -241,6 +252,8 @@
             if (wEl) new QRCode(wEl, { ...QR_CONFIG, text: `${BASE_URL}/${STORE_ID}/waiting` });
             const mEl = document.getElementById("qr-manual");
             if (mEl) new QRCode(mEl, { ...QR_CONFIG, text: `${BASE_URL}/${STORE_ID}/manual` });
+            const bEl = document.getElementById("qr-bank");
+            if (bEl) new QRCode(bEl, { ...QR_CONFIG, text: `${BASE_URL.replace('http:', 'https:')}/${STORE_ID}/payment_info` });
 
             // 3. 테이블별 QR 생성
             const tableLimit = parseInt("{{ table_limit }}") || 0;

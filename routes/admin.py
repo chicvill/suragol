@@ -145,6 +145,11 @@ def init_admin_routes(app):
             store.contact_phone = request.form.get('contact_phone', store.contact_phone)
             store.point_ratio = float(request.form.get('point_ratio', 0))
             store.waiting_sms_no = request.form.get('waiting_sms_no', store.waiting_sms_no)
+
+            # [신규] 계좌 정보 저장
+            store.bank_name = request.form.get('bank_name')
+            store.account_no = request.form.get('account_no')
+            store.account_holder = request.form.get('account_holder')
             
             # 담당 직원 및 공개 설정은 최고 관리자(Admin)만 변경 가능
             if role == 'admin':

@@ -228,6 +228,15 @@ def index():
     return render_template('index.html', logged_in=True, user=user, role=role, store=store, stores=stores, users_pending=users_pending)
 
 
+# --- [신규] 계좌이체 안내 페이지 ---
+@app.route('/<store_id>/payment_info')
+def payment_info(store_id):
+    store = db.session.get(Store, store_id)
+    if not store:
+        return "Store not found", 404
+    return render_template('bank_info.html', store=store)
+
+
 
 @app.errorhandler(403)
 def forbidden(e):

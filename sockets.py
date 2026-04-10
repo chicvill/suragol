@@ -20,14 +20,15 @@ def register_socketio_events(socketio):
             session_id = data.get('session_id')
             total_price = data.get('total_price')
             phone = data.get('phone')
+            depositor_name = data.get('depositor_name')
 
             if not items:
                 print("⚠️ [주문 오류] 빈 주문 목록이 전송되었습니다.")
                 return
 
             order_id = str(uuid.uuid4())
-            order_no = str(random.randint(100, 999)) # 화면 노출용 3자리 난수 주문번호
-            new_order = Order(id=order_id, order_no=order_no, store_id=slug, table_id=table_id, session_id=session_id, total_price=total_price, phone=phone)
+            order_no = str(random.randint(1000, 9999)) # 화면 노출용 4자리 난수 주문번호
+            new_order = Order(id=order_id, order_no=order_no, store_id=slug, table_id=table_id, session_id=session_id, total_price=total_price, phone=phone, depositor_name=depositor_name)
             db.session.add(new_order)
             
             for item in items:
@@ -38,6 +39,20 @@ def register_socketio_events(socketio):
             
             db.session.commit()
             print(f"✅ [주문 성공] {slug} 테이블 {table_id} - 주문번호 {order_no}")
+            
+            # 주문을 넣은 손님에게 성공 알림과 번호 전송
+            from flask import request
+            store_obj = db.session.get(Store, slug)
+            socketio.emit('order_success', {
+                'order_no': order_no, 
+                'depositor_name': depositor_name or "",
+                'total_price': total_price,
+                'bank_name': store_obj.bank_name if store_obj else "",
+                'account_no': store_obj.account_no if store_obj else "",
+                'account_holder': store_obj.account_holder if store_obj else "",
+                'store_name': store_obj.name if store_obj else slug
+            }, room=request.sid)
+
             socketio.emit('new_order', new_order.to_dict(), room=slug)
         except Exception as e:
             db.session.rollback()

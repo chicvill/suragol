@@ -77,10 +77,23 @@
                 <!-- 장바구니 항목 동적 생성 -->
             </div>
             <div class="cart-summary">
-                <div style="margin-bottom: 15px; background: rgba(212, 175, 55, 0.1); padding: 12px; border-radius: 10px; border: 1px solid var(--glass-border);">
+                <!-- [추가] 결제 수단 선택 -->
+                <div style="margin-bottom: 15px; background: rgba(255, 255, 255, 0.05); padding: 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1);">
+                    <div style="font-size: 0.85rem; margin-bottom: 10px; color: #fff; font-weight: bold;">💳 결제 방식 선택</div>
+                    <div style="display: flex; gap: 8px;">
+                        <button id="pay-card" onclick="setPaymentMethod('card')" style="flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #D4AF37; background: #D4AF37; color: #000; font-weight: bold; font-size: 0.85rem;">신용카드</button>
+                        <button id="pay-bank" onclick="setPaymentMethod('bank')" style="flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #444; background: rgba(0,0,0,0.3); color: #fff; font-weight: bold; font-size: 0.85rem;">무통장 입금</button>
+                    </div>
+                    <!-- 무통장 입금 시 이름 입력 칸 (기본 숨김) -->
+                    <div id="bank-input-group" style="display: none; margin-top: 10px;">
+                        <input type="text" id="depositor-name" placeholder="입금자 성함 입력" style="width: 100%; padding: 10px; background: rgba(212, 175, 55, 0.1); border: 1px solid #D4AF37; color: white; border-radius: 8px; font-size: 0.9rem; text-align: center;">
+                        <p style="font-size: 0.65rem; color: #aaa; margin-top: 5px; text-align: center;">* 입금 확인 후 주방으로 주문이 발송됩니다.</p>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 15px; background: rgba(212, 175, 55, 0.1); padding: 12px; border-radius: 10px; border: 1px solid rgba(212,175,55,0.3);">
                     <div style="font-size: 0.85rem; margin-bottom: 8px; color: var(--secondary-color); font-weight: bold;">💰 포인트 적립 (결제금액의 1%)</div>
                     <input type="tel" id="order-phone" placeholder="휴대폰 번호 입력 (선택)" style="width: 100%; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid #444; color: white; border-radius: 8px; font-size: 0.9rem; text-align: center;">
-                    <p style="font-size: 0.65rem; color: #888; margin-top: 5px;">* 최종 적립 후 1년 경과 시 포인트가 소멸됩니다.</p>
                 </div>
                 <div style="display: flex; justify-content: space-between; margin-bottom: 15px; font-size: 1.2rem;">
                     <span>총 합계</span>
@@ -116,6 +129,27 @@
                 <button class="service-opt-btn" onclick="sendServiceRequest('수저')">🥢 수저</button>
                 <button class="service-opt-btn" onclick="sendServiceRequest('호출')" style="grid-column: span 2; background: var(--primary-color); color: white;">🙋 호출</button>
             </div>
+        </div>
+    </div>
+
+    <!-- 주문 성공/입금 안내 모달 -->
+    <div id="success-modal" class="modal-overlay" style="z-index: 1100;">
+        <div class="modal-content" style="text-align: center; padding: 30px 20px;">
+            <div style="font-size: 3rem; margin-bottom: 15px;">✅</div>
+            <h2 id="success-title" style="color: var(--secondary-color); margin-bottom: 10px;">주문 접수 완료</h2>
+            <p id="success-msg" style="font-size: 0.95rem; line-height: 1.6; margin-bottom: 20px; color: #ccc;"></p>
+            
+            <div id="bank-info-box" style="display: none; background: rgba(255,255,255,0.05); padding: 20px; border-radius: 12px; border: 1px solid rgba(212, 175, 55, 0.3); margin-bottom: 25px;">
+                <p style="font-size: 0.8rem; color: #888; margin-bottom: 5px;">다음 계좌로 입금해 주세요</p>
+                <p id="bank-detail" style="font-weight: bold; font-size: 1.1rem; margin-bottom: 15px; color: #fff;"></p>
+                
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <button id="toss-link-btn" class="order-submit-btn" style="background: #0064ff; color: white; border: none; width: 100%;">토스로 바로 송금</button>
+                    <button id="account-copy-btn" style="background: rgba(255,255,255,0.1); border: 1px solid #444; color: white; padding: 12px; border-radius: 10px; font-size: 0.9rem; width: 100%;">계좌번호 복사하기</button>
+                </div>
+            </div>
+            
+            <button onclick="closeSuccessModal()" style="width: 100%; padding: 15px; background: #333; color: white; border: none; border-radius: 10px; font-weight: bold;">창 닫기</button>
         </div>
     </div>
 
@@ -319,9 +353,36 @@
             updateCartBar();
         }
 
+        let selectedPaymentMethod = 'card';
+
+        function setPaymentMethod(method) {
+            selectedPaymentMethod = method;
+            const btnCard = document.getElementById('pay-card');
+            const btnBank = document.getElementById('pay-bank');
+            const bankInput = document.getElementById('bank-input-group');
+            
+            if (method === 'card') {
+                btnCard.style.background = '#D4AF37'; btnCard.style.color = '#000';
+                btnBank.style.background = 'rgba(0,0,0,0.3)'; btnBank.style.color = '#fff';
+                bankInput.style.display = 'none';
+            } else {
+                btnBank.style.background = '#D4AF37'; btnBank.style.color = '#000';
+                btnCard.style.background = 'rgba(0,0,0,0.3)'; btnCard.style.color = '#fff';
+                bankInput.style.display = 'block';
+                setTimeout(() => document.getElementById('depositor-name').focus(), 100);
+            }
+        }
+
         function placeOrder() {
             if (cart.length === 0) return;
             
+            const depositorName = selectedPaymentMethod === 'bank' ? document.getElementById('depositor-name').value.trim() : '';
+            if (selectedPaymentMethod === 'bank' && !depositorName) {
+                alert('입금자 성함을 입력해 주세요.');
+                document.getElementById('depositor-name').focus();
+                return;
+            }
+
             const totalPrice = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
             const orderId = 'ORD-' + Date.now();
             const phone = document.getElementById('order-phone').value.replace(/[^0-9]/g, '');
@@ -332,7 +393,9 @@
                 table_id: tableId,
                 items: cart,
                 total_price: totalPrice,
-                phone: phone, // Pass phone for point accumulation during payment
+                phone: phone,
+                payment_method: selectedPaymentMethod,
+                depositor_name: depositorName,
                 timestamp: Date.now()
             };
             
@@ -340,12 +403,57 @@
             if (phone) localStorage.setItem('freeorder_phone', phone);
             
             socket.emit('place_order', payload);
+            // alert 로직은 서버 응답(order_success)을 받은 후 처리하도록 이동합니다.
+        }
+
+        socket.on('order_success', (data) => {
+            const modal = document.getElementById('success-modal');
+            const title = document.getElementById('success-title');
+            const msg = document.getElementById('success-msg');
+            const bankBox = document.getElementById('bank-info-box');
             
-            alert('주문 완료');
+            if (data.depositor_name) {
+                // 무통장 입금인 경우
+                title.innerText = "입금 대기 중";
+                msg.innerHTML = `주문번호: <b>#${data.order_no}</b><br>입금 자명 뒤에 번호를 꼭 적어주세요.<br><span style="color:#D4AF37; font-weight:bold;">[${data.depositor_name}${data.order_no}]</span>`;
+                
+                if (data.bank_name && data.account_no) {
+                    bankBox.style.display = 'block';
+                    document.getElementById('bank-detail').innerText = `${data.bank_name} ${data.account_no} (예금주: ${data.account_holder || data.store_name})`;
+                    
+                    // 토스 딥링크 생성
+                    const tossMemo = `${data.depositor_name}${data.order_no}`;
+                    const tossUrl = `supertoss://send?bank=${data.bank_name}&accountNo=${data.account_no}&amount=${data.total_price}&memo=${tossMemo}`;
+                    
+                    document.getElementById('toss-link-btn').onclick = () => {
+                        window.location.href = tossUrl;
+                    };
+                    
+                    // 복사 버튼
+                    document.getElementById('account-copy-btn').onclick = () => {
+                        navigator.clipboard.writeText(data.account_no).then(() => {
+                            showToast("계좌번호가 복사되었습니다.");
+                        });
+                    };
+                }
+            } else {
+                // 일반 주문(카드 등)인 경우
+                title.innerText = "주문 완료";
+                msg.innerHTML = `주문이 성공적으로 완료되었습니다.<br>주문번호: <b>#${data.order_no}</b>`;
+                bankBox.style.display = 'none';
+            }
+            
+            modal.classList.add('show');
+
+            // 장바구니 비우기 및 초기화
             cart = [];
             saveCart();
             toggleCartModal(false);
             updateCartBar();
+        });
+
+        function closeSuccessModal() {
+            document.getElementById('success-modal').classList.remove('show');
         }
 
         socket.on('order_error', (data) => {

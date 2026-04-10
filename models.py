@@ -56,6 +56,11 @@ class Store(db.Model):
     contact_phone = db.Column(db.String(50), nullable=True)    # 예약/배달용 번호
     point_ratio = db.Column(db.Float, default=0.0)             # 포인트 적립 비율
     waiting_sms_no = db.Column(db.String(50), nullable=True)   # 웨이팅 발신 번호
+    
+    # [신규] 무통장 입금용 계좌 정보
+    bank_name = db.Column(db.String(50), nullable=True)        # 예: 농협, 신한
+    account_no = db.Column(db.String(50), nullable=True)       # 계좌번호
+    account_holder = db.Column(db.String(50), nullable=True)   # 예금주명
 
     # 영업 담당자 (직원)
     recommended_by = db.Column(db.Integer, db.ForeignKey('users.id'))
@@ -96,6 +101,7 @@ class Order(db.Model):
     session_id = db.Column(db.String(50), nullable=True)
     order_no = db.Column(db.String(10), nullable=True) # [신규] 노출용 3자리 주문번호
     phone = db.Column(db.String(20), nullable=True) # For points
+    depositor_name = db.Column(db.String(100), nullable=True) # [신규] 무통장 입금자명
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     paid_at = db.Column(db.DateTime, nullable=True)
     items = db.relationship('OrderItem', backref='order', lazy=True, cascade="all, delete-orphan")
