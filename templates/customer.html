@@ -474,8 +474,8 @@
             // 장바구니 비우기 및 초기화
             cart = [];
             saveCart();
-            toggleCartBar();
-            if(document.getElementById('cart-modal').classList.contains('show')) toggleCartModal();
+            updateCartBar();
+            toggleCartModal(false);
         });
 
         // 실시간 주문 상태 업데이트 감지 (입금 확인 시 상단바 제거)
