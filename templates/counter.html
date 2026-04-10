@@ -10,32 +10,32 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         :root {
-            /* 왕궁 프리미엄 컬러 세트 */
-            --royal-red: #8b0000;
-            --royal-gold: #d4af37;
-            --dark-card: rgba(30, 10, 10, 0.95);
-            --border-gold: rgba(212, 175, 55, 0.3);
+            --royal-red: #da1e28; /* brighter, modern red */
+            --royal-gold: #f1c40f; 
+            --surface-dark: #121212;
+            --border-muted: rgba(255, 255, 255, 0.08);
+            --accent-blue: #0064FF;
         }
 
         body {
-            background: #0a0505; /* 더 깊은 블랙 */
+            background: #000000;
             color: #fff;
             margin: 0;
             display: flex;
             flex-direction: column;
             height: 100vh;
             overflow: hidden;
+            font-family: 'Pretendard', sans-serif;
         }
 
         /* 헤더 스타일 */
         header {
-            background: rgba(40, 0, 0, 0.9);
-            border-bottom: 2px solid var(--royal-gold);
-            padding: 15px 30px;
+            background: #121212;
+            border-bottom: 1px solid var(--border-muted);
+            padding: 16px 30px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            box-shadow: 0 5px 25px rgba(0,0,0,0.8);
             z-index: 100;
         }
         .header-brand {
@@ -44,11 +44,11 @@
             gap: 15px;
         }
         .header-brand h1 {
-            color: var(--royal-gold);
+            color: #fff;
             margin: 0;
-            font-size: 1.8rem;
-            font-weight: 900;
-            letter-spacing: -1px;
+            font-size: 1.5rem;
+            font-weight: 800;
+            letter-spacing: -0.5px;
         }
 
         /* 메인 레이아웃: 가변 3분할 */
@@ -118,39 +118,40 @@
 
         /* 테이블 카드 스타일 */
         .table-card {
-            background: var(--dark-card);
-            border: 1px solid var(--border-gold);
-            border-radius: 12px;
-            padding: 30px;
+            background: var(--surface-dark);
+            border: 1px solid var(--border-muted);
+            border-radius: 20px;
+            padding: 24px;
             position: relative;
-            transition: all 0.4s;
-            animation: fadeIn 0.5s ease-out;
+            transition: all 0.3s cubic-bezier(0.2, 0, 0, 1);
+            animation: fadeIn 0.4s ease-out;
         }
         .table-card.ready-to-serve {
-            border-color: var(--royal-gold);
-            box-shadow: 0 0 30px rgba(212, 175, 55, 0.4);
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 20px rgba(0, 100, 255, 0.2);
         }
         .table-card .status-badge {
             position: absolute;
-            top: 25px;
-            right: 25px;
-            font-size: 0.85rem;
-            padding: 5px 15px;
-            border-radius: 50px;
-            font-weight: 800;
+            top: 20px;
+            right: 20px;
+            font-size: 0.75rem;
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-weight: 700;
+            text-transform: uppercase;
         }
-        .status-pending { background: #34495e; color: #fff; } /* 조리 */
-        .status-ready { background: var(--royal-gold); color: #000; animation: pulse 2s infinite; } /* 서빙 */
-        .status-served { background: #27ae60; color: #fff; } /* 결제 */
+        .status-pending { background: rgba(52, 152, 219, 0.1); color: #3498db; }
+        .status-ready { background: var(--accent-blue); color: #fff; }
+        .status-served { background: rgba(39, 174, 96, 0.1); color: #27ae60; }
 
         .table-card h3 {
-            font-size: 1.8rem;
-            margin: 0 0 5px 0;
-            color: var(--royal-gold);
+            font-size: 1.5rem;
+            margin: 0 0 4px 0;
+            color: #fff;
+            font-weight: 700;
             display: flex;
             align-items: baseline;
-            gap: 10px;
-            flex-wrap: wrap;
+            gap: 8px;
         }
         .order-id { font-size: 0.8rem; color: #666; margin-bottom: 10px; }
 
@@ -605,6 +606,8 @@
                 if (!res.ok) throw new Error("API Error");
                 const list = await res.json();
                 
+                const badge = document.getElementById('wait-badge-count');
+                const btn = document.getElementById('btn-toggle-waiting');
                 const sidebar = document.getElementById('waiting-sidebar');
                 if (list.length > 0) {
                     badge.innerText = list.length;
@@ -710,6 +713,20 @@
 
         function processOrder(order, shouldRender = true) {
             const sid = order.session_id || `legacy-${order.table_id}`;
+            
+            // 만약 주문 자체가 취소된 경우 세션에서 제거 처리
+            if (order.status === 'cancelled') {
+                if (sessions[sid] && sessions[sid].orders[order.id]) {
+                    delete sessions[sid].orders[order.id];
+                    // 세션 내에 더 이상 주문이 없으면 세션 삭제
+                    if (Object.keys(sessions[sid].orders).length === 0) {
+                        delete sessions[sid];
+                    }
+                }
+                if (shouldRender) render();
+                return;
+            }
+
             if (!sessions[sid]) {
                 sessions[sid] = { table_id: order.table_id, orders: {}, total: 0, status: 'pending' };
             }
@@ -728,7 +745,13 @@
                 sessions[sid].status = 'pending';
             }
 
-            sessions[sid].total = orderList.reduce((sum, o) => sum + o.total_price, 0);
+            // 활성 아이템 기준 총액 계산
+            sessions[sid].total = orderList.reduce((sum, o) => {
+                const activeItemsSum = (o.items || []).filter(i => i.status !== 'cancelled')
+                                                .reduce((ism, i) => ism + (i.price * i.quantity), 0);
+                return sum + activeItemsSum;
+            }, 0);
+
             if (shouldRender) render();
         }
 
@@ -766,15 +789,21 @@
                     <div class="status-badge status-${session.status}">${statusToText(session.status)}</div>
                     <h3>테이블 ${session.table_id} <span style="font-size: 1.1rem; color: #bbb; font-weight: normal;">( ${displayId} ) ${timeStr}</span></h3>
                     <div class="items-list">
-                        ${allItems.map(i => `
-                            <div class="item-row">
+                        ${orderValues.map(o => (o.items || []).map(i => `
+                            <div class="item-row" style="${i.status === 'cancelled' ? 'text-decoration: line-through; opacity: 0.5;' : ''}">
                                 <span>${i.name}</span>
-                                <span>x ${i.quantity}</span>
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <span>x ${i.quantity}</span>
+                                    ${i.status !== 'cancelled' ? `<button onclick="executeCancelItem(${i.id})" style="background: none; border: none; color: #ff6b6b; cursor: pointer; padding: 0 5px;" title="품목 취소">×</button>` : ''}
+                                </div>
                             </div>
-                        `).join('')}
+                        `).join('')).join('')}
                     </div>
                     <div class="price-total">${session.total.toLocaleString()}원</div>
-                    ${renderActionBtn(sid, session.status)}
+                    <div style="display: flex; gap: 10px;">
+                        ${renderActionBtn(sid, session.status)}
+                        <button class="action-btn" style="width: 80px; background: #333; color: #ff4d4d; border: 1px solid #444;" onclick="executeCancelOrder('${sid}')" title="전체 취소">취소</button>
+                    </div>
                 `;
                 container.appendChild(card);
             });
@@ -895,6 +924,23 @@
 
         function closePaymentModal() {
             document.getElementById('payment-modal').classList.remove('active');
+        }
+
+        // --- 취소 기능 ---
+        function executeCancelOrder(sid) {
+            if (!confirm('해당 테이블의 모든 주문을 취소하시겠습니까?')) return;
+            const session = sessions[sid];
+            if (!session) return;
+            
+            // 모든 연관 주문에 대해 취소 날림
+            Object.keys(session.orders).forEach(oid => {
+                socket.emit('cancel_order', { order_id: oid });
+            });
+        }
+
+        function executeCancelItem(itemId) {
+            if (!confirm('해당 품목을 취소하시겠습니까?')) return;
+            socket.emit('cancel_order_item', { item_id: itemId });
         }
 
         // 커스텀 모달 로직

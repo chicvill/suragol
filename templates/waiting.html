@@ -8,75 +8,82 @@
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <style>
         .waiting-box {
-            background: var(--card-bg);
-            border-radius: 20px;
-            padding: 30px;
+            background: var(--surface-dark);
+            border-radius: var(--radius-xl);
+            padding: 40px 30px;
             text-align: center;
-            border: 1px solid var(--border-color);
-            box-shadow: 0 15px 35px rgba(0,0,0,0.5);
+            border: 1px solid var(--glass-border);
+            box-shadow: var(--shadow-premium);
             margin-top: 40px;
         }
         .form-group {
-            margin-bottom: 25px;
+            margin-bottom: 30px;
             text-align: left;
         }
         .form-group label {
             display: block;
-            margin-bottom: 8px;
+            margin-bottom: 12px;
             color: var(--text-muted);
-            font-size: 0.9rem;
+            font-size: 0.95rem;
+            font-weight: 600;
         }
         .form-input {
             width: 100%;
-            padding: 15px;
-            border-radius: 12px;
-            border: 1px solid var(--border-color);
-            background: rgba(255,255,255,0.05);
-            color: white;
-            font-size: 1.1rem;
+            padding: 16px 20px;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--glass-border);
+            background: rgba(255,255,255,0.03);
+            color: var(--text-white);
+            font-size: 1.15rem;
             outline: none;
-            transition: border-color 0.3s;
+            transition: all 0.2s;
         }
         .form-input:focus {
-            border-color: var(--secondary-color);
+            border-color: var(--primary-color);
+            background: rgba(255,255,255,0.06);
         }
         .submit-btn {
             width: 100%;
-            padding: 18px;
+            padding: 20px;
             background: var(--primary-color);
             color: white;
             border: none;
-            border-radius: 12px;
+            border-radius: var(--radius-md);
             font-size: 1.2rem;
-            font-weight: 900;
+            font-weight: 800;
             cursor: pointer;
-            box-shadow: 0 10px 20px rgba(192, 57, 43, 0.3);
+            box-shadow: 0 8px 24px rgba(0, 100, 255, 0.25);
+            transition: all 0.2s;
         }
+        .submit-btn:active { transform: scale(0.97); }
+        
         .status-badge {
-            font-size: 3rem;
-            color: var(--secondary-color);
+            font-size: 4rem;
+            color: #fff;
             font-weight: 900;
-            margin: 20px 0;
+            margin: 24px 0;
+            letter-spacing: -2px;
         }
         .info-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin-top: 25px;
+            gap: 12px;
+            margin-top: 30px;
         }
         .info-card {
-            background: rgba(255,255,255,0.05);
-            padding: 15px;
-            border-radius: 12px;
+            background: rgba(255,255,255,0.03);
+            padding: 20px 15px;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--glass-border);
         }
         .info-val {
-            font-size: 1.3rem;
-            font-weight: bold;
+            font-size: 1.5rem;
+            font-weight: 800;
             display: block;
-            margin-top: 5px;
+            margin-top: 8px;
+            color: #fff;
         }
 
-        /* 커스텀 입장 안내창 스타일 */
         #entry-modal {
             display: none;
             position: fixed;

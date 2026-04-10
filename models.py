@@ -128,8 +128,17 @@ class OrderItem(db.Model):
     name = db.Column(db.String(100), nullable=False)
     price = db.Column(db.Integer, nullable=False)
     quantity = db.Column(db.Integer, default=1)
+    status = db.Column(db.String(20), default='pending') # pending, cancelled
+
     def to_dict(self):
-        return { 'id': self.id, 'name': self.name, 'price': self.price, 'quantity': self.quantity }
+        return { 
+            'id': self.id, 
+            'menu_id': self.menu_id, 
+            'name': self.name, 
+            'price': self.price, 
+            'quantity': self.quantity,
+            'status': self.status 
+        }
 
 class Waiting(db.Model):
     __tablename__ = 'waiting'

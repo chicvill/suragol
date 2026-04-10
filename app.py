@@ -137,17 +137,33 @@ with app.app_context():
                     ("business_item", "VARCHAR(100)"),
                     ("business_email", "VARCHAR(100)"),
                     ("stats_reset_at", "TIMESTAMP WITH TIME ZONE"),
-                    ("timezone", "VARCHAR(50) DEFAULT 'Asia/Seoul'")
+                    ("timezone", "VARCHAR(50) DEFAULT 'Asia/Seoul'"),
+                    ("bank_name", "VARCHAR(50)"),
+                    ("account_no", "VARCHAR(50)"),
+                    ("account_holder", "VARCHAR(50)")
+                ],
+                "order_items": [
+                    ("status", "VARCHAR(20) DEFAULT 'pending'")
+                ],
+                "orders": [
+                    ("order_no", "VARCHAR(10)"),
+                    ("phone", "VARCHAR(20)"),
+                    ("depositor_name", "VARCHAR(100)"),
+                    ("session_id", "VARCHAR(50)")
                 ]
             }
             
-            for table, cols in tables_cols.items():
-                for col, dtype in cols:
-                    try:
-                        db.session.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {dtype}"))
-                        db.session.commit()
-                    except Exception:
-                        db.session.rollback()
+            # [컬럼 보강] 반복 로직 통합 처리 (엔진 직접 연결 사용)
+            with db.engine.connect() as conn:
+                for table, cols in tables_cols.items():
+                    for col, dtype in cols:
+                        try:
+                            # PostgreSQL 지원: IF NOT EXISTS 사용하여 중복 오류 방지
+                            conn.execute(text(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} {dtype}"))
+                            conn.commit()
+                            print(f"✅ [DB] {table}.{col} 컬럼 확인/생성 완료")
+                        except Exception as e:
+                            print(f"⚠️ [DB] {table}.{col} 반영 건너뜀 (이미 존재하거나 오류): {e}")
 
             # PIN 자리수 확장 (중요)
             try:
