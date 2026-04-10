@@ -102,6 +102,7 @@ class Order(db.Model):
     order_no = db.Column(db.String(10), nullable=True) # [신규] 노출용 3자리 주문번호
     phone = db.Column(db.String(20), nullable=True) # For points
     depositor_name = db.Column(db.String(100), nullable=True) # [신규] 무통장 입금자명
+    is_prepaid = db.Column(db.Boolean, default=False) # [신규] 선결제 완료 여부
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     paid_at = db.Column(db.DateTime, nullable=True)
     items = db.relationship('OrderItem', backref='order', lazy=True, cascade="all, delete-orphan")
@@ -116,6 +117,7 @@ class Order(db.Model):
             'session_id': self.session_id,
             'order_no': self.order_no,
             'phone': self.phone,
+            'is_prepaid': self.is_prepaid,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'items': [item.to_dict() for item in self.items]
         }

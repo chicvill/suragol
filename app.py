@@ -149,6 +149,7 @@ with app.app_context():
                     ("order_no", "VARCHAR(10)"),
                     ("phone", "VARCHAR(20)"),
                     ("depositor_name", "VARCHAR(100)"),
+                    ("is_prepaid", "BOOLEAN DEFAULT FALSE"),
                     ("session_id", "VARCHAR(50)")
                 ]
             }

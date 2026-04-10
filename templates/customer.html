@@ -7,27 +7,53 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ range(1, 9999) | random }}">
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <style>
-    <style>
         #payment-sticky-bar {
             position: fixed; top: 0; left: 0; width: 100%; z-index: 2000;
-            background: linear-gradient(90deg, var(--royal-gold), #b8860b);
+            background: linear-gradient(90deg, #f1c40f, #b8860b);
             color: #000; padding: 12px; text-align: center; font-weight: 800; font-size: 0.85rem;
             display: none; cursor: pointer; border-bottom: 2px solid rgba(0,0,0,0.1);
-            animation: slideDown 0.5s ease;
         }
-        @keyframes slideDown { from { transform: translateY(-100%); } to { transform: translateY(0); } }
         
-        /* 톡톡 튀는 인터랙션 */
         .add-btn {
-            background-color: var(--text-white);
-            color: var(--bg-dark);
-            width: 36px; height: 36px;
-            font-size: 1.5rem;
-            border-radius: 12px;
-            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            background-color: #f1c40f !important;
+            color: #000 !important;
+            width: 45px; height: 45px;
+            font-size: 2rem;
+            border-radius: 10px;
+            border: 2px solid #000;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 900;
         }
-        .add-btn:active { transform: scale(1.4); }
-    </style>
+
+        /* [리디자인] 하단 플로팅 프리미엄 주문 바 */
+        .cart-bar {
+            position: fixed; 
+            bottom: 30px; /* 스마트폰 하단 바 간섭 방지를 위해 충분히 띄움 */
+            left: 50%; 
+            transform: translateX(-50%);
+            top: auto !important; /* 상단 고정 해제 */
+            width: 92%; 
+            max-width: 480px; 
+            height: 65px !important; 
+            background: #f1c40f; /* 강렬한 골드 */
+            color: #000 !important; 
+            padding: 0 25px; 
+            border-radius: 18px;
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.7); 
+            z-index: 10000;
+            cursor: pointer; 
+            font-size: 1.15rem; 
+            font-weight: 900;
+            border: none;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .cart-bar:active { transform: translateX(-50%) scale(0.95); }
+        .cart-bar span#cart-total { font-size: 1.4rem; font-weight: 900; }
     </style>
 </head>
 <body>
@@ -454,8 +480,8 @@
                                     <div style="font-size: 0.8rem; color: #888;">${item.price.toLocaleString()}원 x ${item.quantity}</div>
                                 </div>
                                 <div style="display: flex; align-items: center; gap: 8px;">
-                                    <span style="font-size: 0.75rem; color: ${order.status === 'pending' ? '#f1c40f' : '#2ecc71'};">
-                                        ${order.status === 'pending' ? '조리대기' : (order.status === 'ready' ? '서빙대기' : '전달됨')}
+                                    <span style="font-size: 0.75rem; color: ${order.status === 'pending' ? '#f1c40f' : (order.status === 'paid' ? '#3498db' : '#2ecc71')};">
+                                        ${order.status === 'pending' ? '조리대기' : (order.status === 'ready' ? '서빙대기' : (order.status === 'paid' ? '결제완료' : '전달됨'))}
                                     </span>
                                     ${canCancel ? `<button onclick="cancelOrderItem(${item.id})" style="background: #333; color: #ff6b6b; border: 1px solid #444; padding: 4px 8px; border-radius: 4px; font-size: 0.7rem;">취소</button>` : ''}
                                 </div>
@@ -538,9 +564,10 @@
             loadCurrentOrders(); // 상태 변경 시 내역 갱신
         });
 
-        socket.on('order_status_update', () => {
-            loadCurrentOrders(); // 상태 업데이트 시 호출 (취소 등 반영)
-        });
+        // [추가] 통합 주문 상태 업데이트 수신
+        socket.on('order_status_update', () => loadCurrentOrders());
+        socket.on('table_status_update', () => loadCurrentOrders());
+        socket.on('new_order', () => loadCurrentOrders());
 
         function closeSuccessModal() {
             document.getElementById('success-modal').classList.remove('show');

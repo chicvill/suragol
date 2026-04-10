@@ -206,6 +206,10 @@ def init_store_routes(app):
         store = db.session.get(Store, slug)
         if not store:
             return jsonify({'status': 'error', 'message': '매장을 찾을 수 없습니다.'}), 404
+        
+        # [긴급 조치] 통계 리셋 시 꼬인 주문 데이터(전체)를 함께 삭제하여 유령 주문 문제 해결
+        Order.query.filter_by(store_id=slug).delete()
+        
         store.stats_reset_at = datetime.utcnow()
         db.session.commit()
         return jsonify({'status': 'success', 'reset_at': store.stats_reset_at.isoformat()})
@@ -359,3 +363,40 @@ def init_store_routes(app):
                 cust.points = 0
                 db.session.commit()
         return jsonify(cust.to_dict())
+
+    # ---------------------------------------------------------
+    # 주문 관리 및 결제 API (카운터 연동)
+    # ---------------------------------------------------------
+    @app.route('/api/<slug>/table/<int:table_id>/pay', methods=['POST'])
+    def api_table_pay_all(slug, table_id):
+        """테이블의 모든 미결제 주문을 '결제완료' 처리하고 퇴실시킵니다."""
+        orders = Order.query.filter_by(store_id=slug, table_id=table_id).filter(Order.status != 'paid').all()
+        now = datetime.utcnow()
+        for o in orders:
+            o.status = 'paid'
+            o.paid_at = now
+        db.session.commit()
+        socketio.emit('table_status_update', {'table_id': table_id, 'status': 'paid'}, room=slug)
+        return jsonify({'status': 'success', 'count': len(orders)})
+
+    @app.route('/api/order/<order_id>/cancel', methods=['POST'])
+    def api_cancel_order(order_id):
+        """특정 주문을 강제 취소 처리합니다."""
+        o = db.session.get(Order, order_id)
+        if o:
+            o.status = 'cancelled'
+            db.session.commit()
+            socketio.emit('order_status_update', {'id': order_id, 'status': 'cancelled'}, room=o.store_id)
+            return jsonify({'status': 'success'})
+        return jsonify({'error': 'Not found'}), 404
+
+    @app.route('/api/order/<order_id>/prepaid', methods=['POST'])
+    def api_prepaid_order(order_id):
+        """주문을 선결제 완료 상태로 변경합니다."""
+        o = db.session.get(Order, order_id)
+        if o:
+            o.is_prepaid = True
+            db.session.commit()
+            socketio.emit('order_status_update', {'id': order_id, 'is_prepaid': True}, room=o.store_id)
+            return jsonify({'status': 'success'})
+        return jsonify({'error': 'Not found'}), 404
