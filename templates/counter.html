@@ -358,7 +358,7 @@
 
         async function loadServiceRequests() {
             try {
-                const res = await fetch(`/api/{{ store.id }}/service_requests/active`);
+                const res = await fetch(`/api/{{ store.id }}/service_requests`);
                 const reqs = await res.json();
                 const list = document.getElementById('service-request-list');
                 list.innerHTML = reqs.length ? '' : '<div style="text-align:center; color:#444; padding:40px 0;">호출이 없습니다.</div>';
