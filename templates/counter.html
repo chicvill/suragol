@@ -81,35 +81,39 @@
         .btn-pay { background: var(--royal-red); color: white; }
         .btn-waiting { background: #222; color: #444; }
 
-        /* [신규] 듀얼 하단 스택 (호출/대기 분리) */
-        #call-stack, #wait-stack {
-            position: fixed;
-            bottom: 30px;
-            width: 300px; height: 200px;
-            z-index: 1000;
-            pointer-events: none;
+        /* [개조] 하단 업무 영역 (스크롤 기반) */
+        .bottom-task-floor {
+            margin-top: 50px;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            min-height: 250px;
+            border-top: 1px solid #222;
+            background: #050505;
         }
-        #call-stack { left: 30px; }
-        #wait-stack { right: 30px; }
+        #call-stack, #wait-stack {
+            position: relative;
+            width: 260px; height: 180px;
+            pointer-events: auto;
+        }
 
         .post-it { 
-            pointer-events: auto;
             position: absolute; bottom: 0; left: 0; width: 100%;
         }
         
         /* 스택 카운터 배지 */
         .stack-count-badge {
             position: absolute;
-            top: -15px; right: -15px;
+            top: -10px; right: -5px; /* 안쪽으로 살짝 이동해 잘림 방지 */
             background: #ef4444;
             color: white;
-            padding: 4px 10px;
+            padding: 2px 8px;
             border-radius: 20px;
-            font-size: 0.85rem;
+            font-size: 0.75rem;
             font-weight: 900;
             box-shadow: 0 4px 10px rgba(0,0,0,0.5);
             z-index: 1001;
-            border: 2px solid #fff;
+            border: 1.5px solid #fff;
         }
         .notif {
             padding: 18px; border-radius: 12px; color: white;
@@ -147,9 +151,9 @@
         .waiting-note { background: #bae6fd !important; transform: rotate(1deg); }
         .waiting-note:nth-child(even) { background: #bae6fd !important; transform: rotate(-1.2deg); }
 
-        .note-header { display: flex; justify-content: space-between; font-size: 0.75rem; font-weight: 800; margin-bottom: 8px; opacity: 0.7; }
-        .note-content { font-size: 1.15rem; font-weight: 900; line-height: 1.4; }
-        .note-footer { margin-top: 10px; font-size: 0.8rem; text-align: right; font-weight: bold; opacity: 0.6; }
+        .note-header { display: flex; justify-content: space-between; font-size: 0.65rem; font-weight: 800; margin-bottom: 5px; opacity: 0.7; }
+        .note-content { font-size: 0.95rem; font-weight: 900; line-height: 1.3; }
+        .note-footer { margin-top: 8px; font-size: 0.7rem; text-align: right; font-weight: bold; opacity: 0.6; }
         
         /* 확인 완료 시 날아가는 애니메이션 */
         .post-it.removing { transform: translateX(-150%) rotate(-20deg) !important; opacity: 0; }
@@ -157,33 +161,21 @@
     </style>
 </head>
 <body>
-    <header>
-        <div style="display:flex; align-items:center; gap:20px;">
-            <h1 style="margin:0; font-size:1.4rem; color:var(--royal-gold);">{{ store.name }} 통합 카운터</h1>
-            <div style="display:flex; gap:10px;">
-                <button onclick="totalReset()" style="background:#444; color:#fff; border:none; padding:8px 12px; border-radius:6px; cursor:pointer; font-size:0.8rem;">📦 데이터 초기화</button>
-                <button onclick="forceReSync()" style="background:none; border:2px solid #333; color:#666; padding:5px 10px; border-radius:6px; cursor:pointer;"><i data-lucide="refresh-cw" size="18"></i></button>
-            </div>
-        </div>
-        <div id="clock" style="font-weight:bold; font-size:1.1rem; color:#888;">00:00:00</div>
+    <header style="justify-content: center; padding: 10px;">
+        <h1 style="margin:0; font-size:1.6rem; color:var(--royal-gold); letter-spacing: -1px;">{{ store.name }}</h1>
     </header>
 
-    <div class="main-layout">
-        <!-- 듀얼 업무 메모지 스택 -->
-        <div id="call-stack"></div>
-        <div id="wait-stack"></div>
-
+    <div class="main-layout" style="overflow-y: auto;"> <!-- 스크롤 가능하게 변경 -->
         <!-- 중앙: 테이블 현황 -->
-        <div class="tables-area">
-            <div style="margin-bottom: 20px; display: flex; gap: 10px; align-items: center;">
-                <div style="font-weight: 800; font-size: 1.1rem; color: var(--royal-gold);">🪑 홀 테이블 현황</div>
-                <div style="flex: 1;"></div>
-                <button onclick="enterFirstWaiting()" style="background:var(--royal-gold); border:none; padding:10px 18px; border-radius:12px; font-weight:900; cursor:pointer; font-size: 0.9rem;">
-                    <i data-lucide="check-circle" size="18"></i> 다음 대기 입장시키기
-                </button>
-            </div>
+        <div class="tables-area" style="overflow: visible;">
             <div class="tables-grid" id="tables-grid">
-                <div style="text-align: center; color: #444; padding: 100px 0;">테이블 데이터를 불러오는 중...</div>
+                <div style="text-align: center; color: #444; padding: 100px 0;">데이터를 불러오는 중...</div>
+            </div>
+            
+            <!-- 하단 메모지 스택 플로어 (스크롤 시 노출) -->
+            <div class="bottom-task-floor">
+                <div id="call-stack"></div>
+                <div id="wait-stack"></div>
             </div>
         </div>
     </div>
@@ -380,11 +372,14 @@
             items.forEach((item, idx) => {
                 const div = document.createElement('div');
                 div.className = `post-it ${type === 'wait' ? 'waiting-note' : ''}`;
+                div.style.width = '240px';
+                div.style.fontSize = '0.85rem';
+                
+                const pName = item.name || item.phone || '익명';
                 
                 // 겹침 효과 (하단 스택이므로 위로 쌓임)
-                const offset = idx * 5;
-                div.style.bottom = `${offset}px`;
-                div.style.left = `${offset/2}px`;
+                const offset = idx * 3;
+                div.style.marginBottom = `-${offset}px`;
                 div.style.zIndex = 1000 - idx;
                 
                 const timeStr = item.created_at ? new Date(item.created_at).toLocaleTimeString('ko-KR', {hour:'2-digit', minute:'2-digit'}) : '';
@@ -393,6 +388,8 @@
                 if (idx === 0) {
                     const badge = document.createElement('div');
                     badge.className = 'stack-count-badge';
+                    badge.style.top = '-5px';
+                    badge.style.right = '-5px';
                     badge.innerText = `${items.length}`;
                     div.appendChild(badge);
                 }
@@ -411,7 +408,7 @@
                 } else {
                     div.innerHTML += `
                         <div class="note-header"><span>🕒 WAITING</span><span>${item.people}명</span></div>
-                        <div class="note-content">${item.phone}<br><small>현장 대기 등록됨</small></div>
+                        <div class="note-content">${pName}<br><small>현장 대기 중</small></div>
                         <div class="note-footer">입장 처리하려면 클릭</div>
                     `;
                     div.onclick = async () => {
@@ -447,8 +444,7 @@
             }
         }
 
-        // 시계 및 초기화
-        setInterval(() => { document.getElementById('clock').innerText = new Date().toLocaleTimeString(); }, 1000);
+        // [삭제] 시계 로직 제거
         window.onload = () => { loadAgenda(); lucide.createIcons(); };
 
     </script>

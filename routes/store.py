@@ -244,8 +244,27 @@ def init_store_routes(app):
 
     @app.route('/api/<slug>/orders')
     def api_get_active_orders(slug):
-        """현재 결제되지 않은(식사 중이거나 조리 중인) 모든 주문 내역을 반환합니다."""
-        orders = Order.query.filter(Order.store_id == slug, Order.status != 'paid').all()
+        """오늘(자정 이후) 발생한 미결제 주문 내역만 반환합니다. (자정 자동 리셋 효과)"""
+        store = db.session.get(Store, slug)
+        try:
+            from zoneinfo import ZoneInfo
+            tz = ZoneInfo(store.timezone if store and store.timezone else 'Asia/Seoul')
+        except Exception:
+            from datetime import timezone as dt_timezone, timedelta
+            tz = dt_timezone(timedelta(hours=9))
+            
+        now_local = datetime.now(tz)
+        local_today_start = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
+        
+        from datetime import timezone
+        today_start_utc = local_today_start.astimezone(timezone.utc).replace(tzinfo=None)
+        
+        # 오늘 날짜 이후이면서 아직 결제되지 않은 주문만 필터링
+        orders = Order.query.filter(
+            Order.store_id == slug, 
+            Order.status != 'paid',
+            Order.created_at >= today_start_utc
+        ).all()
         return jsonify([o.to_dict() for o in orders])
 
     @app.route('/api/<slug>/service_request/<int:req_id>/complete', methods=['POST'])
