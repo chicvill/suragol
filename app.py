@@ -1,3 +1,10 @@
+try:
+    import eventlet
+    eventlet.monkey_patch()
+except (ImportError, AttributeError):
+    # 파이썬 3.12+ 호환성 보정 (로컬 윈도우 환경용)
+    pass
+
 import os
 import sys
 
