@@ -283,6 +283,7 @@ header {
     display: flex;
     flex-direction: column;
     z-index: 2001;
+    overflow-y: auto;
     transform: translateX(-100%);
     transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
     box-shadow: 10px 0 30px rgba(0,0,0,0.5);
