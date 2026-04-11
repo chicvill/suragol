@@ -1051,7 +1051,38 @@
         }
 
         function processVoiceOrder(text) {
-            showToast(`"${text}"로 찾는 중...`);
+            showToast(`"${text}" 인식됨...`);
+
+            // 0. [신규] 취소 및 삭제 명령어 처리
+            if (text.includes("취소") || text.includes("제외") || text.includes("빼줘") || text.includes("삭제") || text.includes("지워")) {
+                let deleted = false;
+                
+                // "전부", "다" 키워드가 포함된 경우 장바구니 비우기
+                if (text.includes("전부") || text.includes("다")) {
+                    if (cart.length > 0) {
+                        if (confirm("장바구니를 모두 비우시겠습니까?")) {
+                            cart = [];
+                            saveCart();
+                            updateCartBar();
+                            showToast("🗑️ 장바구니를 모두 비웠습니다.");
+                        }
+                        return;
+                    }
+                }
+
+                // 특정 품목 삭제 (장바구니에 담긴 것 중에서 찾기)
+                cart.forEach(item => {
+                    const cleanName = item.name.replace(/\s/g, '');
+                    const cleanText = text.replace(/\s/g, '');
+                    if (cleanText.includes(cleanName)) {
+                        removeItem(item.id);
+                        showToast(`🗑️ ${item.name} 삭제되었습니다.`);
+                        deleted = true;
+                    }
+                });
+                
+                if (deleted) return;
+            }
             
             // 1. 서비스 요청 처리
             if (text.includes("물") || text.includes("반찬") || text.includes("여기요") || text.includes("호출")) {
