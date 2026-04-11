@@ -98,12 +98,7 @@
             background: #f1c40f !important; color: #000 !important;
             z-index: 10001; /* 최상단 배치 */
         }
-        body.silver-mode .voice-btn {
-            width: 90px; height: 90px; bottom: 120px;
-            z-index: 10000;
-        }
-        
-        /* [개선] 초록색 네온 깜빡이 효과 */
+        /* [수정] 마이크 깜빡이 효과 - 실버모드 상관없이 무조건 초록색 */
         .voice-btn.listening {
             background: radial-gradient(circle, #2ecc71, #27ae60) !important;
             animation: pulse-green 1.2s infinite !important;
@@ -113,6 +108,11 @@
             0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.7); }
             70% { transform: scale(1.2); box-shadow: 0 0 0 30px rgba(46, 204, 113, 0); }
             100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(46, 204, 113, 0); }
+        }
+        
+        body.silver-mode .voice-btn {
+            width: 90px; height: 90px; bottom: 120px;
+            z-index: 10000;
         }
         
         /* 실버모드 전환 버튼 스타일 */
@@ -1134,19 +1134,21 @@
         }
 
         window.onload = () => {
-            const firstTab = document.querySelector('.tab');
-            if (firstTab) {
+            // 1. 첫 번째 탭 자동 활성화
+            const allTabs = document.querySelectorAll('.tab');
+            if (allTabs.length > 0) {
+                const firstTab = allTabs[0];
                 const category = firstTab.innerText.trim();
-                showCategory(category, firstTab);
+                showCategory(category, firstTab); // 메뉴 데이터 렌더링 강제 실행
+                console.log("Initial Category Loaded:", category);
             }
-            updateCartBar(); // Initialize cart UI on load
-            loadCurrentOrders(); // Initialize current orders on load
+
+            updateCartBar(); 
+            loadCurrentOrders();
             
-            // Load saved phone
             const savedPhone = localStorage.getItem('freeorder_phone');
             if (savedPhone) document.getElementById('order-phone').value = savedPhone;
 
-            // Load Silver Mode preference
             if (localStorage.getItem('freeorder_silver_mode') === 'true') {
                 toggleSilverMode();
             }
