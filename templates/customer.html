@@ -122,47 +122,52 @@
                 <h2>장바구니</h2>
                 <button class="close-btn" onclick="toggleCartModal()">×</button>
             </div>
-            <div id="cart-items-list" class="cart-items-list">
-                <!-- 장바구니 항목 동적 생성 -->
-            </div>
-            <div class="cart-summary">
-                <!-- [추가] 결제 수단 선택 -->
-                <div style="margin-bottom: 15px; background: rgba(255, 255, 255, 0.05); padding: 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1);">
-                    <div style="font-size: 0.85rem; margin-bottom: 10px; color: #fff; font-weight: bold;">💳 결제 방식 선택</div>
-                    <div style="display: flex; gap: 8px;">
-                        <button id="pay-card" onclick="setPaymentMethod('card')" style="flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #D4AF37; background: #D4AF37; color: #000; font-weight: bold; font-size: 0.85rem;">신용카드</button>
-                        <button id="pay-bank" onclick="setPaymentMethod('bank')" style="flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #444; background: rgba(0,0,0,0.3); color: #fff; font-weight: bold; font-size: 0.85rem;">무통장 입금</button>
-                    </div>
-                    <!-- 무통장 입금 시 이름 입력 칸 (기본 숨김) -->
-                    <div id="bank-input-group" style="display: none; margin-top: 10px;">
-                        <input type="text" id="depositor-name" placeholder="입금자 성함 입력" style="width: 100%; padding: 10px; background: rgba(212, 175, 55, 0.1); border: 1px solid #D4AF37; color: white; border-radius: 8px; font-size: 0.9rem; text-align: center;">
-                        <p style="font-size: 0.65rem; color: #aaa; margin-top: 5px; text-align: center;">* 입금 확인 후 주방으로 주문이 발송됩니다.</p>
-                    </div>
+            <div class="modal-body" style="flex: 1; overflow-y: auto;">
+                <div id="cart-items-list" class="cart-items-list" style="overflow-y: visible; padding-bottom: 0;">
+                    <!-- 장바구니 항목 동적 생성 -->
                 </div>
-
-                <div id="checkout-cash-receipt" style="display: none; margin-bottom: 15px; background: rgba(59, 130, 246, 0.05); padding: 12px; border-radius: 10px; border: 1px solid rgba(59, 130, 246, 0.3);">
-                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-bottom: 10px; font-size: 0.85rem; font-weight: bold; color: #fff;">
-                        <input type="checkbox" id="apply-cr" style="width: 18px; height: 18px;" onchange="toggleCheckoutCR()">
-                        <span>현금영수증 신청하시겠습니까?</span>
-                    </label>
-                    <div id="checkout-cr-group" style="display: none;">
-                        <div style="display: flex; gap: 5px; margin-bottom: 10px;">
-                            <button id="cart-cr-personal" onclick="setCartCRType('personal')" style="flex: 1; font-size: 0.75rem; padding: 10px; border-radius: 8px; border: 1px solid #3b82f6; background: rgba(59,130,246,0.1); color: #fff;">개인</button>
-                            <button id="cart-cr-business" onclick="setCartCRType('business')" style="flex: 1; font-size: 0.75rem; padding: 10px; border-radius: 8px; border: 1px solid #444; background: rgba(0,0,0,0.3); color: #fff;">사업자</button>
+                <div style="padding: 0 20px 20px 20px; margin-top: 10px;">
+                    <!-- [추가] 결제 수단 선택 -->
+                    <div style="margin-bottom: 15px; background: rgba(255, 255, 255, 0.05); padding: 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1);">
+                        <div style="font-size: 0.85rem; margin-bottom: 10px; color: #fff; font-weight: bold;">💳 결제 방식 선택</div>
+                        <div style="display: flex; gap: 8px;">
+                            <button id="pay-card" onclick="setPaymentMethod('card')" style="flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #D4AF37; background: #D4AF37; color: #000; font-weight: bold; font-size: 0.85rem;">신용카드</button>
+                            <button id="pay-bank" onclick="setPaymentMethod('bank')" style="flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #444; background: rgba(0,0,0,0.3); color: #fff; font-weight: bold; font-size: 0.85rem;">무통장 입금</button>
                         </div>
-                        <input type="tel" id="cart-cr-number" placeholder="번호 입력" style="width: 100%; padding: 10px; background: rgba(0,0,0,0.5); border: 1px solid #444; color: white; border-radius: 8px; font-size: 0.9rem; text-align: center;">
+                        <!-- 무통장 입금 시 이름 입력 칸 (기본 숨김) -->
+                        <div id="bank-input-group" style="display: none; margin-top: 10px;">
+                            <input type="text" id="depositor-name" placeholder="입금자 성함 입력" style="width: 100%; padding: 10px; background: rgba(212, 175, 55, 0.1); border: 1px solid #D4AF37; color: white; border-radius: 8px; font-size: 0.9rem; text-align: center;">
+                            <p style="font-size: 0.65rem; color: #aaa; margin-top: 5px; text-align: center;">* 입금 확인 후 주방으로 주문이 발송됩니다.</p>
+                        </div>
                     </div>
-                </div>
 
-                <div style="margin-bottom: 15px; background: rgba(212, 175, 55, 0.1); padding: 12px; border-radius: 10px; border: 1px solid rgba(212,175,55,0.3);">
-                    <div style="font-size: 0.85rem; margin-bottom: 8px; color: var(--secondary-color); font-weight: bold;">💰 포인트 적립 (결제금액의 1%)</div>
-                    <input type="tel" id="order-phone" placeholder="휴대폰 번호 입력 (선택)" style="width: 100%; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid #444; color: white; border-radius: 8px; font-size: 0.9rem; text-align: center;" oninput="syncCRPhone(this.value)">
-                </div>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                    <div id="checkout-cash-receipt" style="display: none; margin-bottom: 15px; background: rgba(59, 130, 246, 0.05); padding: 12px; border-radius: 10px; border: 1px solid rgba(59, 130, 246, 0.3);">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-bottom: 10px; font-size: 0.85rem; font-weight: bold; color: #fff;">
+                            <input type="checkbox" id="apply-cr" style="width: 18px; height: 18px;" onchange="toggleCheckoutCR()">
+                            <span>현금영수증 신청하시겠습니까?</span>
+                        </label>
+                        <div id="checkout-cr-group" style="display: none;">
+                            <div style="display: flex; gap: 5px; margin-bottom: 10px;">
+                                <button id="cart-cr-personal" onclick="setCartCRType('personal')" style="flex: 1; font-size: 0.75rem; padding: 10px; border-radius: 8px; border: 1px solid #3b82f6; background: rgba(59,130,246,0.1); color: #fff;">개인</button>
+                                <button id="cart-cr-business" onclick="setCartCRType('business')" style="flex: 1; font-size: 0.75rem; padding: 10px; border-radius: 8px; border: 1px solid #444; background: rgba(0,0,0,0.3); color: #fff;">사업자</button>
+                            </div>
+                            <input type="tel" id="cart-cr-number" placeholder="번호 입력" style="width: 100%; padding: 10px; background: rgba(0,0,0,0.5); border: 1px solid #444; color: white; border-radius: 8px; font-size: 0.9rem; text-align: center;">
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 15px; background: rgba(212, 175, 55, 0.1); padding: 12px; border-radius: 10px; border: 1px solid rgba(212,175,55,0.3);">
+                        <div style="font-size: 0.85rem; margin-bottom: 8px; color: var(--secondary-color); font-weight: bold;">💰 포인트 적립 (결제금액의 1%)</div>
+                        <input type="tel" id="order-phone" placeholder="휴대폰 번호 입력 (선택)" style="width: 100%; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid #444; color: white; border-radius: 8px; font-size: 0.9rem; text-align: center;" oninput="syncCRPhone(this.value)">
+                    </div>
+                </div> <!-- End of scrollable payment section -->
+            </div> <!-- End of modal-body -->
+
+            <div class="cart-summary" style="padding-top: 15px; background: #1a1a1a; box-shadow: 0 -5px 20px rgba(0,0,0,0.5);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                     <span style="color: var(--text-muted); font-size: 1.1rem; font-weight: 600;">총 합계</span>
                     <span id="modal-total" style="color: var(--text-white); font-size: 1.6rem; font-weight: 800;">0원</span>
                 </div>
-                <button class="order-submit-btn" onclick="placeOrder()">주문하기</button>
+                <button class="order-submit-btn" onclick="placeOrder()" style="height: 55px;">주문하기</button>
             </div>
         </div>
     </div>
