@@ -106,7 +106,7 @@ def main():
             [sys.executable, "app.py"], 
             text=True
         )
-        time.sleep(10) # 서버 가동 확인 대기 시간 충분히 확보
+        time.sleep(2) # 서버 가동 확인 대기 시간을 2초로 단축 (이제 즉시 뜹니다)
         print(" > 서버 가동 시도 중...")
     except Exception as e:
         print(f"❌ 서버 가동 실패: {e}")

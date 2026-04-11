@@ -1,9 +1,9 @@
-try:
-    import eventlet
-    eventlet.monkey_patch()
-except (ImportError, AttributeError):
-    # 파이썬 3.12+ 호환성 보정 (로컬 윈도우 환경용)
-    pass
+# try:
+#     import eventlet
+#     eventlet.monkey_patch(dns=False)
+# except (ImportError, AttributeError):
+#     # 파이썬 3.12+ 호환성 보정 (로컬 윈도우 환경용)
+#     pass
 
 import os
 import sys
@@ -74,16 +74,11 @@ if db_url:
     # (wdikgmyhuxhhyeljnyqa.supabase.co 형태로 자동 전환 시도 가능하나 일단 전달받은 URL 유지)
     
     if "postgresql://" in db_url or "postgres://" in db_url:
-        try:
-            # 1순위: psycopg2 시도 (Render/Linux 환경 권장)
-            import psycopg2
-            print("🐘 [DB 엔진] psycopg2를 사용합니다.")
-        except ImportError:
-            # 2순위: pg8000 전환 (psycopg2 없는 환경용)
-            if "postgresql+pg8000://" not in db_url:
-                db_url = db_url.replace("postgresql://", "postgresql+pg8000://", 1)
-                db_url = db_url.replace("postgres://", "postgresql+pg8000://", 1)
-            print("🐘 [DB 엔진] pg8000으로 대체 실행합니다.")
+        # [신규] 로컬 윈도우 환경에서 eventlet과 psycopg2 충돌 방지를 위해 pg8000 우선 사용
+        if "postgresql+pg8000://" not in db_url:
+            db_url = db_url.replace("postgresql://", "postgresql+pg8000://", 1)
+            db_url = db_url.replace("postgres://", "postgresql+pg8000://", 1)
+        print("🐘 [DB 엔진] pg8000 (Pure Python) 엔진을 사용합니다.")
 
     # 연결 문자열 로깅 (보안 마스킹)
     try:
@@ -178,12 +173,8 @@ with app.app_context():
                         conn.rollback()
                         print(f"⚠️ [DB] {table} 컬럼 검사 중 오류: {str(e)[:100]}")
 
-            # PIN 자리수 확장 (중요)
-            try:
-                db.session.execute(text("ALTER TABLE stores ALTER COLUMN attendance_pin TYPE VARCHAR(255)"))
-                db.session.commit()
-            except Exception:
-                db.session.rollback()
+            # PIN 자리수 확장 (중요) - 이미 적용되었으므로 부팅 속도 향상을 위해 생략 (Lock 방지)
+            pass
 
             print("🚀 [완료] 데이터베이스 구조 동기화 완료.")
         except Exception as e:
@@ -224,36 +215,59 @@ app.jinja_env.filters['format_phone'] = format_phone
 # MQnet Central Index
 @app.route('/')
 def index():
+    t0 = time.time()
     user_id = session.get('user_id')
     if not user_id:
         return render_template('index.html', logged_in=False)
     
+    # 1. User 조회
+    t1 = time.time()
     user = db.session.get(User, user_id)
+    t2 = time.time()
+    print(f" > [DB] User Fetch: {t2-t1:.2f}s")
+    
     if not user:
         session.clear()
         return redirect(url_for('login'))
         
     role = user.role
     store_id = user.store_id
+    
+    # 2. Store 연결 (필요시)
     if role == 'owner' and not store_id:
+        t_store_sync = time.time()
         managed_store = Store.query.filter_by(recommended_by=user.id).first()
         if managed_store:
             store_id = managed_store.id
             user.store_id = store_id
             db.session.commit()
             session['store_id'] = store_id
+        print(f" > [DB] Owner Store Sync: {time.time()-t_store_sync:.2f}s")
             
+    # 3. Store 목록 조회
+    t3 = time.time()
     store = db.session.get(Store, store_id) if store_id else None
     stores = []
+    
     if role == 'admin':
-        stores = Store.query.all()
+        stores = Store.query.order_by(Store.created_at.desc()).all()
     elif role == 'staff':
         try:
             stores = Store.query.filter(or_(Store.recommended_by == user_id, Store.is_public == True)).all()
         except:
             stores = Store.query.filter_by(recommended_by=user_id).all()
+    t4 = time.time()
+    print(f" > [DB] Store List Fetch ({role}): {t4-t3:.2f}s")
         
+    # 4. Pending Users 조회
+    t5 = time.time()
     users_pending = User.query.filter_by(is_approved=False).all()
+    t6 = time.time()
+    print(f" > [DB] Pending Users Fetch: {t6-t5:.2f}s")
+    
+    duration = time.time() - t0
+    print(f"⏱️ [Index Load] User: {user.username}, Role: {role}, Total Duration: {duration:.2f}s")
+    
     return render_template('index.html', logged_in=True, user=user, role=role, store=store, stores=stores, users_pending=users_pending)
 
 
@@ -398,5 +412,8 @@ if __name__ == '__main__':
             print(f"⚠️ [DB 경고] {e}")
 
     is_render = 'RENDER' in os.environ
-    debug_mode = not is_render
-    socketio.run(app, debug=debug_mode, host='0.0.0.0', port=port)
+    # [최적화] Windows 로컬 + eventlet 환경에서 데드락 방지를 위해 debug 모드를 비활성화합니다.
+    debug_mode = False
+    
+    print(f"🚀 [서버 가동] http://localhost:{port} 에서 MQnet 시스템이 활성화되었습니다.")
+    socketio.run(app, debug=debug_mode, host='0.0.0.0', port=port, allow_unsafe_werkzeug=True)
