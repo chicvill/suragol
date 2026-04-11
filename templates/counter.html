@@ -26,7 +26,7 @@
             box-shadow: 0 4px 15px rgba(0,0,0,0.5);
         }
 
-        .main-layout { display: flex; height: calc(100vh - 70px); }
+        .main-layout { display: flex; flex-direction: column; height: calc(100vh - 70px); position: relative; }
 
         /* 좌측 전용 사이드바 (호출 현황) */
         .sidebar { 
@@ -81,11 +81,17 @@
         .btn-pay { background: var(--royal-red); color: white; }
         .btn-waiting { background: #222; color: #444; }
 
-        /* 알림 메시지 스택 */
-        #notif-stack {
-            position: fixed; bottom: 25px; right: 25px;
-            display: flex; flex-direction: column-reverse; gap: 12px;
-            width: 320px; z-index: 2000;
+        /* [신규] 통합 아젠다 스택 (메모지 뭉치 영역) */
+        #agenda-stack {
+            position: absolute;
+            top: 20px; left: 20px;
+            width: 320px; height: 500px;
+            z-index: 1000;
+            pointer-events: none; /* 컨테이너 자체는 뒤쪽 클릭 허용 */
+        }
+        .post-it { 
+            pointer-events: auto; /* 메모지는 클릭 가능 */
+            position: absolute; top: 0; left: 0; width: 100%;
         }
         .notif {
             padding: 18px; border-radius: 12px; color: white;
@@ -145,37 +151,24 @@
     </header>
 
     <div class="main-layout">
-        <!-- 좌측: 호출 현황 -->
-        <div class="sidebar" id="service-sidebar">
-            <div style="padding: 20px; border-bottom: 1px solid #222; font-weight: bold; display: flex; align-items: center; gap: 10px;">
-                <i data-lucide="bell-ring" style="color: var(--royal-gold);"></i> 호출 현황
-            </div>
-            <div id="service-request-list" style="flex: 1; overflow-y: auto; padding: 15px;">
-                <div style="text-align: center; color: #444; padding: 40px 0;">호출이 없습니다.</div>
-            </div>
-        </div>
+        <!-- 통합 업무 메모지 스택 -->
+        <div id="agenda-stack"></div>
 
-        <!-- 중앙: 테이블 현황 -->
+        <!-- 중앙: 테이블 현황 (이제 화면 전체를 사용) -->
         <div class="tables-area">
+            <div style="margin-bottom: 20px; display: flex; gap: 10px; align-items: center;">
+                <div style="font-weight: 800; font-size: 1.1rem; color: var(--royal-gold);">🪑 홀 테이블 현황</div>
+                <div style="flex: 1;"></div>
+                <button onclick="enterFirstWaiting()" style="background:var(--royal-gold); border:none; padding:10px 18px; border-radius:12px; font-weight:900; cursor:pointer; font-size: 0.9rem;">
+                    <i data-lucide="check-circle" size="18"></i> 다음 대기 입장시키기
+                </button>
+            </div>
             <div class="tables-grid" id="tables-grid">
                 <div style="text-align: center; color: #444; padding: 100px 0;">테이블 데이터를 불러오는 중...</div>
             </div>
         </div>
-
-        <!-- 우측: 대기 현황 (필요 시 숨김/표시 가능) -->
-        <div class="sidebar" id="waiting-sidebar" style="border-left: 1px solid #222; border-right: none;">
-            <div style="padding: 20px; border-bottom: 1px solid #222;">
-                <button onclick="enterFirstWaiting()" style="width:100%; background:var(--royal-gold); border:none; padding:12px; border-radius:8px; font-weight:bold; cursor:pointer;">
-                    <i data-lucide="check-circle" size="16"></i> 다음 대기 입장
-                </button>
-            </div>
-            <div id="waiting-list" style="flex: 1; overflow-y: auto; padding: 15px;">
-                <div style="text-align: center; color: #444; padding: 40px 0;">대기 명단 로딩 중...</div>
-            </div>
-        </div>
     </div>
 
-    <div id="notif-stack"></div>
 
     <!-- 결제 모달 (기존 고급 기능 유지) -->
     <div id="payment-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:3000; align-items:center; justify-content:center;">
@@ -216,9 +209,9 @@
         socket.on('new_order', forceReSync);
         socket.on('order_status_update', forceReSync);
         socket.on('table_status_update', forceReSync);
-        socket.on('new_service_request', (d) => { createNotif('call', d); loadServiceRequests(); });
+        socket.on('new_service_request', () => loadAgenda());
         socket.on('bank_deposit_received', (d) => createNotif('pay', d));
-        socket.on('waiting_update', loadWaitingList);
+        socket.on('waiting_update', loadAgenda);
 
         async function forceReSync() {
             try {
@@ -335,73 +328,79 @@
 
         function closePaymentModal() { document.getElementById('payment-modal').style.display = 'none'; }
         function createNotif(type, d) {
-            const stack = document.getElementById('notif-stack');
-            const card = document.createElement('div');
-            card.className = 'notif';
-            card.style.background = type === 'pay' ? '#059669' : '#dc2626';
-            card.innerHTML = `
-                <div style="display:flex; justify-content:space-between; font-size:0.75rem; margin-bottom:5px;"><b>${type==='pay'?'💳 입금 알림':'🔔 호출'}</b> <span onclick="this.parentElement.parentElement.remove()" style="cursor:pointer;">✕</span></div>
-                <div style="font-weight:bold;">${d.sender || `테이블 ${d.table_id}`}</div>
-                <div>${d.amount ? d.amount.toLocaleString()+'원' : d.content || '직원을 호출했습니다.'}</div>
-                <button onclick="confirmTask(this, '${type}', '${d.id}')" style="width:100%; margin-top:10px; background:rgba(255,255,255,0.2); border:none; color:#fff; padding:5px; border-radius:5px; cursor:pointer;">확인됨</button>
-            `;
-            stack.prepend(card);
-            try { new Audio("https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3").play(); } catch(e){}
+            // [입금 알림만 브라우저 기본 알림 형식으로 활용하거나 별도 처리]
+            if (type === 'pay') {
+                loadAgenda(); // 그냥 아젠다 갱신 유도
+                try { new Audio("https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3").play(); } catch(e){}
+            }
         }
 
-        async function confirmTask(btn, type, id) {
-            const url = type === 'pay' ? `/api/{{ store.id }}/bank_notification/${id}/confirm` : `/api/{{ store.id }}/service_request/${id}/complete`;
-            if(id && id !== 'undefined') await fetch(url, { method: 'POST' });
-            btn.parentElement.remove();
-            if(type === 'call') loadServiceRequests();
-        }
-
-        async function loadServiceRequests() {
+        async function loadAgenda() {
             try {
-                const res = await fetch(`/api/{{ store.id }}/service_requests`);
-                const reqs = await res.json();
-                const list = document.getElementById('service-request-list');
-                list.innerHTML = reqs.length ? '' : '<div style="text-align:center; color:#444; padding:40px 0;">호출이 없습니다.</div>';
-                reqs.forEach(r => {
+                const [svcRes, waitRes] = await Promise.all([
+                    fetch(`/api/{{ store.id }}/service_requests`),
+                    fetch(`/api/{{ store.id }}/waiting/list`)
+                ]);
+                const calls = await svcRes.json();
+                const waits = await waitRes.json();
+                
+                const stack = document.getElementById('agenda-stack');
+                stack.innerHTML = '';
+                
+                // 모든 업무를 통합하여 시간순(최신이 위) 정렬
+                let items = [
+                    ...calls.map(c => ({...c, type: 'call'})),
+                    ...waits.map(w => ({...w, type: 'wait'}))
+                ];
+                items.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+
+                items.forEach((item, idx) => {
                     const div = document.createElement('div');
-                    div.className = 'post-it';
-                    div.innerHTML = `
-                        <div class="note-header"><span>🔔 CALL</span><span>${r.time}</span></div>
-                        <div class="note-content">${r.table_id}번 입구/좌석<br>${r.content}</div>
-                        <div class="note-footer">터치하여 확인 처리</div>
-                    `;
-                    div.onclick = async () => {
-                        div.classList.add('removing');
-                        setTimeout(async () => {
-                            await confirmTask(div, 'call', r.id);
-                        }, 300);
-                    };
-                    list.appendChild(div);
+                    div.className = `post-it ${item.type === 'wait' ? 'waiting-note' : ''}`;
+                    
+                    // 겹침 효과를 위한 스타일 (최신일수록 y-offset이 적음)
+                    const offset = idx * 6; // 한 장당 6px씩 어긋나게
+                    div.style.top = `${offset}px`;
+                    div.style.left = `${offset/2}px`;
+                    div.style.zIndex = 1000 - idx;
+                    
+                    const timeStr = item.created_at ? new Date(item.created_at).toLocaleTimeString('ko-KR', {hour:'2-digit', minute:'2-digit'}) : '';
+
+                    if (item.type === 'call') {
+                        div.innerHTML = `
+                            <div class="note-header"><span>🔔 CALL</span><span>${timeStr}</span></div>
+                            <div class="note-content">${item.table_id}번 입구/좌석<br>${item.content}</div>
+                            <div class="note-footer">터치하여 확인 처리</div>
+                        `;
+                        div.onclick = async () => {
+                            div.classList.add('removing');
+                            setTimeout(() => confirmTask(div, 'call', item.id), 300);
+                        };
+                    } else {
+                        div.innerHTML = `
+                            <div class="note-header"><span>🕒 WAITING</span><span>${item.people}명</span></div>
+                            <div class="note-content">${item.phone}<br><small>현장 대기 중</small></div>
+                            <div class="note-footer">눌러서 입장 처리</div>
+                        `;
+                        div.onclick = async () => {
+                            div.classList.add('removing');
+                            setTimeout(() => executeEnter(item.id), 300);
+                        };
+                    }
+                    stack.appendChild(div);
                 });
-            } catch(e){}
+            } catch(e) { console.error(e); }
         }
 
-        async function loadWaitingList() {
-            const res = await fetch('/api/{{ store.id }}/waiting/list');
-            const list = await res.json();
-            const el = document.getElementById('waiting-list');
-            el.innerHTML = list.length ? '' : '<div style="text-align:center; color:#444; padding:40px 0;">대기자가 없습니다.</div>';
-            list.forEach(w => {
-                const d = document.createElement('div');
-                d.className = 'post-it waiting-note';
-                d.innerHTML = `
-                    <div class="note-header"><span>🕒 WAITING</span><span>${w.party_size}명</span></div>
-                    <div class="note-content">${w.name}<br><small style="font-size:0.85rem;">${w.phone}</small></div>
-                    <div class="note-footer">눌러서 입장 처리</div>
-                `;
-                d.onclick = async () => {
-                    d.classList.add('removing');
-                    setTimeout(async () => {
-                        await executeEnter(w.id);
-                    }, 300);
-                };
-                el.appendChild(d);
-            });
+        async function confirmTask(el, type, id) {
+            const url = `/api/{{ store.id }}/service_request/${id}/complete`;
+            if(id && id !== 'undefined') await fetch(url, { method: 'POST' });
+            loadAgenda();
+        }
+
+        async function executeEnter(id) {
+            await fetch(`/api/{{ store.id }}/waiting/enter/${id}`, { method: 'POST' });
+            loadAgenda();
         }
 
         async function executeEnter(id) {
@@ -418,7 +417,7 @@
 
         // 시계 및 초기화
         setInterval(() => { document.getElementById('clock').innerText = new Date().toLocaleTimeString(); }, 1000);
-        window.onload = () => { loadServiceRequests(); loadWaitingList(); lucide.createIcons(); };
+        window.onload = () => { loadAgenda(); lucide.createIcons(); };
 
     </script>
 </body>
