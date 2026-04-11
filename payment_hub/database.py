@@ -41,6 +41,16 @@ def update_order_payment_status(sender_name, amount, order_no=""):
             
         order = cur.fetchone()
         
+        # 3. 알림 기록 추가 (매칭 여부와 상관없이 기록하여 카운터에 플로팅으로 띄움)
+        status_to_save = 'matched' if order else 'unconfirmed'
+        insert_notification_query = """
+            INSERT INTO bank_notifications (store_id, sender, amount, order_no, raw_content, status, created_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """
+        store_id = order[1] if order else None
+        cur.execute(insert_notification_query, (store_id, sender_name, amount, order_no, "", status_to_save, datetime.utcnow()))
+        conn.commit()
+        
         if not order:
             return {"status": "not_found", "message": f"Matching order for {sender_name} ({amount}원) not found."}
             
@@ -60,7 +70,9 @@ def update_order_payment_status(sender_name, amount, order_no=""):
             "status": "success", 
             "order_id": order_id, 
             "store_id": order[1], 
-            "table_id": order[2]
+            "table_id": order[2],
+            "sender": sender_name,
+            "amount": amount
         }
         
     except Exception as e:

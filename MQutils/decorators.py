@@ -54,7 +54,9 @@ def store_access_required(f):
     def decorated_function(slug, *args, **kwargs):
         # [현황판/주방 API 개방] 로그인이 없어도 특정 API는 허용
         from flask import request
-        if request.path.endswith('/orders'):
+        # /orders, /waiting/list, /service_requests 는 상시 허용 (카운터 동기화용)
+        path = request.path
+        if path.endswith('/orders') or path.endswith('/waiting/list') or path.endswith('/service_requests'):
             return f(slug, *args, **kwargs)
 
         if 'user_id' not in session:

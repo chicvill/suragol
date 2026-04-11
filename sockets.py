@@ -58,8 +58,9 @@ def register_socketio_events(socketio):
             socketio.emit('new_order', new_order.to_dict(), room=slug)
         except Exception as e:
             db.session.rollback()
-            print(f"❌ [주문 처리 오류] {e}")
-            socketio.emit('order_error', {'message': '주문 처리 중 서버 오류가 발생했습니다.'})
+            err_msg = str(e)
+            print(f"❌ [주문 처리 오류] {err_msg}")
+            socketio.emit('order_error', {'message': f'주문 처리 중 서버 오류가 발생했습니다: {err_msg}'})
 
     @socketio.on('set_ready')
     def on_set_ready(data):
@@ -137,3 +138,48 @@ def register_socketio_events(socketio):
         
         db.session.commit()
         socketio.emit('table_status_update', {'store_id': slug, 'session_id': sid, 'table_id': tid, 'status': 'paid'}, room=slug)
+
+    @socketio.on('cancel_order')
+    def on_cancel_order(data):
+        try:
+            oid = data.get('order_id')
+            if not oid: return
+            order = db.session.get(Order, oid)
+            if order:
+                order.status = 'cancelled'
+                order.total_price = 0
+                # 모든 아이템도 취소 처리
+                for item in order.items:
+                    item.status = 'cancelled'
+                db.session.commit()
+                # 상태 변경 알림 (동적으로 삭제되도록)
+                socketio.emit('order_status_update', order.to_dict(), room=order.store_id)
+                print(f"✅ [취소] 주문 {oid} 전체 취소됨")
+        except Exception as e:
+            db.session.rollback()
+            print(f"❌ [취소 오류] 주문 취소 중 에러: {e}")
+
+    @socketio.on('cancel_order_item')
+    def on_cancel_order_item(data):
+        try:
+            item_id = data.get('item_id')
+            if not item_id: return
+            item = db.session.get(OrderItem, item_id)
+            if item:
+                order = item.order
+                item.status = 'cancelled'
+                
+                # 주문 총액 재계산
+                active_items = [i for i in order.items if i.status != 'cancelled']
+                order.total_price = sum(i.price * i.quantity for i in active_items)
+                
+                # 만약 남은 아이템이 하나도 없으면 주문 자체를 취소 처리
+                if not active_items:
+                    order.status = 'cancelled'
+                
+                db.session.commit()
+                socketio.emit('order_status_update', order.to_dict(), room=order.store_id)
+                print(f"✅ [일부 취소] 아이템 {item_id} 취소됨, 주문 {order.id} 총액 갱신")
+        except Exception as e:
+            db.session.rollback()
+            print(f"❌ [일부 취소 오류] 아이템 취소 중 에러: {e}")

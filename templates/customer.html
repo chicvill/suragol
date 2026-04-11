@@ -7,36 +7,53 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ range(1, 9999) | random }}">
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <style>
-        :root {
-            --primary-color: #8B0000;
-            --secondary-color: #D4AF37;
-            --bg-dark: #0F0F0F;
-            --text-white: #f5f5f5;
-            --glass-bg: rgba(255, 255, 255, 0.07);
-        }
-        body {
-            background-color: #0F0F0F;
-            color: #f5f5f5;
-            margin: 0;
-            padding-bottom: 100px; /* 장바구니 바를 고려한 하단 여백 */
-            font-family: 'Pretendard', -apple-system, sans-serif;
-            -webkit-tap-highlight-color: transparent;
-        }
-        
-        /* 모바일 헤더 최적화 */
-        @media (max-width: 480px) {
-            header { padding: 10px 15px; }
-            .brand-korean { font-size: 1.1rem; }
-            .order-badge { font-size: 0.65rem; }
-        }
         #payment-sticky-bar {
             position: fixed; top: 0; left: 0; width: 100%; z-index: 2000;
-            background: linear-gradient(90deg, #D4AF37, #B8860B);
-            color: #000; padding: 12px; text-align: center; font-weight: 810; font-size: 0.85rem;
+            background: linear-gradient(90deg, #f1c40f, #b8860b);
+            color: #000; padding: 12px; text-align: center; font-weight: 800; font-size: 0.85rem;
             display: none; cursor: pointer; border-bottom: 2px solid rgba(0,0,0,0.1);
-            animation: slideDown 0.5s ease;
         }
-        @keyframes slideDown { from { transform: translateY(-100%); } to { transform: translateY(0); } }
+        
+        .add-btn {
+            background-color: #f1c40f !important;
+            color: #000 !important;
+            width: 45px; height: 45px;
+            font-size: 2rem;
+            border-radius: 10px;
+            border: 2px solid #000;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 900;
+        }
+
+        /* [리디자인] 하단 플로팅 프리미엄 주문 바 */
+        .cart-bar {
+            position: fixed; 
+            bottom: 30px; /* 스마트폰 하단 바 간섭 방지를 위해 충분히 띄움 */
+            left: 50%; 
+            transform: translateX(-50%);
+            top: auto !important; /* 상단 고정 해제 */
+            width: 92%; 
+            max-width: 480px; 
+            height: 65px !important; 
+            background: #f1c40f; /* 강렬한 골드 */
+            color: #000 !important; 
+            padding: 0 25px; 
+            border-radius: 18px;
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.7); 
+            z-index: 10000;
+            cursor: pointer; 
+            font-size: 1.15rem; 
+            font-weight: 900;
+            border: none;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .cart-bar:active { transform: translateX(-50%) scale(0.95); }
+        .cart-bar span#cart-total { font-size: 1.4rem; font-weight: 900; }
     </style>
 </head>
 <body>
@@ -45,18 +62,16 @@
         <span>🏦 입금 대기 중: </span>
         <span id="sticky-bank-info" style="text-decoration: underline;">계좌정보 확인하기</span>
     </div>
-    <header style="display: flex; justify-content: space-between; align-items: center; padding: 10px 15px;">
-        <div class="header-left" style="display: flex; align-items: center; gap: 8px; overflow: hidden;">
-            <div class="brand-korean" style="font-weight: 900; color: var(--secondary-color); font-size: 1.1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px;">{{ store.name }}</div>
-            <div class="table-pill" style="display: flex; align-items: center; padding: 4px 8px; background: rgba(255,255,255,0.1); border-radius: 12px; white-space: nowrap;">
-                <span style="font-size: 0.75rem; opacity: 0.7;">테이블</span>
-                <span style="font-weight: 800; margin: 0 3px; font-size: 1rem; color: #fff;">{{ table_id }}</span>
+    <header>
+        <div class="header-left">
+            <div class="brand-korean" style="color: var(--text-white);">{{ store.name }}</div>
+            <div class="table-pill">
+                <span>테이블</span>
+                <span style="color: var(--text-white); font-weight: 800;">{{ table_id }}</span>
             </div>
-            <div id="order-no" class="order-badge" style="font-size: 0.75rem; color: var(--secondary-color); border: 1px solid rgba(212, 175, 55, 0.4); padding: 3px 6px; border-radius: 6px; white-space: nowrap;">#{{ session_id }}</div>
+            <div id="order-no" class="order-badge">#{{ session_id }}</div>
         </div>
-        <div class="header-right">
-            <button onclick="toggleServiceModal()" class="call-staff-btn" style="padding: 8px 15px; font-size: 0.85rem; border-radius: 20px; white-space: nowrap; background: var(--secondary-color); color: #000; font-weight: 900; border: none; box-shadow: 0 2px 10px rgba(0,0,0,0.3);">호출</button>
-        </div>
+        <button onclick="toggleServiceModal()" class="call-staff-btn">호출</button>
     </header>
 
     <div id="toast" class="toast">장바구니 추가</div>
@@ -76,6 +91,14 @@
     <div class="container" style="padding: 15px;">
         <div id="menu-container" class="menu-list">
             <!-- 메뉴 항목 동적 생성 -->
+        </div>
+
+        <!-- [신규] 현재 주문 내역 섹션 -->
+        <div id="current-orders-container" style="margin-top: 30px; display: none;">
+            <h2 style="font-size: 1.2rem; color: var(--secondary-color); margin-bottom: 15px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px;">내 주문 내역</h2>
+            <div id="current-orders-list">
+                <!-- 실시간 주문 내역 동적 생성 -->
+            </div>
         </div>
     </div>
 
@@ -122,11 +145,11 @@
                     <div style="font-size: 0.85rem; margin-bottom: 8px; color: var(--secondary-color); font-weight: bold;">💰 포인트 적립 (결제금액의 1%)</div>
                     <input type="tel" id="order-phone" placeholder="휴대폰 번호 입력 (선택)" style="width: 100%; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid #444; color: white; border-radius: 8px; font-size: 0.9rem; text-align: center;" oninput="syncCRPhone(this.value)">
                 </div>
-                <div style="display: flex; justify-content: space-between; margin-bottom: 15px; font-size: 1.2rem;">
-                    <span>총 합계</span>
-                    <span id="modal-total" style="color: var(--secondary-color); font-weight: bold;">0원</span>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                    <span style="color: var(--text-muted); font-size: 1.1rem; font-weight: 600;">총 합계</span>
+                    <span id="modal-total" style="color: var(--text-white); font-size: 1.6rem; font-weight: 800;">0원</span>
                 </div>
-                <button class="order-submit-btn" onclick="placeOrder()">주문</button>
+                <button class="order-submit-btn" onclick="placeOrder()">주문하기</button>
             </div>
         </div>
     </div>
@@ -236,16 +259,13 @@
             menuData[category].forEach(item => {
                 const div = document.createElement('div');
                 div.className = 'menu-item';
-                div.style.padding = '12px';
                 div.innerHTML = `
-                    <div style="display: flex; gap: 12px; width: 100%; align-items: center;">
-                        ${item.image ? `<img src="${item.image}" alt="${item.name}" class="menu-image-thumb" style="width: 70px; height: 70px;">` : '<div class="menu-image-placeholder" style="width: 70px; height: 70px;">No Image</div>'}
-                        <div class="item-info" style="flex: 1;">
-                            <h3 style="font-size: 1.1rem; margin-bottom: 4px;">${item.name}</h3>
-                            <p class="price" style="font-size: 1rem;">${item.price.toLocaleString()}원</p>
-                        </div>
-                        <button class="add-btn" onclick="addToCart(event, ${item.id}, '${item.name}', ${item.price})" style="width: 36px; height: 36px; font-size: 1.4rem;">+</button>
+                    ${item.image ? `<img src="${item.image}" alt="${item.name}" class="menu-image-thumb">` : '<div class="menu-image-placeholder">No Image</div>'}
+                    <div class="item-info" style="flex: 1;">
+                        <h3 style="font-size: 1.1rem; margin-bottom: 6px; font-weight: 700;">${item.name}</h3>
+                        <p class="price" style="font-size: 1rem; color: #fff; opacity: 0.8;">${item.price.toLocaleString()}원</p>
                     </div>
+                    <button class="add-btn" onclick="addToCart(event, ${item.id}, '${item.name}', ${item.price})">+</button>
                 `;
                 container.appendChild(div);
             });
@@ -481,6 +501,59 @@
             }
         }
 
+        // [신규] 기존 주문 내역 로드
+        async function loadCurrentOrders() {
+            try {
+                const res = await fetch(`/api/{{ store.id }}/orders`);
+                const allOrders = await res.json();
+                
+                // 내 세션 아이디와 일치하는 주문만 필터링
+                const myOrders = allOrders.filter(o => o.session_id === sessionId && o.status !== 'cancelled');
+                const container = document.getElementById('current-orders-container');
+                const list = document.getElementById('current-orders-list');
+                
+                if (myOrders.length > 0) {
+                    container.style.display = 'block';
+                    list.innerHTML = '';
+                    
+                    myOrders.forEach(order => {
+                        order.items.forEach(item => {
+                            const div = document.createElement('div');
+                            div.className = 'cart-item-row';
+                            div.style.background = 'rgba(255,255,255,0.03)';
+                            div.style.padding = '10px';
+                            div.style.borderRadius = '8px';
+                            div.style.marginBottom = '8px';
+                            
+                            const isCancelled = item.status === 'cancelled';
+                            const canCancel = order.status === 'pending' && !isCancelled;
+                            
+                            div.innerHTML = `
+                                <div style="flex: 1; ${isCancelled ? 'text-decoration: line-through; opacity: 0.5;' : ''}">
+                                    <div style="font-weight: bold;">${item.name} ${isCancelled ? '(취소됨)' : ''}</div>
+                                    <div style="font-size: 0.8rem; color: #888;">${item.price.toLocaleString()}원 x ${item.quantity}</div>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span style="font-size: 0.75rem; color: ${order.status === 'pending' ? '#f1c40f' : (order.status === 'paid' ? '#3498db' : '#2ecc71')};">
+                                        ${order.status === 'pending' ? '조리대기' : (order.status === 'ready' ? '서빙대기' : (order.status === 'paid' ? '결제완료' : '전달됨'))}
+                                    </span>
+                                    ${canCancel ? `<button onclick="cancelOrderItem(${item.id})" style="background: #333; color: #ff6b6b; border: 1px solid #444; padding: 4px 8px; border-radius: 4px; font-size: 0.7rem;">취소</button>` : ''}
+                                </div>
+                            `;
+                            list.appendChild(div);
+                        });
+                    });
+                } else {
+                    container.style.display = 'none';
+                }
+            } catch (err) { console.error(err); }
+        }
+
+        function cancelOrderItem(itemId) {
+            if (!confirm('해당 품목을 취소하시겠습니까?')) return;
+            socket.emit('cancel_order_item', { item_id: itemId });
+        }
+
         socket.on('order_success', (data) => {
             const modal = document.getElementById('success-modal');
             const title = document.getElementById('success-title');
@@ -569,6 +642,7 @@
             saveCart();
             updateCartBar();
             toggleCartModal(false);
+            loadCurrentOrders(); // 주문 성공 시 내역 갱신
         });
 
         // 실시간 주문 상태 업데이트 감지 (입금 확인 시 상단바 제거)
@@ -600,7 +674,13 @@
                     document.getElementById('success-modal').classList.add('show');
                 }
             }
+            loadCurrentOrders(); // 상태 변경 시 내역 갱신
         });
+
+        // [추가] 통합 주문 상태 업데이트 수신
+        socket.on('order_status_update', () => loadCurrentOrders());
+        socket.on('table_status_update', () => loadCurrentOrders());
+        socket.on('new_order', () => loadCurrentOrders());
 
         function closeSuccessModal() {
             document.getElementById('success-modal').classList.remove('show');
@@ -656,6 +736,7 @@
                 showCategory(category, firstTab);
             }
             updateCartBar(); // Initialize cart UI on load
+            loadCurrentOrders(); // Initialize current orders on load
             
             // Load saved phone
             const savedPhone = localStorage.getItem('freeorder_phone');

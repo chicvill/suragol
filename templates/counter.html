@@ -3,1113 +3,374 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% if store.id == 'MQ-cafe' %}수라골 참숯갈비 통합 관제{% else %}{{ store.name }} - 통합 카운터 관제{% endif %}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ range(1, 9999) | random }}">
-    <!-- Socket.IO & Icons -->
+    <title>{{ store.name }} - 통합 카운터</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
-        :root {
-            /* 왕궁 프리미엄 컬러 세트 */
-            --royal-red: #8b0000;
-            --royal-gold: #d4af37;
-            --dark-card: rgba(30, 10, 10, 0.95);
+        :root { 
+            --royal-red: #8B0000;
+            --royal-gold: #D4AF37;
+            --bg-dark: #000000;
+            --card-bg: #111111;
             --border-gold: rgba(212, 175, 55, 0.3);
+            --text-muted: #888888;
+        }
+        
+        body { background: var(--bg-dark); color: white; font-family: 'Pretendard', sans-serif; margin: 0; overflow: hidden; }
+        
+        header { 
+            background: #111; padding: 15px 25px; border-bottom: 2px solid #222;
+            display: flex; justify-content: space-between; align-items: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
         }
 
-        body {
-            background: #0a0505; /* 더 깊은 블랙 */
-            color: #fff;
-            margin: 0;
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-            overflow: hidden;
-        }
+        .main-layout { display: flex; height: calc(100vh - 70px); }
 
-        /* 헤더 스타일 */
-        header {
-            background: rgba(40, 0, 0, 0.9);
-            border-bottom: 2px solid var(--royal-gold);
-            padding: 15px 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 5px 25px rgba(0,0,0,0.8);
-            z-index: 100;
+        /* 좌측 전용 사이드바 (호출 현황) */
+        .sidebar { 
+            width: 320px; background: #0a0a0a; border-right: 1px solid #222;
+            display: flex; flex-direction: column; transition: all 0.3s;
+            position: relative; z-index: 50;
         }
-        .header-brand {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-        .header-brand h1 {
-            color: var(--royal-gold);
-            margin: 0;
-            font-size: 1.8rem;
-            font-weight: 900;
-            letter-spacing: -1px;
-        }
+        
+        .tables-area { flex: 1; padding: 25px; overflow-y: auto; background: #000; }
 
-        /* 메인 레이아웃: 가변 3분할 */
-        .main-layout {
-            display: grid;
-            grid-template-columns: 0px 1fr 0px; /* 기본은 사이드바 닫힘 */
-            flex: 1;
-            overflow: hidden;
-            transition: grid-template-columns 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .main-layout.show-left { grid-template-columns: 350px 1fr 0px; }
-        .main-layout.show-right { grid-template-columns: 0px 1fr 400px; }
-        .main-layout.show-both { grid-template-columns: 350px 1fr 400px; }
-
-        /* 공통 사이드바 스타일 */
-        .sidebar {
-            background: #121212;
-            display: flex;
-            flex-direction: column;
-            padding: 0; /* 닫혔을 때 */
-            overflow: hidden;
-            z-index: 50;
-            transition: all 0.4s ease;
-            opacity: 0;
-            border: none;
-        }
-        .sidebar.active {
-            padding: 25px;
-            opacity: 1;
-            overflow-y: auto;
-        }
-
-        /* 좌측: 서비스 요청(호출) 사이드바 */
-        .service-sidebar.active {
-            border-right: 2px solid var(--border-gold);
-        }
-
-        /* 우측: 대기열 사이드바 */
-        .waiting-sidebar.active {
-            border-left: 2px solid var(--border-gold);
-        }
-
-        /* 좌측: 테이블 구역 */
-        .tables-area {
-            padding: 40px;
-            overflow-y: auto;
-            background: radial-gradient(circle at top left, #1a0505, #050505);
-        }
         .tables-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-            gap: 30px;
-        }
-
-        /* 사이드바 공통 배경 및 패딩은 상단 .sidebar 클래스에서 관리 */
-        .sidebar-title {
-            color: var(--royal-gold);
-            font-size: 1.4rem;
-            font-weight: 800;
-            margin-bottom: 30px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding-bottom: 15px;
-            border-bottom: 1px solid var(--border-gold);
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
         }
 
         /* 테이블 카드 스타일 */
         .table-card {
-            background: var(--dark-card);
-            border: 1px solid var(--border-gold);
-            border-radius: 12px;
-            padding: 30px;
-            position: relative;
-            transition: all 0.4s;
-            animation: fadeIn 0.5s ease-out;
-        }
-        .table-card.ready-to-serve {
-            border-color: var(--royal-gold);
-            box-shadow: 0 0 30px rgba(212, 175, 55, 0.4);
-        }
-        .table-card .status-badge {
-            position: absolute;
-            top: 25px;
-            right: 25px;
-            font-size: 0.85rem;
-            padding: 5px 15px;
-            border-radius: 50px;
-            font-weight: 800;
-        }
-        .status-pending { background: #34495e; color: #fff; } /* 조리 */
-        .status-ready { background: var(--royal-gold); color: #000; animation: pulse 2s infinite; } /* 서빙 */
-        .status-served { background: #27ae60; color: #fff; } /* 결제 */
-
-        .table-card h3 {
-            font-size: 1.8rem;
-            margin: 0 0 5px 0;
-            color: var(--royal-gold);
-            display: flex;
-            align-items: baseline;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-        .order-id { font-size: 0.8rem; color: #666; margin-bottom: 10px; }
-
-        .items-list {
-            margin: 10px 0;
-            padding: 15px 0;
-            border-top: 1px solid rgba(255,255,255,0.1);
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-            min-height: 60px;
-        }
-        .item-row {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 8px;
-            font-size: 1.1rem;
-        }
-
-        .price-total {
-            font-size: 1.6rem;
-            font-weight: 900;
-            color: #fff;
-            margin-bottom: 20px;
-            text-align: right;
-        }
-
-        /* 액션 버튼 */
-        .action-btn {
-            width: 100%;
-            padding: 15px;
-            border: none;
-            border-radius: 8px;
-            font-size: 1.1rem;
-            font-weight: 800;
-            cursor: pointer;
-            transition: 0.3s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-        }
-        .btn-serve { background: var(--royal-gold); color: #000; }
-        .btn-pay { background: var(--royal-red); color: #fff; }
-        .btn-waiting { background: #222; color: #555; cursor: default; }
-
-        /* 대기열 카드 스타일 */
-        .wait-card {
-            background: #1a1a1a;
-            border: 1px solid #333;
-            border-radius: 10px;
+            background: var(--card-bg);
+            border: 1px solid #222;
+            border-radius: 16px;
             padding: 20px;
-            margin-bottom: 20px;
-            transition: 0.3s;
+            position: relative;
+            transition: transform 0.2s, border-color 0.2s;
+            display: flex; flex-direction: column;
         }
-        .wait-card:hover { border-color: var(--royal-gold); background: #222; }
-        .wait-no { font-size: 1.5rem; font-weight: 900; color: var(--royal-gold); margin-bottom: 8px; }
-        .wait-info { font-size: 0.95rem; color: #aaa; margin-bottom: 15px; }
-        .enter-btn {
-            width: 100%;
-            background: transparent;
-            border: 1px solid var(--royal-gold);
-            color: var(--royal-gold);
-            padding: 10px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 800;
-            transition: 0.3s;
-        }
-        .enter-btn:hover { background: var(--royal-gold); color: #000; }
+        .table-card:hover { border-color: var(--royal-gold); }
+        .table-card.ready-to-serve { border: 2px solid var(--royal-gold); box-shadow: 0 0 15px rgba(212, 175, 55, 0.2); }
 
-        @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.4); }
-            70% { box-shadow: 0 0 0 15px rgba(212, 175, 55, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(212, 175, 55, 0); }
+        .status-badge {
+            position: absolute; top: 15px; right: 20px;
+            font-size: 0.75rem; padding: 4px 10px; border-radius: 20px; font-weight: bold;
         }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .empty-state {
-            text-align: center;
-            padding: 100px 0;
-            color: #444;
-            grid-column: 1/-1;
+        .status-pending { background: #333; color: #aaa; }
+        .status-ready { background: var(--royal-gold); color: #000; }
+        .status-served { background: #1e3a8a; color: #fff; }
+
+        .items-list { margin: 15px 0; flex: 1; font-size: 0.95rem; }
+        .item-row { display: flex; justify-content: space-between; margin-bottom: 5px; color: #ccc; }
+
+        .price-total { 
+            font-size: 1.5rem; font-weight: 900; color: var(--royal-gold);
+            border-top: 1px solid #222; padding-top: 15px; margin-top: 10px;
         }
 
-        /* Responsive Mobile Styling */
-        .sidebar-overlay {
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.7);
-            backdrop-filter: blur(5px);
-            z-index: 900;
-            display: none;
-            opacity: 0;
-            transition: opacity 0.3s;
+        .action-btn {
+            width: 100%; padding: 12px; border: none; border-radius: 10px;
+            font-weight: bold; cursor: pointer; margin-top: 15px;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
         }
-        .sidebar-overlay.active {
-            display: block;
-            opacity: 1;
-        }
-        
-        /* 유틸리티 클래스 */
-        .mobile-only { display: none !important; }
-        .desktop-only { display: block !important; }
-        
-        .waiting-toggle-btn {
-            background: rgba(212, 175, 55, 0.1);
-            border: 1px solid var(--border-gold);
-            color: var(--royal-gold);
-            padding: 8px 15px;
-            border-radius: 8px;
-            font-weight: 800;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            transition: 0.3s;
-        }
-        .waiting-toggle-btn:hover { background: rgba(212, 175, 55, 0.2); }
-        .waiting-toggle-btn.has-content { 
-            border-color: var(--royal-gold);
-            background: rgba(212, 175, 55, 0.25);
-            box-shadow: 0 0 15px rgba(212, 175, 55, 0.2);
-        }
-        .waiting-toggle-btn.btn-call.has-content {
-            border-color: #3498db;
-            color: #3498db;
-            background: rgba(52, 152, 219, 0.15);
-        }
-        .wait-badge {
-            background: var(--royal-red);
-            color: white;
-            padding: 2px 8px;
-            border-radius: 10px;
-            font-size: 0.75rem;
-            min-width: 20px;
-            text-align: center;
-        }
+        .btn-serve { background: var(--royal-gold); color: black; }
+        .btn-pay { background: var(--royal-red); color: white; }
+        .btn-waiting { background: #222; color: #444; }
 
-        @media (max-width: 1280px) {
-            .main-layout {
-                grid-template-columns: 300px 1fr 340px;
-            }
+        /* 알림 메시지 스택 */
+        #notif-stack {
+            position: fixed; bottom: 25px; right: 25px;
+            display: flex; flex-direction: column-reverse; gap: 12px;
+            width: 320px; z-index: 2000;
         }
+        .notif {
+            padding: 18px; border-radius: 12px; color: white;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+            animation: slideIn 0.3s ease-out;
+            border-left: 5px solid rgba(255,255,255,0.3);
+        }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
-        @media (max-width: 1024px) {
-            .main-layout {
-                grid-template-columns: 1fr !important;
-            }
-            .sidebar {
-                position: fixed;
-                top: 0;
-                width: 350px !important;
-                max-width: 90vw;
-                height: 100vh;
-                z-index: 1100;
-            }
-            .service-sidebar { left: 0; transform: translateX(-100%); }
-            .waiting-sidebar { right: 0; transform: translateX(100%); }
-            .sidebar.active { transform: translateX(0); padding: 25px; }
-            .sidebar-overlay.active { display: block; opacity: 1; }
+        /* 머지된 선결제 스타일 */
+        .prepaid-badge {
+            background: var(--royal-gold); color: #000; font-size: 0.75rem; font-weight: 900;
+            padding: 4px 8px; border-radius: 4px; display: inline-block; margin-bottom: 10px;
         }
-
-        /* 로딩 애니메이션 및 커스텀 컨펌 모달 */
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        .loading-spin { animation: spin 0.8s linear infinite; display: inline-block; }
-        
-        .confirm-modal-overlay {
-            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.85); backdrop-filter: blur(8px);
-            z-index: 2000; display: none; justify-content: center; align-items: center;
-            opacity: 0; transition: opacity 0.3s;
-        }
-        .confirm-modal-overlay.active { display: flex; opacity: 1; }
-        .confirm-modal-inner {
-            background: #1a0a0a; border: 2px solid var(--royal-gold);
-            padding: 30px; border-radius: 15px; width: 320px; text-align: center;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.8);
-            transform: translateY(-20px); transition: transform 0.3s;
-        }
-        .confirm-modal-overlay.active .confirm-modal-inner { transform: translateY(0); }
-        .confirm-modal-inner h4 { color: var(--royal-gold); margin: 0 0 15px 0; font-size: 1.2rem; }
-        .confirm-modal-inner p { color: #ccc; margin-bottom: 25px; line-height: 1.5; word-break: keep-all; }
-        .confirm-modal-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .cbtn { padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; }
-        .cbtn-cancel { background: #333; color: white; }
-        .cbtn-ok { background: var(--royal-red); color: white; border: 1px solid var(--royal-gold); }
-        .cbtn:active { transform: scale(0.95); }
     </style>
 </head>
 <body>
     <header>
-            <h1>{{ store.name }} - 통합 카운터 관제</h1>
-            <div id="conn-status" style="font-size: 0.8rem; color: #2ecc71;" class="desktop-only">
-                <i data-lucide="wifi" size="16" style="vertical-align: middle;"></i> 실시간 연결됨
+        <div style="display:flex; align-items:center; gap:20px;">
+            <h1 style="margin:0; font-size:1.4rem; color:var(--royal-gold);">{{ store.name }} 통합 카운터</h1>
+            <div style="display:flex; gap:10px;">
+                <button onclick="totalReset()" style="background:#444; color:#fff; border:none; padding:8px 12px; border-radius:6px; cursor:pointer; font-size:0.8rem;">📦 데이터 초기화</button>
+                <button onclick="forceReSync()" style="background:none; border:2px solid #333; color:#666; padding:5px 10px; border-radius:6px; cursor:pointer;"><i data-lucide="refresh-cw" size="18"></i></button>
             </div>
-            <div style="display: flex; gap: 12px; align-items: center;">
-                <button onclick="toggleServiceSidebar()" id="btn-toggle-service" class="waiting-toggle-btn btn-call">
-                    <i data-lucide="bell" size="18"></i> 호출
-                    <span id="call-badge-count" class="wait-badge" style="background: #3498db; display:none;">0</span>
-                </button>
-                <button onclick="toggleWaitingSidebar()" id="btn-toggle-waiting" class="waiting-toggle-btn">
-                    <i data-lucide="users" size="18"></i> 대기
-                    <span id="wait-badge-count" class="wait-badge" style="display:none;">0</span>
-                </button>
-                <div style="width: 1px; height: 24px; background: rgba(255,255,255,0.1); margin: 0 5px;"></div>
-                <button onclick="forceReSync()" class="sync-btn" title="동기화">
-                    <i data-lucide="refresh-cw" size="16"></i>
-                </button>
-            </div>
+        </div>
+        <div id="clock" style="font-weight:bold; font-size:1.1rem; color:#888;">00:00:00</div>
     </header>
-    
-    <!-- ✨ AI 매장 운영 리포트 섹션 -->
-    <div style="background: linear-gradient(90deg, #1a0505 0%, #2a0a0a 100%); border-bottom: 1px solid var(--border-gold); padding: 12px 30px; display: flex; align-items: center; gap: 20px; z-index: 90;">
-        <div style="background: rgba(212, 175, 55, 0.15); color: var(--royal-gold); padding: 5px 15px; border-radius: 20px; font-size: 0.8rem; font-weight: 800; border: 1px solid var(--border-gold); display: flex; align-items: center; gap: 8px; white-space: nowrap;">
-            <i data-lucide="sparkles" size="14"></i> LIVE AI REPORT
-        </div>
-        <div id="ai-insight-text" style="color: #f1f5f9; font-size: 1rem; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-            {{ ai_insight if ai_insight else "실시간 운영 데이터를 분석하여 인사이트를 생성 중입니다..." }}
-        </div>
-        <div style="margin-left: auto; color: #64748b; font-size: 0.75rem; font-weight: 600;">
-            <i data-lucide="refresh-cw" size="12" style="vertical-align: middle;"></i> 5분 마다 갱신됨
-        </div>
-    </div>
 
     <div class="main-layout">
-        <!-- 좌측: 실시간 직원 호출(서비스 요청) -->
-        <div class="sidebar-overlay" id="service-overlay" onclick="toggleServiceSidebar()"></div>
-        <div class="sidebar service-sidebar" id="service-sidebar">
-            <div class="sidebar-title" style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <i data-lucide="bell-ring" style="color: #3498db;"></i> 호출 현황
-                </div>
-                <button onclick="toggleServiceSidebar()" style="background:none; border:none; color:#666; cursor:pointer;">
-                    <i data-lucide="x" size="20"></i>
-                </button>
+        <!-- 좌측: 호출 현황 -->
+        <div class="sidebar" id="service-sidebar">
+            <div style="padding: 20px; border-bottom: 1px solid #222; font-weight: bold; display: flex; align-items: center; gap: 10px;">
+                <i data-lucide="bell-ring" style="color: var(--royal-gold);"></i> 호출 현황
             </div>
-            
-            <div id="service-request-list" style="flex: 1; overflow-y: auto;">
+            <div id="service-request-list" style="flex: 1; overflow-y: auto; padding: 15px;">
                 <div style="text-align: center; color: #444; padding: 40px 0;">호출이 없습니다.</div>
             </div>
         </div>
 
-        <!-- 메인: 테이블 현황 -->
+        <!-- 중앙: 테이블 현황 -->
         <div class="tables-area">
             <div class="tables-grid" id="tables-grid">
-                <div class="empty-state">로딩 중...</div>
+                <div style="text-align: center; color: #444; padding: 100px 0;">테이블 데이터를 불러오는 중...</div>
             </div>
         </div>
 
-        <!-- 우측: 대기 현황 -->
-        <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleWaitingSidebar()"></div>
-        <div class="sidebar waiting-sidebar" id="waiting-sidebar">
-            <div class="sidebar-title" style="border-bottom: none; padding-bottom: 0; display: flex; justify-content: space-between; align-items: start; margin-bottom: 20px;">
-                <div style="flex: 1;">
-                    <button onclick="enterFirstWaiting()" class="enter-btn" style="background: var(--royal-gold); color: #000; font-size: 1.1rem; padding: 12px; border-radius: 8px; border: none; display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%;">
-                        <i data-lucide="check-circle"></i> 다음 입장
-                    </button>
-                </div>
-                <button onclick="toggleWaitingSidebar()" style="background:none; border:none; color:#666; cursor:pointer; margin-left: 15px; padding-top: 5px;">
-                    <i data-lucide="x" size="20"></i>
+        <!-- 우측: 대기 현황 (필요 시 숨김/표시 가능) -->
+        <div class="sidebar" id="waiting-sidebar" style="border-left: 1px solid #222; border-right: none;">
+            <div style="padding: 20px; border-bottom: 1px solid #222;">
+                <button onclick="enterFirstWaiting()" style="width:100%; background:var(--royal-gold); border:none; padding:12px; border-radius:8px; font-weight:bold; cursor:pointer;">
+                    <i data-lucide="check-circle" size="16"></i> 다음 대기 입장
                 </button>
             </div>
-
-            <div style="padding: 10px 0; border-bottom: 1px solid var(--border-gold); font-size: 1.1rem; color: var(--royal-gold); font-weight: bold; display: flex; align-items: center; gap: 8px;">
-                <i data-lucide="users" size="18"></i> 대기 명단
-            </div>
-
-            <div id="waiting-list" style="margin-top: 15px; flex: 1; overflow-y: auto; min-height: 200px;">
-                <div style="text-align: center; color: #444; padding: 40px 0;">데이터를 불러오는 중...</div>
+            <div id="waiting-list" style="flex: 1; overflow-y: auto; padding: 15px;">
+                <div style="text-align: center; color: #444; padding: 40px 0;">대기 명단 로딩 중...</div>
             </div>
         </div>
     </div>
 
-    <!-- 알림음 -->
-    <audio id="chime-new" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"></audio>
+    <div id="notif-stack"></div>
 
-    <!-- 결제 및 포인트 모달 -->
-    <div id="payment-modal" class="confirm-modal-overlay">
-        <div class="confirm-modal-inner" style="width: 380px;">
-            <h4 id="payment-title">결제 및 포인트 적립</h4>
-            <div style="text-align: left; margin-bottom: 20px; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 10px;">
-                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                    <span>총 결제 금액:</span>
-                    <span id="payment-total-price" style="font-weight: bold; color: var(--royal-gold);">0원</span>
-                </div>
-            </div>
+    <!-- 결제 모달 (기존 고급 기능 유지) -->
+    <div id="payment-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:3000; align-items:center; justify-content:center;">
+        <div style="background:#111; border:1px solid #333; padding:30px; border-radius:20px; width:400px; text-align:center;">
+            <h2 id="payment-title" style="margin-top:0;">결제 확인</h2>
+            <div id="payment-total-price" style="font-size:2rem; font-weight:900; color:var(--royal-gold); margin:20px 0;">0원</div>
             
-            <div style="margin-bottom: 15px;">
-                <label style="display: block; font-size: 0.8rem; color: #888; margin-bottom: 5px;">휴대폰 번호 (포인트 적립/사용)</label>
-                <input type="tel" id="cust-phone" placeholder="010-0000-0000" style="width: 100%; padding: 12px; background: #222; border: 1px solid #444; color: white; border-radius: 8px; text-align: center; font-size: 1.2rem;">
-            </div>
-
-            <div id="point-info-area" style="display: none; margin-bottom: 20px; background: rgba(212, 175, 55, 0.1); padding: 10px; border-radius: 8px; border: 1px solid var(--border-gold);">
-                <div style="display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 8px;">
-                    <span>고객 등급:</span>
-                    <span id="cust-level" style="font-weight: 900; color: var(--royal-gold);">일반 고객</span>
-                </div>
-                <div style="display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 8px;">
-                    <span>누적 방문:</span>
-                    <span id="cust-visits" style="font-weight: bold;">1회</span>
-                </div>
-                <div style="display: flex; justify-content: space-between; font-size: 0.9rem;">
-                    <span>보유 포인트:</span>
-                    <span id="cust-points" style="font-weight: bold;">0 P</span>
-                </div>
-                <div id="point-use-row" style="display: none; margin-top: 10px;">
-                    <button id="use-points-btn" class="cbtn cbtn-ok" style="width: 100%; background: var(--royal-gold); color: black;">10,000 P 감면 적용</button>
-                </div>
-            </div>
-
-            <p style="font-size: 0.75rem; color: #666; margin-bottom: 20px;">* 포인트는 최종 적립일로부터 1년 후 자동 소멸됩니다.</p>
-
-            <div class="confirm-modal-btns">
-                <button class="cbtn cbtn-cancel" onclick="closePaymentModal()">취소</button>
-                <button class="cbtn cbtn-ok" id="payment-final-btn" style="background: var(--royal-red);">결제 완료</button>
-                <button class="cbtn cbtn-ok" style="grid-column: span 2; background: #0064ff; margin-top: 10px;" id="show-bank-qr-btn">
-                    <i data-lucide="qr-code" size="18"></i> 토스 계좌이체 QR 보이기
-                </button>
-                <button class="cbtn cbtn-ok" style="grid-column: span 2; background: #333; margin-top: 5px; font-size: 0.8rem;" id="view-mobile-receipt-btn">
-                    <i data-lucide="file-text" size="16" style="vertical-align: middle;"></i> 모바일 영수증 보기
-                </button>
-            </div>
+            <input type="tel" id="cust-phone" placeholder="포인트 적립 휴대폰 번호" style="width:100%; padding:15px; background:#000; border:1px solid #444; color:#fff; border-radius:10px; margin-bottom:15px; text-align:center; font-size:1.2rem;">
             
-            <!-- QR 표시 구역 (기본 숨김) -->
-            <div id="payment-qr-area" style="display: none; margin-top: 20px; padding: 20px; background: white; border-radius: 12px; text-align: center;">
-                <div id="payment-qrcode" style="display: inline-block;"></div>
-                <p style="margin-top: 10px; color: #000; font-size: 0.9rem; font-weight: bold; line-height: 1.4;">
-                    카메라로 스캔하면<br><span style="color: #0064ff;">토스 송금 화면</span>으로 연결됩니다.
-                </p>
-                <button class="cbtn cbtn-cancel" style="width: 100%; margin-top: 10px;" onclick="hideBankQR()">QR 닫기</button>
+            <div id="point-info-area" style="display:none; background:rgba(212,175,55,0.1); padding:15px; border-radius:10px; margin-bottom:20px; text-align:left;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:8px;"><span>보유 포인트:</span><span id="cust-points" style="font-weight:bold;">0 P</span></div>
+                <button id="use-points-btn" style="width:100%; background:var(--royal-gold); border:none; padding:10px; border-radius:6px; font-weight:bold; cursor:pointer; display:none;">10,000 P 사용하기</button>
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                <button class="action-btn btn-serve" id="payment-final-btn" style="margin:0;">결제 완료</button>
+                <button onclick="closePaymentModal()" style="background:#333; border:none; color:#fff; border-radius:10px;">닫기</button>
+                <button id="show-bank-qr-btn" style="grid-column:span 2; background:#0064ff; border:none; color:#fff; padding:12px; border-radius:10px; margin-top:10px; cursor:pointer;">토스 계좌이체 QR</button>
+                <button id="view-mobile-receipt-btn" style="grid-column:span 2; background:#222; border:none; color:#fff; padding:10px; border-radius:10px; font-size:0.8rem; cursor:pointer;">모바일 영수증 보기</button>
+            </div>
+
+            <div id="payment-qr-area" style="display:none; margin-top:20px; padding:15px; background:#fff; border-radius:10px; color:#000;">
+                <div id="payment-qrcode" style="display:inline-block;"></div>
+                <p style="font-size:0.8rem; font-weight:bold; margin-top:10px;">토스 송금 링크 QR</p>
             </div>
         </div>
     </div>
 
     <script>
-        // Lucide 아이콘 초기화
-        lucide.createIcons();
-
-        let sessions = {};
         const socket = io();
-
-        // 1. 소켓 통신 시스템
+        let sessions = {};
+        
         socket.on('connect', () => {
-            console.log("Counter System Connected");
             socket.emit('join', { store_id: '{{ store.id }}' });
             forceReSync();
         });
 
-        socket.on('new_order', (order) => {
-            playAudio('new');
-            processOrder(order);
-        });
-
-        socket.on('order_status_update', (order) => {
-            processOrder(order);
-        });
-
-        socket.on('service_request', () => {
-            playAudio('new');
-            loadServiceRequests(true); // true: auto-open if needed
-        });
-
-        socket.on('waiting_update', () => {
-            loadWaitingList(true); // true: auto-open if needed
-        });
-
-        socket.on('table_status_update', (data) => {
-            const sid = data.session_id || (data.table_id ? `legacy-${data.table_id}` : null);
-            if (data.status === 'paid') {
-                if (sid) fadeOutCard(sid);
-                else forceReSync();
-            } else {
-                if (sid && sessions[sid]) {
-                    sessions[sid].status = data.status;
-                    if (data.status === 'served') {
-                        Object.values(sessions[sid].orders).forEach(o => {
-                            if (o.status === 'ready') o.status = 'served';
-                        });
-                    }
-                    render();
-                }
-            }
-        });
-
-        socket.on('new_service_request', (req) => {
-            playAudio('new');
-            loadServiceRequests(true); // 자동 열림 인자 추가
-        });
-
-        socket.on('service_request_completed', () => {
-            loadServiceRequests();
-        });
-
-        // 2. 데이터 처리 엔진
-        async function loadServiceRequests(autoOpen = false) {
-            try {
-                const res = await fetch(`/api/{{ store.id }}/service_requests`);
-                const list = await res.json();
-                
-                const badge = document.getElementById('call-badge-count');
-                const btn = document.getElementById('btn-toggle-service');
-                const sidebar = document.getElementById('service-sidebar');
-
-                if (list.length > 0) {
-                    badge.innerText = list.length;
-                    badge.style.display = 'inline-block';
-                    btn.classList.add('has-content');
-                    // 호출이 새로 들어오면 사이드바가 닫혀있을 때 자동으로 엶
-                    if (autoOpen && !sidebar.classList.contains('active')) {
-                        toggleServiceSidebar();
-                    }
-                } else {
-                    badge.style.display = 'none';
-                    btn.classList.remove('has-content');
-                    // [기능 추가] 호출이 0명이면 자동으로 사이드바 닫기
-                    if (sidebar.classList.contains('active')) {
-                        sidebar.classList.remove('active');
-                        updateLayout();
-                    }
-                }
-
-                const container = document.getElementById('service-request-list');
-                if (!container) return;
-
-                if (list.length === 0) {
-                    container.innerHTML = '<div style="text-align: center; color: #444; padding: 40px 0;">호출이 없습니다.</div>';
-                    return;
-                }
-                
-                container.innerHTML = list.map(req => `
-                    <div class="wait-card" style="border-left: 8px solid #3498db; padding: 20px; margin-bottom: 20px; background: #1a1a1a; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                            <span style="font-size: 1.4rem; font-weight: 900; color: #fff; letter-spacing: -0.5px;">
-                                ${req.table_name ? req.table_name : (req.table_id ? '테이블 ' + req.table_id : '테이블')}
-                            </span>
-                            <button class="cbtn cbtn-ok" style="padding: 8px 18px; font-size: 0.95rem; background: #3498db; border: none; font-weight: 800;" onclick="completeServiceRequest(${req.id})">처리완료</button>
-                        </div>
-                        <div style="margin-bottom: 15px;">
-                            <div style="font-size: 1.8rem; font-weight: 900; color: var(--royal-gold); line-height: 1.2;">
-                                ${req.content || '🔔 일반 호출'}
-                            </div>
-                        </div>
-                        <div style="font-size: 1.2rem; color: #ff6b6b; font-weight: 900; text-align: right; border-top: 1px solid #333; padding-top: 10px; margin-top: 10px;">
-                            <i data-lucide="clock" size="18" style="vertical-align: middle;"></i> 
-                            ${Math.max(0, Math.floor((new Date() - new Date(req.created_at + (req.created_at.endsWith('Z') ? '' : 'Z'))) / 60000))}분 경과
-                        </div>
-                    </div>
-                `).join('');
-                lucide.createIcons();
-            } catch (e) { console.error(e); }
-        }
-
-        async function completeServiceRequest(reqId) {
-            try {
-                await fetch(`/api/{{ store.id }}/service_request/${reqId}/complete`, { method: 'POST' });
-                loadServiceRequests();
-            } catch (e) { console.error(e); }
-        }
-
-        async function loadWaitingList(autoOpen = false) {
-            const container = document.getElementById('waiting-list');
-            if (!container) return;
-
-            try {
-                const res = await fetch('/api/{{ store.id }}/waiting/list');
-                if (!res.ok) throw new Error("API Error");
-                const list = await res.json();
-                
-                const sidebar = document.getElementById('waiting-sidebar');
-                if (list.length > 0) {
-                    badge.innerText = list.length;
-                    badge.style.display = 'inline-block';
-                    btn.classList.add('has-content');
-                    if (autoOpen && !sidebar.classList.contains('active')) {
-                        toggleWaitingSidebar();
-                    }
-                } else {
-                    badge.style.display = 'none';
-                    btn.classList.remove('has-content');
-                    // [기능 추가] 대기자가 0명이면 자동으로 사이드바 닫기
-                    if (sidebar.classList.contains('active')) {
-                        sidebar.classList.remove('active');
-                        updateLayout();
-                    }
-                }
-                
-                if (list.length === 0) {
-                    container.innerHTML = '<div style="text-align: center; color: #666; padding: 40px 0;">대기 손님이 없습니다.</div>';
-                    return;
-                }
-                
-                container.innerHTML = list.map(w => {
-                    const createdDate = new Date(w.created_at + 'Z');
-                    const diffMins = Math.max(0, Math.floor((new Date() - createdDate) / 60000));
-                    
-                    return `
-                    <div class="wait-card" style="padding: 12px; border-left: 4px solid var(--royal-gold); margin-bottom: 10px;">
-                        <div class="wait-no" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-                            <span style="font-size: 1.1rem;">대기 ${w.waiting_no}번</span>
-                            <div style="display: flex; gap: 5px;">
-                                <button class="enter-btn" style="width: auto; padding: 3px 8px; font-size: 0.75rem;" onclick="executeNotify(${w.id})">호출</button>
-                                <button class="enter-btn" style="width: auto; padding: 3px 8px; font-size: 0.75rem; border-color: #e67e22; color: #e67e22;" onclick="executeCancel(${w.id})">취소</button>
-                                <button class="enter-btn" style="width: auto; padding: 3px 10px; font-size: 0.75rem; background: var(--royal-gold); color: black;" onclick="executeEnter(${w.id})">입장</button>
-                            </div>
-                        </div>
-                        <div class="wait-info" style="margin-bottom: 0; font-size: 0.85rem;">
-                            ${w.phone} / ${w.people}명 / <span style="color: var(--royal-gold);">${diffMins}분</span>
-                        </div>
-                    </div>
-                `}).join('');
-                lucide.createIcons();
-            } catch (e) { 
-                console.error("Wait List Error:", e);
-            }
-        }
-
-        function updateLayout() {
-            if (window.innerWidth <= 1024) return; // 모바일은 별도 처리
-            const main = document.querySelector('.main-layout');
-            const leftActive = document.getElementById('service-sidebar').classList.contains('active');
-            const rightActive = document.getElementById('waiting-sidebar').classList.contains('active');
-
-            main.classList.remove('show-left', 'show-right', 'show-both');
-            if (leftActive && rightActive) main.classList.add('show-both');
-            else if (leftActive) main.classList.add('show-left');
-            else if (rightActive) main.classList.add('show-right');
-        }
+        socket.on('new_order', forceReSync);
+        socket.on('order_status_update', forceReSync);
+        socket.on('table_status_update', forceReSync);
+        socket.on('new_service_request', (d) => { createNotif('call', d); loadServiceRequests(); });
+        socket.on('bank_deposit_received', (d) => createNotif('pay', d));
+        socket.on('waiting_update', loadWaitingList);
 
         async function forceReSync() {
             try {
-                // 1. 호출/대기 목록 갱신
-                await Promise.all([loadServiceRequests(), loadWaitingList()]);
-                
-                // 2. 미결제 주문 내역(Active Sessions) 복원 로직 추가
                 const res = await fetch(`/api/{{ store.id }}/orders`);
-                const activeOrders = await res.json();
-                
-                // 로컬 세션 객체 초기화 후 재생성
+                const orders = await res.json();
                 sessions = {};
-                activeOrders.forEach(order => {
-                    processOrder(order, false); // false: Rerender 건너뛰고 누적만 함
+                orders.forEach(o => {
+                    if (o.status === 'cancelled' || o.status === 'paid') return;
+                    const sid = o.session_id || `legacy-${o.table_id}`;
+                    if (!sessions[sid]) sessions[sid] = { table_id: o.table_id, orders: {}, total: 0, status: 'pending', is_prepaid: false };
+                    sessions[sid].orders[o.id] = o;
+                    if(o.is_prepaid) sessions[sid].is_prepaid = true;
                 });
-                
                 render();
-            } catch (e) { 
-                console.error("복구 오류:", e); 
-            }
+            } catch (e) { console.error(e); }
         }
 
-        function toggleServiceSidebar() {
-            const sidebar = document.getElementById('service-sidebar');
-            const overlay = document.getElementById('service-overlay');
-            sidebar.classList.toggle('active');
-            if (window.innerWidth <= 1024) {
-                overlay.classList.toggle('active');
-            } else {
-                updateLayout();
-            }
-        }
-
-        function toggleWaitingSidebar() {
-            const sidebar = document.getElementById('waiting-sidebar');
-            const overlay = document.getElementById('sidebar-overlay');
-            sidebar.classList.toggle('active');
-            if (window.innerWidth <= 1024) {
-                overlay.classList.toggle('active');
-            } else {
-                updateLayout();
-            }
-        }
-
-        function processOrder(order, shouldRender = true) {
-            const sid = order.session_id || `legacy-${order.table_id}`;
-            if (!sessions[sid]) {
-                sessions[sid] = { table_id: order.table_id, orders: {}, total: 0, status: 'pending' };
-            }
-            sessions[sid].orders[order.id] = order;
-            sessions[sid].table_id = order.table_id;
-
-            const orderList = Object.values(sessions[sid].orders);
-            const anyReady = orderList.some(o => o.status === 'ready');
-            const allServed = orderList.every(o => o.status === 'served');
-
-            if (anyReady) {
-                sessions[sid].status = 'ready';
-            } else if (allServed && orderList.length > 0) {
-                sessions[sid].status = 'served';
-            } else {
-                sessions[sid].status = 'pending';
-            }
-
-            sessions[sid].total = orderList.reduce((sum, o) => sum + o.total_price, 0);
-            if (shouldRender) render();
-        }
-
-        // 3. UI 렌더링
         function render() {
-            const container = document.getElementById('tables-grid');
-            container.innerHTML = '';
-            const keys = Object.keys(sessions);
-            if (keys.length === 0) {
-                container.innerHTML = '<div class="empty-state">현재 식사 중인 테이블이 없습니다.</div>';
-                return;
+            const grid = document.getElementById('tables-grid');
+            grid.innerHTML = '';
+            const list = Object.values(sessions).sort((a,b) => a.table_id - b.table_id);
+            if(list.length === 0) { 
+                grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:100px; color:#444;">현재 홀에 진행 중인 주문이 없습니다.</div>'; 
+                return; 
             }
 
-            keys.sort((a, b) => sessions[a].table_id - sessions[b].table_id).forEach(sid => {
-                const session = sessions[sid];
-                const orderValues = Object.values(session.orders);
-                const allItems = orderValues.flatMap(o => o.items || []);
+            list.forEach(s => {
+                const sid = Object.keys(sessions).find(k => sessions[k] === s);
+                const ol = Object.values(s.orders);
+                const sTotal = ol.reduce((sum, o) => sum + (o.items||[]).filter(it=>it.status!=='cancelled').reduce((ism, it) => ism + (it.price * it.quantity), 0), 0);
                 
-                // Get earliest order details for the title
-                const sortedOrders = [...orderValues].sort((o1, o2) => new Date(o1.created_at + 'Z') - new Date(o2.created_at + 'Z'));
-                const firstOrder = sortedOrders.length > 0 ? sortedOrders[0] : null;
-                // 주문번호 표기: ORD-... 가 아닌 3자리 session_id를 보여줍니다. legacy인 경우 대체 텍스트 적용.
-                const displayId = sid.startsWith('legacy-') ? '현장' : sid;
-                
-                let timeStr = '';
-                if (firstOrder && firstOrder.created_at) {
-                    const diffMins = Math.max(0, Math.floor((new Date() - new Date(firstOrder.created_at + 'Z')) / 60000));
-                    timeStr = `경과 ${diffMins}분`;
-                }
+                // 결정적 상태 계산
+                const anyReady = ol.some(o => o.status === 'ready');
+                const allServed = ol.every(o => o.status === 'served');
+                const currentStatus = anyReady ? 'ready' : (allServed ? 'served' : 'pending');
 
-                // [신규] 현금영수증 신청 여부 확인
-                const crRequest = orderValues.find(o => o.cash_receipt_type);
-                let crHtml = '';
-                if (crRequest) {
-                    crHtml = `
-                        <div style="margin-top: -10px; margin-bottom: 15px; padding: 8px 12px; background: rgba(59, 130, 246, 0.1); border-radius: 8px; border: 1px solid rgba(59, 130, 246, 0.3); font-size: 0.8rem; color: #3b82f6; display: flex; align-items: center; gap: 8px;">
-                            <i data-lucide="file-text" size="14"></i>
-                            <span>현금영수증: ${crRequest.cash_receipt_type === 'personal' ? '개인' : '사업자'} (${crRequest.cash_receipt_number})</span>
-                        </div>
-                    `;
-                }
+                // 현금영수증 신청 여부
+                const crQuery = ol.find(o => o.cash_receipt_type);
+                let crHtml = crQuery ? `
+                    <div style="margin-top:10px; padding:8px; background:rgba(59,130,246,0.15); border-radius:8px; font-size:0.8rem; color:#60a5fa; border:1px solid rgba(59,130,246,0.3);">
+                        📄 현금영수증: ${crQuery.cash_receipt_type === 'personal' ? '개인' : '사업자'} (${crQuery.cash_receipt_number})
+                    </div>
+                ` : '';
 
                 const card = document.createElement('div');
-                card.id = `card-${sid}`;
-                card.className = `table-card ${session.status === 'ready' ? 'ready-to-serve' : ''}`;
+                card.className = `table-card ${currentStatus === 'ready' ? 'ready-to-serve' : ''}`;
                 card.innerHTML = `
-                    <div class="status-badge status-${session.status}">${statusToText(session.status)}</div>
-                    <h3>테이블 ${session.table_id} <span style="font-size: 1.1rem; color: #bbb; font-weight: normal;">( ${displayId} ) ${timeStr}</span></h3>
+                    <div class="status-badge status-${currentStatus}">${currentStatus==='ready'?'서빙대기':(currentStatus==='served'?'식사중':'조리중')}</div>
+                    <div style="font-size:1.4rem; font-weight:900;">${s.table_id}번 테이블</div>
+                    <div style="font-size:0.8rem; color:#555; margin-bottom:10px;">(${sid})</div>
+                    ${s.is_prepaid ? '<div class="prepaid-badge">✨ 선결제 완료</div>' : ''}
                     <div class="items-list">
-                        ${allItems.map(i => `
-                            <div class="item-row">
-                                <span>${i.name}</span>
-                                <span>x ${i.quantity}</span>
-                            </div>
-                        `).join('')}
+                        ${ol.flatMap(o => (o.items||[]).filter(it=>it.status!=='cancelled').map(it => `<div class="item-row"><span>${it.name}</span><span>x${it.quantity}</span></div>`)).join('')}
                     </div>
                     ${crHtml}
-                    <div class="price-total">${session.total.toLocaleString()}원</div>
-                    ${renderActionBtn(sid, session.status)}
+                    <div class="price-total">${sTotal.toLocaleString()}원</div>
+                    <div class="btns">
+                        ${renderActionBtn(sid, currentStatus)}
+                    </div>
                 `;
-                container.appendChild(card);
+                grid.appendChild(card);
             });
             lucide.createIcons();
         }
 
-        function statusToText(s) {
-            switch(s) {
-                case 'pending': return '조리';
-                case 'ready': return '서빙';
-                case 'served': return '식사';
-                default: return '진행';
-            }
-        }
-
         function renderActionBtn(sid, status) {
-            if (status === 'ready') {
-                return `<button class="action-btn btn-serve" id="btn-serve-${sid}" onclick="executeServe('${sid}')"><i data-lucide="check-circle"></i> 서빙</button>`;
-            } else if (status === 'served') {
-                return `<button class="action-btn btn-pay" id="btn-pay-${sid}" onclick="executePay('${sid}')"><i data-lucide="credit-card"></i> 결제</button>`;
-            } else {
-                return `<button class="action-btn btn-waiting" disabled><i data-lucide="clock"></i> 조리 중</button>`;
-            }
+            if (status === 'ready') return `<button class="action-btn btn-serve" onclick="executeServe('${sid}')">서빙하기</button>`;
+            if (status === 'served') return `<button class="action-btn btn-pay" onclick="executePay('${sid}')">결제/퇴실</button>`;
+            return `<button class="action-btn btn-waiting" disabled>조리 중...</button>`;
         }
 
-        // 4. 액션 함수
-        function executeServe(sid) {
-            const btn = document.getElementById(`btn-serve-${sid}`);
-            if (btn) {
-                btn.disabled = true;
-                btn.innerHTML = '<i data-lucide="loader-2" class="loading-spin"></i> 처리 중..';
-                lucide.createIcons();
-            }
+        async function executeServe(sid) {
             socket.emit('set_served', { store_id: '{{ store.id }}', session_id: sid, table_id: sessions[sid].table_id });
+            setTimeout(forceReSync, 300);
         }
 
         function executePay(sid) {
             const session = sessions[sid];
-            if (!session) return;
-            
             const modal = document.getElementById('payment-modal');
             const phoneInput = document.getElementById('cust-phone');
             const totalDisplay = document.getElementById('payment-total-price');
-            const pointArea = document.getElementById('point-info-area');
-            const useBtn = document.getElementById('use-points-btn');
             
-            totalDisplay.innerText = session.total.toLocaleString() + '원';
+            totalDisplay.innerText = Object.values(session.orders).reduce((sum, o) => sum + o.total_price, 0).toLocaleString() + '원';
+            modal.style.display = 'flex';
             
-            // Try to find if any order in this session had a phone number
-            const sessionOrders = Object.values(session.orders);
-            const savedPhone = sessionOrders.find(o => o.phone)?.phone || '';
-            phoneInput.value = savedPhone;
-            
-            pointArea.style.display = 'none';
-            modal.classList.add('active');
-            
-            // Trigger point lookup if phone exists
-            if (savedPhone) {
-                const event = new Event('input');
-                phoneInput.dispatchEvent(event);
-            }
-
-            // [추가] 토스 계좌이체 QR 생성 로직
-            document.getElementById('payment-qr-area').style.display = 'none';
-            document.getElementById('show-bank-qr-btn').onclick = () => {
-                const qrArea = document.getElementById('payment-qr-area');
-                const qrContainer = document.getElementById('payment-qrcode');
-                qrContainer.innerHTML = '';
-                
-                // 첫 번째 주문번호를 메모로 사용 (없으면 테이블ID)
-                const firstOrder = sessionOrders.find(o => o.order_no);
-                const orderMemo = firstOrder ? firstOrder.order_no : `TABLE${session.table_id}`;
-                
-                // 베이스 URL 생성
-                const baseHost = window.location.origin;
-                const paymentUrl = `${baseHost}/{{ store.id }}/payment_info?amount=${session.total}&memo=${orderMemo}`;
-                
-                new QRCode(qrContainer, {
-                    text: paymentUrl,
-                    width: 180,
-                    height: 180,
-                    colorDark : "#000000",
-                    colorLight : "#ffffff",
-                    correctLevel : QRCode.CorrectLevel.H
-                });
-                
-                qrArea.style.display = 'block';
-                qrArea.scrollIntoView({ behavior: 'smooth' });
-            };
-
-            // [추가] 모바일 영수증 보기 버튼 연결
-            const receiptBtn = document.getElementById('view-mobile-receipt-btn');
-            const firstOrd = sessionOrders[0];
-            if (firstOrd) {
-                receiptBtn.onclick = () => window.open(`/receipt/${firstOrd.id}`, '_blank');
-                receiptBtn.style.display = 'block';
-            } else {
-                receiptBtn.style.display = 'none';
-            }
-            
-            let usePoints = 0;
-            
-            phoneInput.oninput = async (e) => {
-                const val = e.target.value.replace(/[^0-9]/g, '');
-                if (val.length >= 10) {
-                    try {
-                        const res = await fetch(`/api/{{ store.id }}/customer`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ phone: val })
-                        });
-                        const cust = await res.json();
-                        if (cust.phone) {
-                            pointArea.style.display = 'block';
-                            document.getElementById('cust-visits').innerText = (cust.visit_count + 1) + '회차 방문';
-                            
-                            let level = '초보 단골';
-                            if (cust.visit_count >= 10) level = '💎 VVIP 고객';
-                            else if (cust.visit_count >= 5) level = '👑 우수 단골';
-                            else if (cust.visit_count >= 1) level = '⭐️ 단골';
-                            
-                            document.getElementById('cust-level').innerText = level;
-                            document.getElementById('cust-points').innerText = cust.points.toLocaleString() + ' P';
-                            if (cust.points >= 10000) {
-                                document.getElementById('point-use-row').style.display = 'block';
-                                useBtn.onclick = () => {
-                                    usePoints = 10000;
-                                    useBtn.innerText = '감면 적용됨 (-10,000원)';
-                                    useBtn.disabled = true;
-                                };
-                            } else {
-                                document.getElementById('point-use-row').style.display = 'none';
-                            }
-                        }
-                    } catch (err) { console.error(err); }
-                }
-            };
-
             document.getElementById('payment-final-btn').onclick = () => {
-                const btn = document.getElementById(`btn-pay-${sid}`);
-                if (btn) {
-                    btn.disabled = true;
-                    btn.innerHTML = '<i data-lucide="loader-2" class="loading-spin"></i> 처리 중..';
-                    lucide.createIcons();
-                }
                 socket.emit('set_paid', { 
                     store_id: '{{ store.id }}', 
                     session_id: sid, 
                     table_id: session.table_id,
-                    phone: phoneInput.value.replace(/[^0-9]/g, ''),
-                    use_points: usePoints
+                    phone: phoneInput.value.replace(/[^0-9]/g, '')
                 });
                 closePaymentModal();
+                setTimeout(forceReSync, 300);
             };
-        }
 
-        function closePaymentModal() {
-            document.getElementById('payment-modal').classList.remove('active');
-            hideBankQR();
-        }
-
-        function hideBankQR() {
-            document.getElementById('payment-qr-area').style.display = 'none';
-        }
-
-        // 커스텀 모달 로직
-        function showConfirmModal(title, msg, onConfirm) {
-            document.getElementById('confirm-title').innerText = title;
-            document.getElementById('confirm-message').innerText = msg;
-            const modal = document.getElementById('confirm-modal');
-            const okBtn = document.getElementById('confirm-ok-btn');
-            
-            modal.classList.add('active');
-            okBtn.onclick = () => {
-                closeConfirmModal();
-                onConfirm();
+            // QR 로직
+            const qrBtn = document.getElementById('show-bank-qr-btn');
+            qrBtn.onclick = () => {
+                const qrArea = document.getElementById('payment-qr-area');
+                document.getElementById('payment-qrcode').innerHTML = '';
+                const sum = Object.values(session.orders).reduce((sm, o) => sm + o.total_price, 0);
+                const orderNo = Object.values(session.orders).find(o => o.order_no)?.order_no || 'T'+session.table_id;
+                const payUrl = `${window.location.origin}/{{ store.id }}/payment_info?amount=${sum}&memo=${orderNo}`;
+                new QRCode(document.getElementById('payment-qrcode'), { text: payUrl, width: 150, height: 150 });
+                qrArea.style.display = 'block';
             };
+
+            // 영수증 버튼
+            const rcptBtn = document.getElementById('view-mobile-receipt-btn');
+            const firstO = Object.values(session.orders)[0];
+            rcptBtn.onclick = () => window.open(`/receipt/${firstO.id}`, '_blank');
         }
 
-        function closeConfirmModal() {
-            document.getElementById('confirm-modal').classList.remove('active');
+        function closePaymentModal() { document.getElementById('payment-modal').style.display = 'none'; }
+        function createNotif(type, d) {
+            const stack = document.getElementById('notif-stack');
+            const card = document.createElement('div');
+            card.className = 'notif';
+            card.style.background = type === 'pay' ? '#059669' : '#dc2626';
+            card.innerHTML = `
+                <div style="display:flex; justify-content:space-between; font-size:0.75rem; margin-bottom:5px;"><b>${type==='pay'?'💳 입금 알림':'🔔 호출'}</b> <span onclick="this.parentElement.parentElement.remove()" style="cursor:pointer;">✕</span></div>
+                <div style="font-weight:bold;">${d.sender || `테이블 ${d.table_id}`}</div>
+                <div>${d.amount ? d.amount.toLocaleString()+'원' : d.content || '직원을 호출했습니다.'}</div>
+                <button onclick="confirmTask(this, '${type}', '${d.id}')" style="width:100%; margin-top:10px; background:rgba(255,255,255,0.2); border:none; color:#fff; padding:5px; border-radius:5px; cursor:pointer;">확인됨</button>
+            `;
+            stack.prepend(card);
+            try { new Audio("https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3").play(); } catch(e){}
         }
 
-        async function executeNotify(waitId) {
+        async function confirmTask(btn, type, id) {
+            const url = type === 'pay' ? `/api/{{ store.id }}/bank_notification/${id}/confirm` : `/api/{{ store.id }}/service_request/${id}/complete`;
+            if(id && id !== 'undefined') await fetch(url, { method: 'POST' });
+            btn.parentElement.remove();
+            if(type === 'call') loadServiceRequests();
+        }
+
+        async function loadServiceRequests() {
             try {
-                const res = await fetch(`/api/{{ store.id }}/waiting/notify/${waitId}`, { method: 'POST' });
-                const data = await res.json();
-                if (data.status === 'success') {
-                    alert('호출 메시지가 전송되었습니다.');
-                }
-            } catch (e) {
-                console.error(e);
-                alert('호출 중 오류가 발생했습니다.');
+                const res = await fetch(`/api/{{ store.id }}/service_requests/active`);
+                const reqs = await res.json();
+                const list = document.getElementById('service-request-list');
+                list.innerHTML = reqs.length ? '' : '<div style="text-align:center; color:#444; padding:40px 0;">호출이 없습니다.</div>';
+                reqs.forEach(r => {
+                    const div = document.createElement('div');
+                    div.style = "background:#1a1a1a; padding:12px; border-radius:10px; margin-bottom:10px; border-left:4px solid var(--royal-gold);";
+                    div.innerHTML = `<div style="display:flex; justify-content:space-between;"><b>${r.table_id}번 테이블</b> <span style="font-size:0.7rem; color:#666;">${r.time}</span></div><div>${r.content}</div>`;
+                    div.onclick = () => confirmTask(div, 'call', r.id);
+                    list.appendChild(div);
+                });
+            } catch(e){}
+        }
+
+        async function loadWaitingList() {
+            const res = await fetch('/api/{{ store.id }}/waiting/list');
+            const list = await res.json();
+            const el = document.getElementById('waiting-list');
+            el.innerHTML = list.length ? '' : '<div style="text-align:center; color:#444; padding:40px 0;">대기자가 없습니다.</div>';
+            list.forEach(w => {
+                const d = document.createElement('div');
+                d.style = "background:#1a1a1a; padding:12px; border-radius:10px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;";
+                d.innerHTML = `<div><b>${w.name}</b> (${w.party_size}명)<br><small style="color:#666;">${w.phone}</small></div><button onclick="executeEnter('${w.id}')" style="background:var(--royal-gold); border:none; padding:5px 10px; border-radius:5px; font-weight:bold;">입장</button>`;
+                el.appendChild(d);
+            });
+        }
+
+        async function executeEnter(id) {
+            await fetch(`/api/{{ store.id }}/waiting/enter/${id}`, { method: 'POST' });
+            loadWaitingList();
+        }
+
+        async function totalReset() {
+            if(confirm('모든 데이터를 초기화하시겠습니까?')) {
+                await fetch(`/api/{{ store.id }}/stats/reset`, { method: 'POST' });
+                location.reload();
             }
         }
 
-        async function executeCancel(waitId) {
-            if (!confirm('해당 대기를 취소하시겠습니까?')) return;
-            try {
-                const res = await fetch(`/api/{{ store.id }}/waiting/cancel/${waitId}`, { method: 'POST' });
-                const data = await res.json();
-                if (data.status === 'success') {
-                    loadWaitingList();
-                } else {
-                    alert('취소 실패: ' + data.message);
-                }
-            } catch (e) {
-                console.error(e);
-                alert('처리 중 오류가 발생했습니다.');
-            }
-        }
+        // 시계 및 초기화
+        setInterval(() => { document.getElementById('clock').innerText = new Date().toLocaleTimeString(); }, 1000);
+        window.onload = () => { loadServiceRequests(); loadWaitingList(); lucide.createIcons(); };
 
-        async function executeEnter(waitId) {
-            const btn = document.getElementById(`btn-enter-${waitId}`);
-            let originalContent = '';
-            if (btn) {
-                originalContent = btn.innerHTML;
-                btn.disabled = true;
-                btn.innerHTML = '<i data-lucide="loader-2" class="loading-spin"></i>';
-                lucide.createIcons();
-            }
-            try {
-                const res = await fetch(`/api/{{ store.id }}/waiting/enter/${waitId}`, { method: 'POST' });
-                const data = await res.json();
-                
-                if (data.status === 'success') {
-                    loadWaitingList(); // 즉시 목록 갱신
-                } else {
-                    throw new Error(data.message);
-                }
-            } catch (e) {
-                alert('처리 중 오류가 발생했습니다: ' + e.message);
-                if (btn) {
-                    btn.disabled = false;
-                    btn.innerHTML = originalContent;
-                    lucide.createIcons();
-                }
-            }
-        }
-
-        async function enterFirstWaiting() {
-            try {
-                const res = await fetch('/api/{{ store.id }}/waiting/list');
-                const list = await res.json();
-                if (list.length > 0) {
-                    const firstWaitId = list[0].id;
-                    await executeEnter(firstWaitId);
-                } else {
-                    alert('대기 손님이 없습니다.');
-                }
-            } catch (e) {
-                console.error("Enter First Error:", e);
-                alert('처리 중 오류가 발생했습니다.');
-            }
-        }
-
-        function fadeOutCard(sid) {
-            const card = document.getElementById(`card-${sid}`);
-            if (card) {
-                card.style.opacity = '0';
-                card.style.transform = 'scale(0.9)';
-                setTimeout(() => { delete sessions[sid]; render(); }, 300);
-            }
-        }
-
-        function playAudio(type) {
-            const audio = document.getElementById(`chime-${type}`);
-            if (audio) audio.play().catch(() => {});
-        }
-
-        async function resetStats() {
-            if (!confirm('정말 오늘 매출을 초기화하시겠습니까?')) return;
-            await fetch('/api/stats/reset', { method: 'POST' });
-            alert('초기화되었습니다.');
-        }
-
-        // 5. AI 리포트 실시간 갱신 시스템
-        async function refreshAIInsight() {
-            try {
-                const res = await fetch(`/api/{{ store.id }}/ai-insight`);
-                const data = await res.json();
-                if (data.status === 'success') {
-                    const el = document.getElementById('ai-insight-text');
-                    if(el) {
-                        el.style.opacity = '0';
-                        setTimeout(() => {
-                            el.innerText = data.insight;
-                            el.style.opacity = '1';
-                        }, 500);
-                    }
-                }
-            } catch (e) { console.error("AI Insight Refresh Error:", e); }
-        }
-        
-        // 5분마다 자동 갱신
-        setInterval(refreshAIInsight, 300000);
-
-        window.onload = () => {
-            forceReSync();
-            // 30초마다 화면의 모든 경과 시간(분) 및 상태를 자동 갱신
-            setInterval(() => {
-                loadWaitingList();
-                loadServiceRequests();
-                render(); 
-            }, 30000); 
-        };
     </script>
 </body>
 </html>
