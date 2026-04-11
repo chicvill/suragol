@@ -68,6 +68,7 @@
             display: none !important;
         }
     </style>
+    <script src="https://js.tosspayments.com/v1"></script> <!-- 토스페이먼츠 결제창 SDK API -->
 </head>
 <body>
     <!-- [신규] 상단 입금 안내 바 -->
@@ -487,6 +488,27 @@
             if(!crNum.value) crNum.value = val;
         }
 
+        // [추가] 토스페이먼츠 성공 리다이렉트 처리 (테스트 모드용)
+        window.addEventListener('DOMContentLoaded', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('toss_success') === 'true') {
+                const pendingPayload = sessionStorage.getItem('pendingOrderPayload');
+                if (pendingPayload) {
+                    const payload = JSON.parse(pendingPayload);
+                    sessionStorage.removeItem('pendingOrderPayload');
+                    // 결제 성공 후 실제 주문 트리거
+                    showToast("카드 결제 및 주문이 완료되었습니다!");
+                    payload.is_prepaid = true;
+                    // 주소창 파라미터 지우기 (선택사항)
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                    socket.emit('place_order', payload);
+                }
+            } else if (urlParams.get('toss_fail') === 'true') {
+                alert("카드 결제가 취소되었거나 실패했습니다.\n" + (urlParams.get('message') || ''));
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+        });
+
         function placeOrder() {
             if (cart.length === 0) return;
             
@@ -519,8 +541,35 @@
             // Save phone to localStorage for convenience
             if (phone) localStorage.setItem('freeorder_phone', phone);
             
+            // [추가] 토스페이먼츠 결제 분기 (테스트)
+            if (selectedPaymentMethod === 'card') {
+                // 현재 주문 정보를 세션에 임시 저장 (리다이렉트 후 복구)
+                sessionStorage.setItem('pendingOrderPayload', JSON.stringify(payload));
+                
+                // 토스페이먼츠 테스트 클라이언트 키
+                const tossPayments = TossPayments("test_ck_D5GePWvyJnrK0W0k6q8gLzN97Eoq");
+                
+                // 현재 주소 캡처
+                let currentUrl = window.location.href.split('?')[0]; 
+                
+                tossPayments.requestPayment('카드', {
+                    amount: payload.total_price,
+                    orderId: "TEST_" + Date.now(), // 고유 주문번호 생성
+                    orderName: "{{ store.name }} 결제 (" + payload.items.length + "건)",
+                    customerName: depositorName || "식당 손님",
+                    successUrl: currentUrl + "?toss_success=true",
+                    failUrl: currentUrl + "?toss_fail=true"
+                }).catch(function (error) {
+                    if (error.code === 'USER_CANCEL') {
+                        // 결제창 닫힘: 조용히 무시하거나 토스트 메시지
+                    } else {
+                        alert("결제창 호출 오류: " + error.message);
+                    }
+                });
+                return; // 이후의 emit 중지 (리다이렉트가 됨)
+            }
+
             socket.emit('place_order', payload);
-            // alert 로직은 서버 응답(order_success)을 받은 후 처리하도록 이동합니다.
         }
 
         let lastBankData = null;
