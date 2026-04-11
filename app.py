@@ -171,7 +171,8 @@ with app.app_context():
                             conn.commit()
                             print(f"✅ [DB] {table}.{col} 컬럼 확인/생성 완료")
                         except Exception as e:
-                            print(f"⚠️ [DB] {table}.{col} 반영 건너뜀 (이미 존재하거나 오류): {e}")
+                            conn.rollback() # 트랜잭션 록 해제
+                            print(f"⚠️ [DB] {table}.{col} 반영 건너뜀 (이미 존재하거나 오류): {str(e)[:100]}...")
 
             # PIN 자리수 확장 (중요)
             try:
