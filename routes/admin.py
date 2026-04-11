@@ -67,7 +67,17 @@ def init_admin_routes(app):
             # 신규 매장 인스턴스 생성
             # 영업 파트너(staff)가 등록한 경우 본인을 담당 직원으로 자동 지정
             rec_by = user_id if role == 'staff' else None
-            new_store = Store(id=sid, name=name, tables_count=tables, menu_data=menu_data, recommended_by=rec_by)
+            new_store = Store(
+                id=sid, 
+                name=name, 
+                tables_count=tables, 
+                menu_data=menu_data, 
+                recommended_by=rec_by,
+                # [추가] 계좌 정보
+                bank_name=request.form.get('bank_name', '').strip(),
+                account_no=request.form.get('account_no', '').strip(),
+                account_holder=request.form.get('account_holder', '').strip()
+            )
             db.session.add(new_store)
             db.session.commit()
             
@@ -453,6 +463,10 @@ def init_admin_routes(app):
                     recommended_by=partner_id_int,
                     signature_owner=request.form.get('sig_owner'),
                     signature_partner=request.form.get('sig_partner'),
+                    # [추가] 계좌 정보 등록
+                    bank_name=request.form.get('bank_name', '').strip(),
+                    account_no=request.form.get('account_no', '').strip(),
+                    account_holder=request.form.get('account_holder', '').strip(),
                     status='pending',
                     payment_status='paid',
                     expires_at=datetime.utcnow() + timedelta(days=31)

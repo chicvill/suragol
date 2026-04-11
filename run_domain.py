@@ -119,11 +119,11 @@ def main():
     if token:
         print(f"\n✨ 고정 주소로 안전한 통로를 만들고 있습니다...")
         # 토큰 방식은 'tunnel run'이 가장 확실합니다.
-        cmd = [cf_path, "tunnel", "run", "--token", token]
+        cmd = [cf_path, "tunnel", "run", "--token", token, "--protocol", "http2"]
     else:
         print(f"\n✨ 임시 보안 주소를 생성합니다. (Handshake 중...)")
         # 토큰 없을 땐 'tunnel --url' 보다 '--url'만 쓰는 게 더 잘 될 때가 있습니다.
-        cmd = [cf_path, "tunnel", "--url", "http://127.0.0.1:10000"]
+        cmd = [cf_path, "tunnel", "--url", "http://127.0.0.1:10000", "--protocol", "http2"]
 
     print(f"\n[실행 명령어]: {' '.join(cmd)}")
     print("-" * 70)

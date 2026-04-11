@@ -8,6 +8,7 @@
     <!-- Socket.IO & Icons -->
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         :root {
             /* 왕궁 프리미엄 컬러 세트 */
@@ -467,6 +468,21 @@
             <div class="confirm-modal-btns">
                 <button class="cbtn cbtn-cancel" onclick="closePaymentModal()">취소</button>
                 <button class="cbtn cbtn-ok" id="payment-final-btn" style="background: var(--royal-red);">결제 완료</button>
+                <button class="cbtn cbtn-ok" style="grid-column: span 2; background: #0064ff; margin-top: 10px;" id="show-bank-qr-btn">
+                    <i data-lucide="qr-code" size="18"></i> 토스 계좌이체 QR 보이기
+                </button>
+                <button class="cbtn cbtn-ok" style="grid-column: span 2; background: #333; margin-top: 5px; font-size: 0.8rem;" id="view-mobile-receipt-btn">
+                    <i data-lucide="file-text" size="16" style="vertical-align: middle;"></i> 모바일 영수증 보기
+                </button>
+            </div>
+            
+            <!-- QR 표시 구역 (기본 숨김) -->
+            <div id="payment-qr-area" style="display: none; margin-top: 20px; padding: 20px; background: white; border-radius: 12px; text-align: center;">
+                <div id="payment-qrcode" style="display: inline-block;"></div>
+                <p style="margin-top: 10px; color: #000; font-size: 0.9rem; font-weight: bold; line-height: 1.4;">
+                    카메라로 스캔하면<br><span style="color: #0064ff;">토스 송금 화면</span>으로 연결됩니다.
+                </p>
+                <button class="cbtn cbtn-cancel" style="width: 100%; margin-top: 10px;" onclick="hideBankQR()">QR 닫기</button>
             </div>
         </div>
     </div>
@@ -759,6 +775,18 @@
                     timeStr = `경과 ${diffMins}분`;
                 }
 
+                // [신규] 현금영수증 신청 여부 확인
+                const crRequest = orderValues.find(o => o.cash_receipt_type);
+                let crHtml = '';
+                if (crRequest) {
+                    crHtml = `
+                        <div style="margin-top: -10px; margin-bottom: 15px; padding: 8px 12px; background: rgba(59, 130, 246, 0.1); border-radius: 8px; border: 1px solid rgba(59, 130, 246, 0.3); font-size: 0.8rem; color: #3b82f6; display: flex; align-items: center; gap: 8px;">
+                            <i data-lucide="file-text" size="14"></i>
+                            <span>현금영수증: ${crRequest.cash_receipt_type === 'personal' ? '개인' : '사업자'} (${crRequest.cash_receipt_number})</span>
+                        </div>
+                    `;
+                }
+
                 const card = document.createElement('div');
                 card.id = `card-${sid}`;
                 card.className = `table-card ${session.status === 'ready' ? 'ready-to-serve' : ''}`;
@@ -773,6 +801,7 @@
                             </div>
                         `).join('')}
                     </div>
+                    ${crHtml}
                     <div class="price-total">${session.total.toLocaleString()}원</div>
                     ${renderActionBtn(sid, session.status)}
                 `;
@@ -836,6 +865,44 @@
                 const event = new Event('input');
                 phoneInput.dispatchEvent(event);
             }
+
+            // [추가] 토스 계좌이체 QR 생성 로직
+            document.getElementById('payment-qr-area').style.display = 'none';
+            document.getElementById('show-bank-qr-btn').onclick = () => {
+                const qrArea = document.getElementById('payment-qr-area');
+                const qrContainer = document.getElementById('payment-qrcode');
+                qrContainer.innerHTML = '';
+                
+                // 첫 번째 주문번호를 메모로 사용 (없으면 테이블ID)
+                const firstOrder = sessionOrders.find(o => o.order_no);
+                const orderMemo = firstOrder ? firstOrder.order_no : `TABLE${session.table_id}`;
+                
+                // 베이스 URL 생성
+                const baseHost = window.location.origin;
+                const paymentUrl = `${baseHost}/{{ store.id }}/payment_info?amount=${session.total}&memo=${orderMemo}`;
+                
+                new QRCode(qrContainer, {
+                    text: paymentUrl,
+                    width: 180,
+                    height: 180,
+                    colorDark : "#000000",
+                    colorLight : "#ffffff",
+                    correctLevel : QRCode.CorrectLevel.H
+                });
+                
+                qrArea.style.display = 'block';
+                qrArea.scrollIntoView({ behavior: 'smooth' });
+            };
+
+            // [추가] 모바일 영수증 보기 버튼 연결
+            const receiptBtn = document.getElementById('view-mobile-receipt-btn');
+            const firstOrd = sessionOrders[0];
+            if (firstOrd) {
+                receiptBtn.onclick = () => window.open(`/receipt/${firstOrd.id}`, '_blank');
+                receiptBtn.style.display = 'block';
+            } else {
+                receiptBtn.style.display = 'none';
+            }
             
             let usePoints = 0;
             
@@ -895,6 +962,11 @@
 
         function closePaymentModal() {
             document.getElementById('payment-modal').classList.remove('active');
+            hideBankQR();
+        }
+
+        function hideBankQR() {
+            document.getElementById('payment-qr-area').style.display = 'none';
         }
 
         // 커스텀 모달 로직

@@ -234,9 +234,64 @@ def payment_info(store_id):
     store = db.session.get(Store, store_id)
     if not store:
         return "Store not found", 404
-    return render_template('bank_info.html', store=store)
+    
+    # [추가] 쿼리 파라미터 지원 (금액, 메모, 주문ID)
+    amount = request.args.get('amount', '')
+    memo = request.args.get('memo', '')
+    order_id = request.args.get('order_id', '')
+    
+    return render_template('bank_info.html', store=store, amount=amount, memo=memo, order_id=order_id)
 
 
+# [커스텀 필터] 화폐 포맷 (10,000원 형식)
+@app.template_filter('format_currency')
+def format_currency_filter(value):
+    if value is None: return "0원"
+    return "{:,}원".format(value)
+
+# [신규] 디지털 영수증 페이지
+@app.route('/receipt/<order_id>')
+def mobile_receipt(order_id):
+    order = db.session.get(Order, order_id)
+    if not order: return "Order not found", 404
+    store = db.session.get(Store, order.store_id)
+    return render_template('receipt.html', order=order, store=store)
+
+# [API] 현금영수증 신청 정보 저장
+@app.route('/api/order/<order_id>/cash_receipt', methods=['POST'])
+def save_cash_receipt(order_id):
+    order = db.session.get(Order, order_id)
+    if not order: return jsonify({'status': 'error', 'message': 'Order not found'}), 404
+    data = request.json
+    order.cash_receipt_type = data.get('type')
+    order.cash_receipt_number = data.get('number')
+    db.session.commit()
+    return jsonify({'status': 'success'})
+
+# [테스트용] 입금 신호 시뮬레이션 API
+@app.route('/api/payment/mock', methods=['POST'])
+def mock_payment_trigger():
+    data = request.json
+    sender = data.get('sender')
+    amount = int(data.get('amount', 0))
+    
+    # 입금 대기 중인 주문 중 이름과 금액이 일치하는 가장 최근 주문 검색
+    order = Order.query.filter_by(depositor_name=sender, total_price=amount, status='pending').order_by(Order.created_at.desc()).first()
+    
+    if order:
+        order.status = 'paid'
+        order.paid_at = datetime.utcnow()
+        db.session.commit()
+        
+        # 실시간 상태 업데이트 전송
+        socketio.emit('order_update', {
+            'order_id': order.id,
+            'status': 'paid',
+            'payment_status': 'paid'
+        }, room=order.store_id)
+        
+        return jsonify({'status': 'success', 'message': f'Order {order.id} marked as paid.'})
+    return jsonify({'status': 'error', 'message': 'Matching order not found'}), 404
 
 @app.errorhandler(403)
 def forbidden(e):

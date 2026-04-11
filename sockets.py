@@ -44,9 +44,11 @@ def register_socketio_events(socketio):
             from flask import request
             store_obj = db.session.get(Store, slug)
             socketio.emit('order_success', {
+                'order_id': order_id, # [추가] 모바일 영수증 조회용
                 'order_no': order_no, 
                 'depositor_name': depositor_name or "",
                 'total_price': total_price,
+                'payment_method': data.get('payment_method', 'card'), # [추가] 현금영수증 버튼 노출 제어용
                 'bank_name': store_obj.bank_name if store_obj else "",
                 'account_no': store_obj.account_no if store_obj else "",
                 'account_holder': store_obj.account_holder if store_obj else "",

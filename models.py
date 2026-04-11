@@ -102,6 +102,11 @@ class Order(db.Model):
     order_no = db.Column(db.String(10), nullable=True) # [신규] 노출용 3자리 주문번호
     phone = db.Column(db.String(20), nullable=True) # For points
     depositor_name = db.Column(db.String(100), nullable=True) # [신규] 무통장 입금자명
+    
+    # [추가] 현금영수증 정보
+    cash_receipt_type = db.Column(db.String(20), nullable=True)   # personal, business
+    cash_receipt_number = db.Column(db.String(20), nullable=True) 
+    
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     paid_at = db.Column(db.DateTime, nullable=True)
     items = db.relationship('OrderItem', backref='order', lazy=True, cascade="all, delete-orphan")
@@ -116,6 +121,8 @@ class Order(db.Model):
             'session_id': self.session_id,
             'order_no': self.order_no,
             'phone': self.phone,
+            'cash_receipt_type': self.cash_receipt_type,
+            'cash_receipt_number': self.cash_receipt_number,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'items': [item.to_dict() for item in self.items]
         }

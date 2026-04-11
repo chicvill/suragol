@@ -104,9 +104,23 @@
                     </div>
                 </div>
 
+                <div id="checkout-cash-receipt" style="display: none; margin-bottom: 15px; background: rgba(59, 130, 246, 0.05); padding: 12px; border-radius: 10px; border: 1px solid rgba(59, 130, 246, 0.3);">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-bottom: 10px; font-size: 0.85rem; font-weight: bold; color: #fff;">
+                        <input type="checkbox" id="apply-cr" style="width: 18px; height: 18px;" onchange="toggleCheckoutCR()">
+                        <span>현금영수증 신청하시겠습니까?</span>
+                    </label>
+                    <div id="checkout-cr-group" style="display: none;">
+                        <div style="display: flex; gap: 5px; margin-bottom: 10px;">
+                            <button id="cart-cr-personal" onclick="setCartCRType('personal')" style="flex: 1; font-size: 0.75rem; padding: 10px; border-radius: 8px; border: 1px solid #3b82f6; background: rgba(59,130,246,0.1); color: #fff;">개인</button>
+                            <button id="cart-cr-business" onclick="setCartCRType('business')" style="flex: 1; font-size: 0.75rem; padding: 10px; border-radius: 8px; border: 1px solid #444; background: rgba(0,0,0,0.3); color: #fff;">사업자</button>
+                        </div>
+                        <input type="tel" id="cart-cr-number" placeholder="번호 입력" style="width: 100%; padding: 10px; background: rgba(0,0,0,0.5); border: 1px solid #444; color: white; border-radius: 8px; font-size: 0.9rem; text-align: center;">
+                    </div>
+                </div>
+
                 <div style="margin-bottom: 15px; background: rgba(212, 175, 55, 0.1); padding: 12px; border-radius: 10px; border: 1px solid rgba(212,175,55,0.3);">
                     <div style="font-size: 0.85rem; margin-bottom: 8px; color: var(--secondary-color); font-weight: bold;">💰 포인트 적립 (결제금액의 1%)</div>
-                    <input type="tel" id="order-phone" placeholder="휴대폰 번호 입력 (선택)" style="width: 100%; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid #444; color: white; border-radius: 8px; font-size: 0.9rem; text-align: center;">
+                    <input type="tel" id="order-phone" placeholder="휴대폰 번호 입력 (선택)" style="width: 100%; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid #444; color: white; border-radius: 8px; font-size: 0.9rem; text-align: center;" oninput="syncCRPhone(this.value)">
                 </div>
                 <div style="display: flex; justify-content: space-between; margin-bottom: 15px; font-size: 1.2rem;">
                     <span>총 합계</span>
@@ -160,6 +174,22 @@
                     <button id="toss-link-btn" class="order-submit-btn" style="background: #0064ff; color: white; border: none; width: 100%;">토스로 바로 송금</button>
                     <button id="account-copy-btn" style="background: rgba(255,255,255,0.1); border: 1px solid #444; color: white; padding: 12px; border-radius: 10px; font-size: 0.9rem; width: 100%;">계좌번호 복사하기</button>
                 </div>
+            </div>
+            
+            <div id="extra-actions" style="margin-top: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
+                <button id="view-receipt-btn" onclick="openMobileReceipt()" style="background: rgba(255,255,255,0.05); border: 1px solid #444; color: white; padding: 12px; border-radius: 10px; font-size: 0.8rem; display: none;">📄 모바일 영수증</button>
+                <button id="request-cr-btn" onclick="showCashReceiptUI()" style="background: rgba(255,255,255,0.05); border: 1px solid #444; color: white; padding: 12px; border-radius: 10px; font-size: 0.8rem; display: none;">📝 현금영수증 신청</button>
+            </div>
+
+            <!-- 현금영수증 입력 UI (기본 숨김) -->
+            <div id="cr-request-box" style="display: none; margin-top: 15px; background: rgba(212, 175, 55, 0.05); border: 1px solid rgba(212, 175, 55, 0.2); padding: 15px; border-radius: 12px; text-align: left; margin-bottom: 15px;">
+                <div style="font-size: 0.85rem; font-weight: bold; margin-bottom: 10px; color: var(--secondary-color);">현금영수증 신청</div>
+                <div style="display: flex; gap: 5px; margin-bottom: 10px;">
+                    <button id="cr-type-personal" onclick="selectCRType('personal')" style="flex: 1; font-size: 0.75rem; padding: 8px; border-radius: 6px; border: 1px solid #444; background: #000; color: #fff;">개인</button>
+                    <button id="cr-type-business" onclick="selectCRType('business')" style="flex: 1; font-size: 0.75rem; padding: 8px; border-radius: 6px; border: 1px solid #444; background: #000; color: #fff;">사업자</button>
+                </div>
+                <input type="tel" id="cr-phone-input" placeholder="번호 입력" style="width: 100%; padding: 10px; background: #000; border: 1px solid #444; color: white; border-radius: 8px; font-size: 0.9rem; text-align: center; margin-bottom: 10px;">
+                <button onclick="submitMobileCR()" class="order-submit-btn" style="padding: 10px; font-size: 0.85rem; margin: 0; background: var(--secondary-color); color: #000;">신청 완료</button>
             </div>
             
             <button onclick="closeSuccessModal()" style="width: 100%; padding: 15px; background: #333; color: white; border: none; border-radius: 10px; font-weight: bold;">창 닫기</button>
@@ -373,17 +403,38 @@
             const btnCard = document.getElementById('pay-card');
             const btnBank = document.getElementById('pay-bank');
             const bankInput = document.getElementById('bank-input-group');
+            const crSection = document.getElementById('checkout-cash-receipt');
             
             if (method === 'card') {
-                btnCard.style.background = '#D4AF37'; btnCard.style.color = '#000';
+                btnCard.style.background = '#8B0000'; btnCard.style.color = '#fff';
                 btnBank.style.background = 'rgba(0,0,0,0.3)'; btnBank.style.color = '#fff';
                 bankInput.style.display = 'none';
+                crSection.style.display = 'none';
             } else {
                 btnBank.style.background = '#D4AF37'; btnBank.style.color = '#000';
                 btnCard.style.background = 'rgba(0,0,0,0.3)'; btnCard.style.color = '#fff';
                 bankInput.style.display = 'block';
+                crSection.style.display = 'block';
                 setTimeout(() => document.getElementById('depositor-name').focus(), 100);
             }
+        }
+
+        // --- 장바구니 현금영수증 제어 ---
+        let cartCRType = 'personal';
+        function toggleCheckoutCR() {
+            const checked = document.getElementById('apply-cr').checked;
+            document.getElementById('checkout-cr-group').style.display = checked ? 'block' : 'none';
+        }
+        function setCartCRType(type) {
+            cartCRType = type;
+            document.getElementById('cart-cr-personal').style.borderColor = (type === 'personal') ? '#3b82f6' : '#444';
+            document.getElementById('cart-cr-business').style.borderColor = (type === 'business') ? '#3b82f6' : '#444';
+            document.getElementById('cart-cr-personal').style.background = (type === 'personal') ? 'rgba(59,130,246,0.1)' : 'rgba(0,0,0,0.3)';
+            document.getElementById('cart-cr-business').style.background = (type === 'business') ? 'rgba(59,130,246,0.1)' : 'rgba(0,0,0,0.3)';
+        }
+        function syncCRPhone(val) {
+            const crNum = document.getElementById('cart-cr-number');
+            if(!crNum.value) crNum.value = val;
         }
 
         function placeOrder() {
@@ -409,6 +460,9 @@
                 phone: phone,
                 payment_method: selectedPaymentMethod,
                 depositor_name: depositorName,
+                // [신규] 주문 시 현금영수증 신청 정보 포함
+                cash_receipt_type: document.getElementById('apply-cr').checked ? cartCRType : null,
+                cash_receipt_number: document.getElementById('apply-cr').checked ? document.getElementById('cart-cr-number').value : null,
                 timestamp: Date.now()
             };
             
@@ -447,17 +501,51 @@
                     bankBox.style.display = 'block';
                     document.getElementById('bank-detail').innerText = `${data.bank_name} ${data.account_no} (예금주: ${data.account_holder || data.store_name})`;
                     
-                    // 토스 딥링크 생성
+                     // 토스 딥링크 생성 및 버튼 연동 (이벤트 중복 방지를 위해 클론 사용)
                     const tossMemo = `${data.depositor_name}${data.order_no}`;
-                    const tossUrl = `supertoss://send?bank=${data.bank_name}&accountNo=${data.account_no}&amount=${data.total_price}&memo=${tossMemo}`;
+                    const tossUrl = `supertoss://send?bank=${encodeURIComponent(data.bank_name)}&accountNo=${data.account_no}&amount=${data.total_price}&memo=${encodeURIComponent(tossMemo)}`;
                     
-                    document.getElementById('toss-link-btn').onclick = () => {
+                    const tossBtn = document.getElementById('toss-link-btn');
+                    tossBtn.onclick = (e) => {
+                        e.preventDefault();
+                        if (!data.bank_name || !data.account_no) {
+                            alert("계좌 정보가 설정되지 않았습니다. 매장에 문의해 주세요.");
+                            return;
+                        }
+
+                        // [스마트 딥링크 로직]
+                        const startTime = Date.now();
+                        const isAndroid = /Android/i.test(navigator.userAgent);
+                        const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+                        // 1.5초 후에도 브라우저에 머물러 있다면 앱이 없는 것으로 간주
+                        setTimeout(() => {
+                            if (Date.now() - startTime < 2000) {
+                                if (confirm("토스 앱을 찾을 수 없습니다. 설치 페이지로 이동할까요?\n\n(취소 시 계좌번호를 복사하여 직접 입금하실 수 있습니다.)")) {
+                                    if (isIOS) window.location.href = "https://itunes.apple.com/app/id839333328";
+                                    else window.location.href = "market://details?id=viva.republica.toss";
+                                } else {
+                                    showToast("계좌 정보를 확인하여 직접 입금해 주세요.");
+                                    document.getElementById('bank-info-box').style.borderColor = "#D4AF37"; // 계좌 박스 강조
+                                }
+                            }
+                        }, 1500);
+
                         window.location.href = tossUrl;
                     };
                     
-                    // 복사 버튼
-                    document.getElementById('account-copy-btn').onclick = () => {
+                    const copyBtn = document.getElementById('account-copy-btn');
+                    copyBtn.onclick = (e) => {
+                        e.preventDefault();
                         navigator.clipboard.writeText(data.account_no).then(() => {
+                            showToast("계좌번호가 복사되었습니다.");
+                        }).catch(() => {
+                            // 클립보드 복사 실패 시 대안 (일부 브라우저)
+                            const t = document.createElement("textarea");
+                            t.value = data.account_no;
+                            document.body.appendChild(t); t.select();
+                            document.execCommand("copy");
+                            document.body.removeChild(t);
                             showToast("계좌번호가 복사되었습니다.");
                         });
                     };
@@ -468,6 +556,11 @@
                 msg.innerHTML = `주문이 성공적으로 완료되었습니다.<br>주문번호: <b>#${data.order_no}</b>`;
                 bankBox.style.display = 'none';
             }
+            
+            // 영수증 및 현금영수증 버튼 노출 제어 (신규 로직: 결제 완료 전에는 숨김 또는 비활성화 권장)
+            document.getElementById('view-receipt-btn').style.display = 'none'; // 미결제 시 숨김
+            document.getElementById('request-cr-btn').style.display = 'none'; // 미리 신청했으므로 숨김
+            document.getElementById('cr-request-box').style.display = 'none';
             
             modal.classList.add('show');
 
@@ -485,12 +578,71 @@
                     document.getElementById('payment-sticky-bar').style.display = 'none';
                     document.body.style.paddingTop = '0';
                     showToast("✅ 입금이 확인되었습니다. 감사합니다!");
+                    
+                    // [변경] 입금 확인 시 성공 모달의 내용을 "결제 완료" 모드로 전환
+                    const title = document.getElementById('success-title');
+                    const msg = document.getElementById('success-msg');
+                    const bankBox = document.getElementById('bank-info-box');
+                    const receiptBtn = document.getElementById('view-receipt-btn');
+                    
+                    title.innerText = "결제 완료";
+                    title.style.color = "#10b981";
+                    msg.innerHTML = `정상적으로 입금이 확인되어 <b>식사권이 확정</b>되었습니다.<br>이용해 주셔서 감사합니다!`;
+                    bankBox.style.display = 'none';
+                    
+                    // 영수증 버튼 크게 노출
+                    receiptBtn.style.display = 'block';
+                    receiptBtn.style.background = '#10b981';
+                    receiptBtn.style.width = '100%';
+                    receiptBtn.innerHTML = '<i data-lucide="file-check"></i> 발행된 전자 영수증 보기';
+                    lucide.createIcons();
+                    
+                    document.getElementById('success-modal').classList.add('show');
                 }
             }
         });
 
         function closeSuccessModal() {
             document.getElementById('success-modal').classList.remove('show');
+        }
+
+        // --- 영수증 및 현금영수증 처리 로직 ---
+        let currentCRType = 'personal';
+        function selectCRType(type) {
+            currentCRType = type;
+            document.getElementById('cr-type-personal').style.borderColor = (type === 'personal') ? 'var(--secondary-color)' : '#444';
+            document.getElementById('cr-type-business').style.borderColor = (type === 'business') ? 'var(--secondary-color)' : '#444';
+        }
+
+        function showCashReceiptUI() {
+            document.getElementById('cr-request-box').style.display = 'block';
+            document.getElementById('request-cr-btn').style.display = 'none';
+            const phone = document.getElementById('order-phone').value;
+            if(phone) document.getElementById('cr-phone-input').value = phone;
+            selectCRType('personal');
+        }
+
+        async function submitMobileCR() {
+            if(!lastBankData) return;
+            const num = document.getElementById('cr-phone-input').value.trim();
+            if(!num) return alert('번호를 입력해 주세요.');
+
+            try {
+                const res = await fetch(`/api/order/${lastBankData.order_id}/cash_receipt`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ type: currentCRType, number: num })
+                });
+                if(res.ok) {
+                    alert('현금영수증 신청이 완료되었습니다.');
+                    document.getElementById('cr-request-box').innerHTML = '<div style="color:var(--secondary-color); font-weight:bold; text-align:center;">신청 완료</div>';
+                }
+            } catch(e) { alert('오류 발생'); }
+        }
+
+        function openMobileReceipt() {
+            if(!lastBankData) return;
+            window.open(`/receipt/${lastBankData.order_id}`, '_blank');
         }
 
         socket.on('order_error', (data) => {
