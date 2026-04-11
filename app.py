@@ -351,11 +351,25 @@ def forbidden(e):
 # [Keep-Alive] Render 슬립 방지 핑 (10분마다 자기 자신에게 요청)
 # ---------------------------------------------------------
 def keep_alive_ping():
-    """Render 무료 플랜 서버가 잠들지 않도록 주기적으로 자기 자신에게 핑을 보냅니다."""
+    """Render 무료 플랜 서버가 잠들지 않도록 주기적으로 자기 자신에게 핑을 보냅니다.
+    단순 핑이 아닌 DB 조회를 함께 수행하여 연결 상태를 확실히 점검합니다."""
     import urllib.request
     render_url = os.environ.get('RENDER_EXTERNAL_URL')
+    
+    # 1. DB 상태 점검 (가장 확실한 방법)
+    db_ok = False
+    try:
+        with app.app_context():
+            db.session.execute(text("SELECT 1"))
+            db_ok = True
+            print("🟢 [Health] 데이터베이스 연결 확인됨")
+    except Exception as e:
+        print(f"🚨 [오류 경보] DB 연결 실패: {str(e)}")
+        # 향후 여기에 이메일 발송 또는 관리자 알림 로직 추가 가능
+
+    # 2. Render 슬립 방지 외부 핑
     if not render_url:
-        return  # 로컬 또는 Render가 아닌 환경에서는 동작하지 않음
+        return
     try:
         ping_url = f"{render_url.rstrip('/')}/ping"
         req = urllib.request.urlopen(ping_url, timeout=10)
@@ -365,8 +379,19 @@ def keep_alive_ping():
 
 @app.route('/ping')
 def ping():
-    """Keep-Alive 헬스 체크 엔드포인트"""
-    return jsonify({'status': 'ok', 'timestamp': datetime.utcnow().isoformat()}), 200
+    """Keep-Alive 및 DB 점검 헬스 체크 엔드포인트"""
+    db_status = "ok"
+    try:
+        db.session.execute(text("SELECT 1"))
+    except Exception as e:
+        db_status = f"error: {str(e)}"
+        print(f"🚨 [Health Check] DB 접속 오류: {e}")
+        
+    return jsonify({
+        'status': 'ok', 
+        'db_status': db_status,
+        'timestamp': datetime.utcnow().isoformat()
+    }), 200 if db_status == "ok" else 500
 
 # [백업 스케줄러] 매주 월요일 자정 0시 실행
 if not scheduler.get_job('weekly_backup_job'):

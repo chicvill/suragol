@@ -9,8 +9,47 @@
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
     <meta name="theme-color" content="#0F172A">
     <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        /* [MQnet Premium Preloader Style] */
+        #preloader {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 99999; transition: opacity 0.8s ease, visibility 0.8s;
+        }
+        .loader-content { text-align: center; position: relative; }
+        .loader-ring {
+            width: 120px; height: 120px; border-radius: 50%;
+            border: 3px solid rgba(16, 185, 129, 0.1);
+            border-top: 3px solid #10b981;
+            animation: spin 1.5s linear infinite;
+            filter: drop-shadow(0 0 15px rgba(16, 185, 129, 0.4));
+        }
+        .loader-logo {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-weight: 1000; font-size: 1.4rem;
+            color: #fff; letter-spacing: -1px; animation: pulse 2s ease-in-out infinite;
+        }
+        .loader-text {
+            margin-top: 40px; color: #94a3b8; font-size: 1rem; font-weight: 800;
+            letter-spacing: 0.5px; opacity: 0; animation: fadeInOut 5s infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @keyframes pulse { 0%, 100% { opacity: 0.5; transform: translate(-50%, -50%) scale(0.9); } 50% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); } }
+        @keyframes fadeInOut { 0%, 100% { opacity: 0; transform: translateY(10px); } 20%, 80% { opacity: 1; transform: translateY(0); } }
+        body.loaded #preloader { opacity: 0; visibility: hidden; }
+    </style>
 </head>
 <body>
+    <!-- [Premium Preloader] -->
+    <div id="preloader">
+        <div class="loader-content">
+            <div class="loader-ring"></div>
+            <div class="loader-logo">MQnet</div>
+            <div class="loader-text" id="loader-msg">MQnet 시스템을 깨우는 중입니다...</div>
+        </div>
+    </div>
     {# [매장 관리 카드 컴포넌트 매크로 정의] #}
     {% macro store_management_card(s, current_role) %}
     <div class="store-card">
@@ -330,12 +369,26 @@
             } catch (e) { console.error(e); }
         }
 
-        // 외부 dashboard.js의 함수 호출 연동
         async function handleCheckIn() { await workerCheckIn(slug); loadWorkerStatus(); }
         async function handleCheckOut() { await workerCheckOut(slug); loadWorkerStatus(); }
 
         loadWorkerStatus(); updateWorkerClock();
     </script>
     {% endif %}
+
+    <script>
+        // [Preloader Logic]
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                document.body.classList.add('loaded');
+            }, 1000); // 1초간 고급스러운 애니메이션 노출
+        });
+
+        // 2.5초 후 메시지 변경
+        setTimeout(() => {
+            const msg = document.getElementById('loader-msg');
+            if(msg) msg.innerText = "서버와 연결 중입니다. 잠시만 기다려 주세요.";
+        }, 2500);
+    </script>
 </body>
 </html>
