@@ -1,4 +1,37 @@
 {
-    "python.defaultInterpreterPath": ".venv\\Scripts\\python.exe",
-    "python.terminal.activateEnvInCurrentTerminal": true
+    "python.defaultInterpreterPath": "c:\\Users\\USER\\Dev\\FreeOrder\\.venv\\Scripts\\python.exe",
+    "python.terminal.activateEnvInCurrentTerminal": true,
+    "python.terminal.activateEnvironment": true,
+    "python.analysis.extraPaths": [
+        "${workspaceFolder}"
+    ],
+    "java.jdt.ls.java.home": "C:\\Program Files\\Android\\Android Studio\\jbr",
+    "files.exclude": {
+        "**/.git": true,
+        "**/.venv": true,
+        "**/node_modules": true,
+        "**/__pycache__": true,
+        "**/android": true,
+        "**/.gradle": true,
+        "**/.idea": true,
+        "**/build": true
+    },
+    "search.exclude": {
+        "**/.git": true,
+        "**/.venv": true,
+        "**/node_modules": true,
+        "**/__pycache__": true,
+        "**/.gradle": true,
+        "**/.idea": true,
+        "**/build": true
+    },
+    "python.analysis.exclude": [
+        "**/.venv",
+        "**/node_modules",
+        "**/__pycache__",
+        "**/android",
+        "**/.gradle",
+        "**/.idea",
+        "**/build"
+    ]
 }

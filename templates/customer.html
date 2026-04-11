@@ -52,8 +52,21 @@
             border: none;
             transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
-        .cart-bar:active { transform: translateX(-50%) scale(0.95); }
-        .cart-bar span#cart-total { font-size: 1.4rem; font-weight: 900; }
+        .cart-bar:active { transform: translateX(-50%); } /* 춤추는 효과(scale) 제거 */
+        .cart-bar span, .cart-bar div { pointer-events: none; } /* 내부 글씨/숫자가 클릭을 방해하지 않도록 설정 */
+
+        /* 모달 우선순위 및 레이아웃 강제 교정 */
+        .modal-overlay { 
+            z-index: 99999 !important; 
+        }
+        .cart-modal-inner {
+            padding-bottom: 80px !important; /* 아래쪽 버튼이 가려지지 않게 넉넉한 여백 */
+        }
+        
+        /* 장바구니가 열렸을 때 하단 바 물리적 삭제 */
+        body.modal-open .cart-bar {
+            display: none !important;
+        }
     </style>
 </head>
 <body>
@@ -303,33 +316,45 @@
         }
 
         function updateCartBar() {
-            const bar = document.getElementById('cart-bar');
+            const bar = document.querySelector('.cart-bar');
             const count = document.getElementById('cart-count');
             const total = document.getElementById('cart-total');
+            const isModalOpen = document.body.classList.contains('modal-open');
             
             if (cart.length > 0) {
-                bar.style.display = 'flex';
+                // [수정] 모달이 닫혀있을 때만 하단 주문바를 보임
+                if (!isModalOpen) {
+                    bar.style.display = 'flex';
+                } else {
+                    bar.style.display = 'none';
+                }
                 const totalCount = cart.reduce((sum, item) => sum + item.quantity, 0);
                 const totalPrice = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
                 count.innerText = totalCount;
                 total.innerText = totalPrice.toLocaleString();
                 updateCartModalContent(); 
             } else {
-                bar.style.display = 'none';
+                if(bar) bar.style.display = 'none';
                 toggleCartModal(false); 
             }
         }
 
         function toggleCartModal(show) {
             const modal = document.getElementById('cart-modal');
+            const cartBar = document.querySelector('.cart-bar');
             const isCurrentlyShown = modal.classList.contains('show');
             const shouldShow = show === undefined ? !isCurrentlyShown : show;
             
             if (shouldShow) {
+                // [수정] 즉시 물리적 삭제하여 뒤에 있는 버튼 클릭을 허용
+                if(cartBar) cartBar.style.display = 'none';
+                document.body.classList.add('modal-open');
                 modal.classList.add('show');
                 updateCartModalContent();
             } else {
+                document.body.classList.remove('modal-open');
                 modal.classList.remove('show');
+                if(cartBar && cart.length > 0) cartBar.style.display = 'flex';
             }
         }
 
