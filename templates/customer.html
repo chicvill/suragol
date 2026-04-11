@@ -1134,14 +1134,14 @@
         }
 
         window.onload = () => {
-            // 1. 첫 번째 탭 자동 활성화
-            const allTabs = document.querySelectorAll('.tab');
-            if (allTabs.length > 0) {
-                const firstTab = allTabs[0];
-                const category = firstTab.innerText.trim();
-                showCategory(category, firstTab); // 메뉴 데이터 렌더링 강제 실행
-                console.log("Initial Category Loaded:", category);
-            }
+            // 탭 초기화 및 첫 번째 메뉴 로드 (0.2초 지연으로 탭 생성 보장)
+            setTimeout(() => {
+                const allTabs = document.querySelectorAll('.tab');
+                if (allTabs.length > 0) {
+                    const firstTab = allTabs[0];
+                    showCategory(firstTab.innerText.trim(), firstTab);
+                }
+            }, 200);
 
             updateCartBar(); 
             loadCurrentOrders();
