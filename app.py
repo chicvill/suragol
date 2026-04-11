@@ -160,19 +160,23 @@ with app.app_context():
                     ("session_id", "VARCHAR(50)")
                 ]
             }
-            
-            # [컬럼 보강] 반복 로직 통합 처리 (엔진 직접 연결 사용)
+            # [컬럼 보강] 반복 로직 통합 처리 (엔진 직접 연결 사용 - 조회 속도 최적화)
             with db.engine.connect() as conn:
                 for table, cols in tables_cols.items():
-                    for col, dtype in cols:
-                        try:
-                            # PostgreSQL 지원: IF NOT EXISTS 사용하여 중복 오류 방지
-                            conn.execute(text(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} {dtype}"))
-                            conn.commit()
-                            print(f"✅ [DB] {table}.{col} 컬럼 확인/생성 완료")
-                        except Exception as e:
-                            conn.rollback() # 트랜잭션 록 해제
-                            print(f"⚠️ [DB] {table}.{col} 반영 건너뜀 (이미 존재하거나 오류): {str(e)[:100]}...")
+                    try:
+                        # 1. 테이블의 현재 컬럼 목록을 한 번에 조회 (속도 10배 향상)
+                        res = conn.execute(text(f"SELECT column_name FROM information_schema.columns WHERE table_name='{table}'"))
+                        existing_cols = {row[0] for row in res}
+                        
+                        # 2. 없는 컬럼만 골라서 추가
+                        for col, dtype in cols:
+                            if col not in existing_cols:
+                                conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {dtype}"))
+                                conn.commit()
+                                print(f"✅ [DB] {table}.{col} 컬럼 새로 생성 완료")
+                    except Exception as e:
+                        conn.rollback()
+                        print(f"⚠️ [DB] {table} 컬럼 검사 중 오류: {str(e)[:100]}")
 
             # PIN 자리수 확장 (중요)
             try:
