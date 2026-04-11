@@ -113,6 +113,13 @@
             <div id="current-orders-list">
                 <!-- 실시간 주문 내역 동적 생성 -->
             </div>
+            <!-- [신규] 전체 후불 결제 버튼 -->
+            <div id="whole-pay-area" style="margin-top: 15px; display: none;">
+                <button onclick="payWholeBalance()" style="width: 100%; background: var(--secondary-color); color: #000; padding: 18px; border-radius: 12px; font-weight: 1000; font-size: 1.1rem; border: none; box-shadow: 0 5px 15px rgba(212, 175, 55, 0.3);">
+                    💳 전체 잔액 결제하기 (<span id="unpaid-total">0</span>원)
+                </button>
+                <p style="font-size: 0.75rem; color: #94a3b8; text-align: center; margin-top: 8px;">* 식사를 모두 마치셨다면 자리에 앉아서 바로 결제하실 수 있습니다.</p>
+            </div>
         </div>
     </div>
 
@@ -625,7 +632,42 @@
                 } else {
                     container.style.display = 'none';
                 }
+                const unpaidOrders = myOrders.filter(o => o.status !== 'paid');
+                const unpaidTotal = unpaidOrders.reduce((sum, o) => sum + o.total_price, 0);
+                const payArea = document.getElementById('whole-pay-area');
+                
+                if (unpaidTotal > 0) {
+                    payArea.style.display = 'block';
+                    document.getElementById('unpaid-total').innerText = unpaidTotal.toLocaleString();
+                } else {
+                    payArea.style.display = 'none';
+                }
             } catch (err) { console.error(err); }
+        }
+
+        async function payWholeBalance() {
+            try {
+                const res = await fetch(`/api/{{ store.id }}/orders`);
+                const allOrders = await res.json();
+                const myUnpaid = allOrders.filter(o => o.session_id === sessionId && o.status !== 'paid' && o.status !== 'cancelled');
+                
+                if(myUnpaid.length === 0) return alert('결제할 잔액이 없습니다.');
+                
+                const total = myUnpaid.reduce((sum, o) => sum + o.total_price, 0);
+                const orderIds = myUnpaid.map(o => o.id);
+                
+                // 가상의 '전체 결제' 장바구니 생성
+                const tempItems = myUnpaid.flatMap(o => o.items).map(i => ({...i, id: i.id}));
+                
+                // 장바구니에 담고 모달 열기 (기존 결제 로직 재활용)
+                cart = tempItems;
+                saveCart();
+                updateCartBar();
+                setPaymentMethod('card'); // 기본 카드 선택
+                toggleCartModal(true);
+                
+                showToast("전체 잔액 결제를 준비합니다.");
+            } catch(e) { console.error(e); }
         }
 
         function cancelOrderItem(itemId) {

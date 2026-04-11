@@ -70,6 +70,9 @@ class Store(db.Model):
 
     # 출퇴근 승인용 보안 PIN (bcrypt 해시 저장)
     attendance_pin = db.Column(db.String(255), default='0000')
+    
+    # [정산] 수수료율 (정산 시 활용)
+    commission_rate = db.Column(db.Float, default=0.0)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
@@ -179,6 +182,12 @@ class SystemConfig(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     site_name = db.Column(db.String(100), default='MQnet Central')
     maintenance_mode = db.Column(db.Boolean, default=False)
+    
+    # [본사 계좌] 정산 수취용
+    hq_bank = db.Column(db.String(50))
+    hq_account = db.Column(db.String(50))
+    hq_holder = db.Column(db.String(50))
+
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 class TaxInvoice(db.Model):

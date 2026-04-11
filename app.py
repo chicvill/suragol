@@ -149,7 +149,13 @@ with app.app_context():
                     ("timezone", "VARCHAR(50) DEFAULT 'Asia/Seoul'"),
                     ("bank_name", "VARCHAR(50)"),
                     ("account_no", "VARCHAR(50)"),
-                    ("account_holder", "VARCHAR(50)")
+                    ("account_holder", "VARCHAR(50)"),
+                    ("commission_rate", "FLOAT DEFAULT 0.0")
+                ],
+                "system_configs": [
+                    ("hq_bank", "VARCHAR(50)"),
+                    ("hq_account", "VARCHAR(50)"),
+                    ("hq_holder", "VARCHAR(100)")
                 ],
                 "order_items": [
                     ("status", "VARCHAR(20) DEFAULT 'pending'")
@@ -436,8 +442,20 @@ if __name__ == '__main__':
                     full_name='최고관리자'
                 )
                 db.session.add(admin_user)
-                db.session.commit()
-                print("👤 [계정] 초기 관리자 계정(admin/1111)이 생성되었습니다.")
+                
+            # [자동 생성] 시스템 기본 설정 및 본사 계좌 정보
+            config = SystemConfig.query.first()
+            if not config:
+                config = SystemConfig(
+                    site_name='MQnet Central',
+                    hq_bank='농협은행',
+                    hq_account='302-0000-0000-00',
+                    hq_holder='(주)MQ네트웍스'
+                )
+                db.session.add(config)
+            
+            db.session.commit()
+            print("👤 [계정/설정] 초기 데이터 및 본사 정보가 준비되었습니다.")
 
             print("✅ [DB 준비 완료]")
         except Exception as e:
