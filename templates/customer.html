@@ -1074,36 +1074,27 @@
         }
 
         function processVoiceOrder(text) {
+            const cleanText = text.replace(/\s/g, '').replace(/[0-9]/g, ''); // 공백과 숫자 제거
             showToast(`"${text}" 인식됨...`);
 
-            // 0. [신규] 취소 및 삭제 명령어 처리
+            // 0. 취소 및 삭제 명령어 처리
             if (text.includes("취소") || text.includes("제외") || text.includes("빼줘") || text.includes("삭제") || text.includes("지워")) {
                 let deleted = false;
-                
-                // "전부", "다" 키워드가 포함된 경우 장바구니 비우기
                 if (text.includes("전부") || text.includes("다")) {
-                    if (cart.length > 0) {
-                        if (confirm("장바구니를 모두 비우시겠습니까?")) {
-                            cart = [];
-                            saveCart();
-                            updateCartBar();
-                            showToast("🗑️ 장바구니를 모두 비웠습니다.");
-                        }
+                    if (cart.length > 0 && confirm("장바구니를 모두 비우시겠습니까?")) {
+                        cart = []; saveCart(); updateCartBar();
+                        showToast("🗑️ 장바구니를 비웠습니다.");
                         return;
                     }
                 }
-
-                // 특정 품목 삭제 (장바구니에 담긴 것 중에서 찾기)
                 cart.forEach(item => {
                     const cleanName = item.name.replace(/\s/g, '');
-                    const cleanText = text.replace(/\s/g, '');
-                    if (cleanText.includes(cleanName)) {
+                    if (cleanText.includes(cleanName) || cleanName.includes(cleanText)) {
                         removeItem(item.id);
-                        showToast(`🗑️ ${item.name} 삭제되었습니다.`);
+                        showToast(`🗑️ ${item.name} 삭제됨`);
                         deleted = true;
                     }
                 });
-                
                 if (deleted) return;
             }
             
@@ -1113,18 +1104,21 @@
                 return;
             }
 
-            // 2. 메뉴 매칭 (이름 기반)
+            // 2. 메뉴 매칭 (유연한 로직)
             let found = false;
             let flatMenu = [];
             for (let category in menuData) {
                 menuData[category].forEach(item => flatMenu.push(item));
             }
 
+            // 가장 잘 어울리는 메뉴 찾기 (글자 수가 많이 겹치는 순서 등도 고려 가능하나 일단 포함 여부로)
             flatMenu.forEach(item => {
-                const cleanText = text.replace(/\s/g, '');
-                const cleanName = item.name.replace(/\s/g, '');
+                const cleanName = item.name.replace(/\s/g, '').replace(/\(.*\)/g, ''); // 이름에서 (계절) 등 괄호 제거
                 
-                if (cleanText.includes(cleanName)) {
+                // 사용자가 말한 내용에 메뉴 이름이 있거나, 메뉴 이름에 사용자가 말한 키워드가 있는 경우
+                if (cleanText.includes(cleanName) || (cleanName.length > 1 && cleanText.includes(cleanName.substring(0, 2))) || (cleanText.length > 1 && cleanName.includes(cleanText))) {
+                    if (found) return; // 이미 하나 찾았으면 중복 추가 방지
+
                     let qty = 1;
                     if (text.includes("두") || text.includes("2") || text.includes("둘")) qty = 2;
                     else if (text.includes("세") || text.includes("3") || text.includes("셋")) qty = 3;
