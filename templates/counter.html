@@ -81,17 +81,35 @@
         .btn-pay { background: var(--royal-red); color: white; }
         .btn-waiting { background: #222; color: #444; }
 
-        /* [신규] 통합 아젠다 스택 (메모지 뭉치 영역) */
-        #agenda-stack {
-            position: absolute;
-            top: 20px; left: 20px;
-            width: 320px; height: 500px;
+        /* [신규] 듀얼 하단 스택 (호출/대기 분리) */
+        #call-stack, #wait-stack {
+            position: fixed;
+            bottom: 30px;
+            width: 300px; height: 200px;
             z-index: 1000;
-            pointer-events: none; /* 컨테이너 자체는 뒤쪽 클릭 허용 */
+            pointer-events: none;
         }
+        #call-stack { left: 30px; }
+        #wait-stack { right: 30px; }
+
         .post-it { 
-            pointer-events: auto; /* 메모지는 클릭 가능 */
-            position: absolute; top: 0; left: 0; width: 100%;
+            pointer-events: auto;
+            position: absolute; bottom: 0; left: 0; width: 100%;
+        }
+        
+        /* 스택 카운터 배지 */
+        .stack-count-badge {
+            position: absolute;
+            top: -15px; right: -15px;
+            background: #ef4444;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 900;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            z-index: 1001;
+            border: 2px solid #fff;
         }
         .notif {
             padding: 18px; border-radius: 12px; color: white;
@@ -151,10 +169,11 @@
     </header>
 
     <div class="main-layout">
-        <!-- 통합 업무 메모지 스택 -->
-        <div id="agenda-stack"></div>
+        <!-- 듀얼 업무 메모지 스택 -->
+        <div id="call-stack"></div>
+        <div id="wait-stack"></div>
 
-        <!-- 중앙: 테이블 현황 (이제 화면 전체를 사용) -->
+        <!-- 중앙: 테이블 현황 -->
         <div class="tables-area">
             <div style="margin-bottom: 20px; display: flex; gap: 10px; align-items: center;">
                 <div style="font-weight: 800; font-size: 1.1rem; color: var(--royal-gold);">🪑 홀 테이블 현황</div>
@@ -344,52 +363,65 @@
                 const calls = await svcRes.json();
                 const waits = await waitRes.json();
                 
-                const stack = document.getElementById('agenda-stack');
-                stack.innerHTML = '';
+                renderStack('call-stack', calls, 'call');
+                renderStack('wait-stack', waits, 'wait');
                 
-                // 모든 업무를 통합하여 시간순(최신이 위) 정렬
-                let items = [
-                    ...calls.map(c => ({...c, type: 'call'})),
-                    ...waits.map(w => ({...w, type: 'wait'}))
-                ];
-                items.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
-
-                items.forEach((item, idx) => {
-                    const div = document.createElement('div');
-                    div.className = `post-it ${item.type === 'wait' ? 'waiting-note' : ''}`;
-                    
-                    // 겹침 효과를 위한 스타일 (최신일수록 y-offset이 적음)
-                    const offset = idx * 6; // 한 장당 6px씩 어긋나게
-                    div.style.top = `${offset}px`;
-                    div.style.left = `${offset/2}px`;
-                    div.style.zIndex = 1000 - idx;
-                    
-                    const timeStr = item.created_at ? new Date(item.created_at).toLocaleTimeString('ko-KR', {hour:'2-digit', minute:'2-digit'}) : '';
-
-                    if (item.type === 'call') {
-                        div.innerHTML = `
-                            <div class="note-header"><span>🔔 CALL</span><span>${timeStr}</span></div>
-                            <div class="note-content">${item.table_id}번 입구/좌석<br>${item.content}</div>
-                            <div class="note-footer">터치하여 확인 처리</div>
-                        `;
-                        div.onclick = async () => {
-                            div.classList.add('removing');
-                            setTimeout(() => confirmTask(div, 'call', item.id), 300);
-                        };
-                    } else {
-                        div.innerHTML = `
-                            <div class="note-header"><span>🕒 WAITING</span><span>${item.people}명</span></div>
-                            <div class="note-content">${item.phone}<br><small>현장 대기 중</small></div>
-                            <div class="note-footer">눌러서 입장 처리</div>
-                        `;
-                        div.onclick = async () => {
-                            div.classList.add('removing');
-                            setTimeout(() => executeEnter(item.id), 300);
-                        };
-                    }
-                    stack.appendChild(div);
-                });
             } catch(e) { console.error(e); }
+        }
+
+        function renderStack(containerId, items, type) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            if (items.length === 0) return;
+
+            // 최신이 위로 오도록 정렬
+            items.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+
+            items.forEach((item, idx) => {
+                const div = document.createElement('div');
+                div.className = `post-it ${type === 'wait' ? 'waiting-note' : ''}`;
+                
+                // 겹침 효과 (하단 스택이므로 위로 쌓임)
+                const offset = idx * 5;
+                div.style.bottom = `${offset}px`;
+                div.style.left = `${offset/2}px`;
+                div.style.zIndex = 1000 - idx;
+                
+                const timeStr = item.created_at ? new Date(item.created_at).toLocaleTimeString('ko-KR', {hour:'2-digit', minute:'2-digit'}) : '';
+
+                // 맨 위 카드에만 숫자 배지 표시
+                if (idx === 0) {
+                    const badge = document.createElement('div');
+                    badge.className = 'stack-count-badge';
+                    badge.innerText = `${items.length}`;
+                    div.appendChild(badge);
+                }
+
+                if (type === 'call') {
+                    div.innerHTML += `
+                        <div class="note-header"><span>🔔 CALL</span><span>${timeStr}</span></div>
+                        <div class="note-content">${item.table_id}번 입구/좌석<br>${item.content}</div>
+                        <div class="note-footer">확인 완료하려면 클릭</div>
+                    `;
+                    div.onclick = async () => {
+                        div.style.transform = "translateY(-100px) rotate(15deg)";
+                        div.style.opacity = "0";
+                        setTimeout(() => confirmTask(div, 'call', item.id), 250);
+                    };
+                } else {
+                    div.innerHTML += `
+                        <div class="note-header"><span>🕒 WAITING</span><span>${item.people}명</span></div>
+                        <div class="note-content">${item.phone}<br><small>현장 대기 등록됨</small></div>
+                        <div class="note-footer">입장 처리하려면 클릭</div>
+                    `;
+                    div.onclick = async () => {
+                        div.style.transform = "translateY(-100px) rotate(-15deg)";
+                        div.style.opacity = "0";
+                        setTimeout(() => executeEnter(item.id), 250);
+                    };
+                }
+                container.appendChild(div);
+            });
         }
 
         async function confirmTask(el, type, id) {
