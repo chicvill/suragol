@@ -74,11 +74,18 @@ if db_url:
     # (wdikgmyhuxhhyeljnyqa.supabase.co 형태로 자동 전환 시도 가능하나 일단 전달받은 URL 유지)
     
     if "postgresql://" in db_url or "postgres://" in db_url:
-        # [복구] eventlet을 껐으므로, 다시 가장 안정적인 psycopg2를 사용합니다.
-        # pg8000에서 발생하던 포트(6543) 연결 이슈를 해결합니다.
-        if "postgresql+pg8000://" in db_url:
-            db_url = db_url.replace("postgresql+pg8000://", "postgresql://", 1)
-        print("🐘 [DB 엔진] psycopg2 (Standard) 엔진을 사용합니다.")
+        try:
+            # 1순위: psycopg2 시도
+            import psycopg2
+            if "postgresql+pg8000://" in db_url:
+                db_url = db_url.replace("postgresql+pg8000://", "postgresql://", 1)
+            print("🐘 [DB 엔진] psycopg2 엔진을 사용합니다.")
+        except ImportError:
+            # 2순위: pg8000 전환 (psycopg2 없는 환경용)
+            if "postgresql+pg8000://" not in db_url:
+                db_url = db_url.replace("postgresql://", "postgresql+pg8000://", 1)
+                db_url = db_url.replace("postgres://", "postgresql+pg8000://", 1)
+            print("🐘 [DB 엔진] pg8000 엔진으로 자동 전환하여 연결합니다.")
 
     # 연결 문자열 로깅 (보안 마스킹)
     try:
