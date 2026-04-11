@@ -62,10 +62,88 @@
         .cart-modal-inner {
             padding-bottom: 80px !important; /* 아래쪽 버튼이 가려지지 않게 넉넉한 여백 */
         }
+
+        /* [실버 모드] 고대비 및 대형 글자 스타일 */
+        body.silver-mode {
+            --primary-color: #f1c40f;
+            --background-color: #000;
+            font-size: 1.35rem; /* 기본 폰트 대폭 확대 */
+        }
+        body.silver-mode .menu-item {
+            flex-direction: column;
+            gap: 15px;
+            padding: 25px;
+            border-bottom: 3px solid #333;
+        }
+        body.silver-mode .menu-image-thumb, 
+        body.silver-mode .menu-image-placeholder {
+            width: 100%; height: 250px; border-radius: 15px;
+        }
+        body.silver-mode .item-info h3 {
+            font-size: 1.8rem !important; font-weight: 1000 !important; color: #f1c40f !important;
+        }
+        body.silver-mode .item-info .price {
+            font-size: 1.5rem !important; color: #fff !important;
+        }
+        body.silver-mode .add-btn {
+            width: 100%; height: 75px !important; font-size: 2.5rem !important;
+            background: #f1c40f !important; color: #000 !important;
+        }
+        body.silver-mode .tab {
+            font-size: 1.4rem; font-weight: 1000; padding: 15px 25px;
+        }
+        body.silver-mode .cart-bar {
+            height: 90px !important; font-size: 1.4rem; bottom: 10px;
+        }
+        body.silver-mode .voice-btn {
+            width: 90px; height: 90px; bottom: 120px;
+        }
+        
+        /* 실버모드 전환 버튼 스타일 */
+        .silver-toggle-btn {
+            background: #333; border: 2px solid var(--primary-color);
+            color: var(--primary-color); padding: 8px 15px; border-radius: 12px;
+            font-size: 0.9rem; font-weight: 1000; cursor: pointer;
+            margin-left: 10px; display: flex; align-items: center; gap: 5px;
+        }
+        body.silver-mode .silver-toggle-btn {
+            background: var(--primary-color); color: #000;
+        }
         
         /* 장바구니가 열렸을 때 하단 바 물리적 삭제 */
         body.modal-open .cart-bar {
             display: none !important;
+        }
+
+        /* [실버 전용] 음성 인식 플로팅 버튼 */
+        .voice-btn {
+            position: fixed; 
+            bottom: 120px; right: 20px; 
+            width: 75px; height: 75px; 
+            border-radius: 50%;
+            background: radial-gradient(circle, #3b82f6, #1d4ed8);
+            color: white; 
+            border: 4px solid rgba(255,255,255,0.3);
+            box-shadow: 0 15px 35px rgba(59, 130, 246, 0.6);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 9998; 
+            cursor: pointer; 
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .voice-btn:active { transform: scale(0.9); }
+        .voice-btn.listening {
+            background: radial-gradient(circle, #ef4444, #dc2626);
+            animation: pulse-red 1.5s infinite;
+        }
+        @keyframes pulse-red {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { transform: scale(1.1); box-shadow: 0 0 0 20px rgba(239, 68, 68, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+        .voice-label {
+            position: absolute; bottom: -25px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.7); color: white; padding: 2px 8px; border-radius: 5px;
+            font-size: 0.7rem; white-space: nowrap; font-weight: 800;
         }
     </style>
     <script src="https://js.tosspayments.com/v1"></script> <!-- 토스페이먼츠 결제창 SDK API -->
@@ -80,12 +158,13 @@
         <div class="header-left">
             <div class="brand-korean" style="color: var(--text-white);">{{ store.name }}</div>
             <div class="table-pill">
-                <span>테이블</span>
-                <span style="color: var(--text-white); font-weight: 800;">{{ table_id }}</span>
+                <span>{{ table_id }}번</span>
             </div>
-            <div id="order-no" class="order-badge">#{{ session_id }}</div>
+            <button onclick="toggleSilverMode()" class="silver-toggle-btn" id="silver-toggle">
+                <i data-lucide="zoom-in" size="18"></i> 크게보기
+            </button>
         </div>
-        <button onclick="toggleServiceModal()" class="call-staff-btn">호출</button>
+        <button onclick="toggleServiceModal()" class="call-staff-btn" style="background:var(--primary-color); color:#000; padding:10px 20px;">직원호출</button>
     </header>
 
     <div id="toast" class="toast">장바구니 추가</div>
@@ -201,6 +280,12 @@
             <span style="font-weight: bold;">장바구니</span>
         </div>
         <span style="font-weight: 900;"><span id="cart-total">0</span>원 주문</span>
+    </div>
+
+    <!-- [실버 브릿지] 음성 인식 버튼 -->
+    <div id="voice-btn" class="voice-btn" onclick="startVoiceOrder()">
+        <i data-lucide="mic" size="32"></i>
+        <div class="voice-label">말 주문</div>
     </div>
 
     <!-- 서비스 요청 모달 (Service Request Modal) -->
@@ -918,9 +1003,88 @@
             window.open(`/receipt/${lastBankData.order_id}`, '_blank');
         }
 
+        // [실버 브릿지] 실버 모드 제어
+        function toggleSilverMode() {
+            const isSilver = document.body.classList.toggle('silver-mode');
+            localStorage.setItem('freeorder_silver_mode', isSilver);
+            const btn = document.getElementById('silver-toggle');
+            btn.innerHTML = isSilver ? '<i data-lucide="zoom-out" size="18"></i> 작게보기' : '<i data-lucide="zoom-in" size="18"></i> 크게보기';
+            lucide.createIcons();
+            showToast(isSilver ? "큰 글씨 모드가 활성화되었습니다." : "일반 모드로 전환되었습니다.");
+            
+            // 데이터 재렌더링 (레이아웃 변경 반영을 위해)
+            const activeTab = document.querySelector('.tab.active');
+            if (activeTab) showCategory(activeTab.innerText.trim(), activeTab);
+        }
+
         socket.on('order_error', (data) => {
             alert(data.message);
         });
+
+        // [실버 브릿지] 음성 인식 제어 로직
+        let recognition;
+        try {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (SpeechRecognition) {
+                recognition = new SpeechRecognition();
+                recognition.lang = 'ko-KR';
+                recognition.interimResults = false;
+                recognition.maxAlternatives = 1;
+
+                recognition.onstart = () => {
+                    document.getElementById('voice-btn').classList.add('listening');
+                    showToast("🎤 메뉴명을 말씀해 주세요...");
+                };
+                recognition.onend = () => {
+                    document.getElementById('voice-btn').classList.remove('listening');
+                };
+                recognition.onresult = (event) => {
+                    const speechToText = event.results[0][0].transcript;
+                    processVoiceOrder(speechToText);
+                };
+            }
+        } catch(e) { console.error("Web Speech API not supported", e); }
+
+        function startVoiceOrder() {
+            if (!recognition) return alert("이 브라우저에서는 음성 인식을 지원하지 않습니다.");
+            recognition.start();
+        }
+
+        function processVoiceOrder(text) {
+            showToast(`"${text}"로 찾는 중...`);
+            
+            // 1. 서비스 요청 처리
+            if (text.includes("물") || text.includes("반찬") || text.includes("여기요") || text.includes("호출")) {
+                sendServiceRequest(text);
+                return;
+            }
+
+            // 2. 메뉴 매칭 (이름 기반)
+            let found = false;
+            let flatMenu = [];
+            for (let category in menuData) {
+                menuData[category].forEach(item => flatMenu.push(item));
+            }
+
+            flatMenu.forEach(item => {
+                const cleanText = text.replace(/\s/g, '');
+                const cleanName = item.name.replace(/\s/g, '');
+                
+                if (cleanText.includes(cleanName)) {
+                    let qty = 1;
+                    if (text.includes("두") || text.includes("2") || text.includes("둘")) qty = 2;
+                    else if (text.includes("세") || text.includes("3") || text.includes("셋")) qty = 3;
+                    
+                    for(let i=0; i<qty; i++) {
+                        addToCart({currentTarget: document.getElementById('voice-btn')}, item.id, item.name, item.price);
+                    }
+                    showToast(`✅ ${item.name} ${qty}개 추가됨`);
+                    found = true;
+                }
+            });
+
+            if (!found) showToast("메뉴를 찾지 못했습니다. 다시 말씀해 주세요.");
+        }
 
         window.onload = () => {
             const firstTab = document.querySelector('.tab');
@@ -934,6 +1098,11 @@
             // Load saved phone
             const savedPhone = localStorage.getItem('freeorder_phone');
             if (savedPhone) document.getElementById('order-phone').value = savedPhone;
+
+            // Load Silver Mode preference
+            if (localStorage.getItem('freeorder_silver_mode') === 'true') {
+                toggleSilverMode();
+            }
         };
     </script>
 </body>
