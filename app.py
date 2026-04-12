@@ -99,13 +99,13 @@ if db_url:
 app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# [클라우드 최적화] 전역 DB 엔진 옵션 주입 (Free Tier 생존 모드)
+# [클라우드 최적화] 전역 DB 엔진 옵션 주입 (철벽 생존 모드)
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     'pool_pre_ping': True,
-    'pool_recycle': 280,   # 연결 유효 기간 단축 (더 자주 갱신)
-    'pool_timeout': 30,    # 30초 이상 대기는 무의미함
-    'max_overflow': 5,     # 최대 추가 연결 제한
-    'pool_size': 2         # 기본 유지 연결을 최소화 (중요)
+    'pool_recycle': 200,   # 연결 갱신 주기를 더 빠르게
+    'pool_timeout': 180,   # 3분간 포기하지 않고 연결 대기
+    'max_overflow': 2,     # 추가 연결을 극도로 제한하여 풀러 부하 감소
+    'pool_size': 1         # 기본 연결을 1개만 사용 (가장 안전)
 }
 
 from models import db, Order, OrderItem, Waiting, Store, User, SystemConfig, TaxInvoice, ServiceRequest, Customer, PointTransaction, Attendance
