@@ -165,6 +165,7 @@ app.jinja_env.filters['format_phone'] = format_phone
 # MQnet Central Index
 @app.route('/')
 def index():
+    print("DEBUG: Index route hit - Antigravity")
     t0 = time.time()
     user_id = session.get('user_id')
     

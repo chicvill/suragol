@@ -263,11 +263,26 @@ body {
 
 @media (max-width: 480px) {
     .action-bar {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 8px;
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 6px !important;
+    }
+    .action-item {
+        padding: 12px 2px !important;
+        border-radius: 10px !important;
+        gap: 6px !important;
     }
     .action-item i {
-        width: 32px;
-        height: 32px;
+        width: 28px !important;
+        height: 28px !important;
+    }
+    .action-label {
+        font-size: 0.75rem !important;
+        letter-spacing: -0.5px;
+    }
+    .portal-container {
+        padding: 5px !important;
+    }
+    .store-card {
+        padding: 12px !important;
     }
 }
