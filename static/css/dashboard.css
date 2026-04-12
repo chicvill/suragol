@@ -95,12 +95,14 @@ body {
 
 .store-tabs {
     display: flex;
-    justify-content: flex-end;
-    gap: 8px;
+    justify-content: flex-start;
+    gap: 12px;
     overflow-x: auto;
-    margin-bottom: 10px;
-    padding-right: 5px;
+    margin-bottom: 25px;
+    padding: 10px 5px;
+    scrollbar-width: none;
 }
+.store-tabs::-webkit-scrollbar { display: none; }
 
 .store-tab-btn {
     background: rgba(255, 255, 255, 0.02);
@@ -229,4 +231,43 @@ body {
 .store-pane.active {
     display: block;
     animation: fadeIn 0.3s ease;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 1024px) {
+    .action-bar {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .portal-container {
+        padding: 10px;
+    }
+    .action-bar {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .action-item {
+        padding: 18px 5px;
+    }
+    .action-label {
+        font-size: 0.9rem;
+    }
+    .top-nav {
+        padding: 10px 15px;
+    }
+    .user-summary h1 {
+        font-size: 1.2rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .action-bar {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+    }
+    .action-item i {
+        width: 32px;
+        height: 32px;
+    }
 }
