@@ -28,32 +28,6 @@
             font-weight: 900;
         }
 
-        /* [리디자인] 하단 플로팅 프리미엄 주문 바 */
-        .cart-bar {
-            position: fixed; 
-            bottom: 110px; /* 요약 바 위로 띄움 */
-            left: 50%; 
-            width: 92%; 
-            max-width: 480px; 
-            height: 65px !important; 
-            background: #f1c40f; /* 강렬한 골드 */
-            color: #000 !important; 
-            padding: 0 25px; 
-            border-radius: 18px;
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center;
-            box-shadow: 0 15px 40px rgba(0,0,0,0.7); 
-            z-index: 10000;
-            cursor: pointer; 
-            font-size: 1.15rem; 
-            font-weight: 900;
-            border: none;
-            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
-        .cart-bar:active { transform: translateX(-50%); } /* 춤추는 효과(scale) 제거 */
-        .cart-bar span, .cart-bar div { pointer-events: none; } /* 내부 글씨/숫자가 클릭을 방해하지 않도록 설정 */
-
         /* 모달 우선순위 및 레이아웃 강제 교정 */
         .modal-overlay { 
             z-index: 99999 !important; 
@@ -91,13 +65,6 @@
         body.silver-mode .tab {
             font-size: 1.4rem; font-weight: 1000; padding: 15px 25px;
         }
-        body.silver-mode .cart-bar {
-            height: 100px !important; font-size: 1.8rem !important; 
-            bottom: 5px !important;
-            background: #f1c40f !important; color: #000 !important;
-            z-index: 10001; /* 최상단 배치 */
-        }
-        /* [수정] 마이크 깜빡이 효과는 아래 통합 스타일 사용 */
         
         body.silver-mode .voice-btn {
             width: 90px; height: 90px; bottom: 120px;
@@ -115,8 +82,7 @@
             background: var(--primary-color); color: #000;
         }
         
-        /* 장바구니/모달이 열렸을 때 하단 바와 마이크 버튼 물리적 삭제 */
-        body.modal-open .cart-bar,
+        /* 장바구니/모달이 열렸을 때 마이크 버튼 물리적 삭제 */
         body.modal-open .voice-btn {
             display: none !important;
         }
@@ -275,15 +241,6 @@
         </div>
     </div>
 
-    <div id="cart-bar" class="cart-bar" style="display: none;" onclick="toggleCartModal()">
-        <div style="display: flex; align-items: center; gap: 10px;">
-            <div style="background: white; color: var(--primary-color); width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.8rem;">
-                <span id="cart-count">0</span>
-            </div>
-            <span style="font-weight: bold;">장바구니</span>
-        </div>
-        <span style="font-weight: 900;"><span id="cart-total">0</span>원 주문</span>
-    </div>
 
     <!-- [실버 브릿지] 음성 인식 버튼 -->
     <div id="voice-btn" class="voice-btn" onclick="startVoiceOrder()">
@@ -505,44 +462,27 @@
         }
 
         function updateCartBar() {
-            const bar = document.querySelector('.cart-bar');
-            const count = document.getElementById('cart-count');
-            const total = document.getElementById('cart-total');
-            const isModalOpen = document.body.classList.contains('modal-open');
-            
+            // [삭제 조치] 구형 cart-bar DOM 조작 코드를 모두 제거하고 통합 업데이트 로직만 남김
             if (cart.length > 0) {
-                // [개선] 통합 하단바가 있으므로 개별 장바구니 플로팅 바는 숨김 (선택사항)
-                // 만약 장바구니 버튼이 별도로 필요하다면 살려두되, 위치를 조정해야 합니다.
-                // 여기서는 통합 바를 강조하기 위해 숨기거나 최소화합니다.
-                if(bar) bar.style.display = 'none'; 
-                
-                const totalCount = cart.reduce((sum, item) => sum + item.quantity, 0);
-                const totalPrice = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-                if(count) count.innerText = totalCount;
-                if(total) total.innerText = totalPrice.toLocaleString();
                 updateCartModalContent(); 
             } else {
-                if(bar) bar.style.display = 'none';
+                toggleCartModal(false); 
             }
-            refreshTotalSummary(); // 통합 바 갱신
+            refreshTotalSummary(); // 통합 바 갱신 로직 (주동력)
         }
 
         function toggleCartModal(show) {
             const modal = document.getElementById('cart-modal');
-            const cartBar = document.querySelector('.cart-bar');
             const isCurrentlyShown = modal.classList.contains('show');
             const shouldShow = show === undefined ? !isCurrentlyShown : show;
             
             if (shouldShow) {
-                // [수정] 즉시 물리적 삭제하여 뒤에 있는 버튼 클릭을 허용
-                if(cartBar) cartBar.style.display = 'none';
                 document.body.classList.add('modal-open');
                 modal.classList.add('show');
                 updateCartModalContent();
             } else {
                 document.body.classList.remove('modal-open');
                 modal.classList.remove('show');
-                if(cartBar && cart.length > 0) cartBar.style.display = 'flex';
             }
         }
 
