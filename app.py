@@ -98,9 +98,14 @@ if db_url:
 
 app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# [클라우드 최적화] 전역 DB 엔진 옵션 주입 (Free Tier 생존 모드)
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-    "pool_pre_ping": True,
-    "pool_recycle": 300,
+    'pool_pre_ping': True,
+    'pool_recycle': 280,   # 연결 유효 기간 단축 (더 자주 갱신)
+    'pool_timeout': 30,    # 30초 이상 대기는 무의미함
+    'max_overflow': 5,     # 최대 추가 연결 제한
+    'pool_size': 2         # 기본 유지 연결을 최소화 (중요)
 }
 
 from models import db, Order, OrderItem, Waiting, Store, User, SystemConfig, TaxInvoice, ServiceRequest, Customer, PointTransaction, Attendance
@@ -435,14 +440,9 @@ if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))
     print(f"🔥 [서버 구동] 포트 {port}번에서 MQnet Central 기동...")
     
-    # [클라우드 최적화] DB 연결 안정성 강화 설정
-    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-        'pool_pre_ping': True,
-        'pool_recycle': 300,
-        'pool_timeout': 60,
-        'max_overflow': 15,
-        'pool_size': 10
-    }
+    # [지연 부팅] DB 풀러 안정화를 위해 3초 대기 후 접속 시도
+    import time
+    time.sleep(3)
     
     with app.app_context():
         try:
