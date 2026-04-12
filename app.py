@@ -99,13 +99,13 @@ if db_url:
 app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# [클라우드 최적화] 전역 DB 엔진 옵션 주입 (철벽 생존 모드)
+# [클라우드 최적화] 전역 DB 엔진 옵션 주입 (철벽 생존 모드 - NullPool)
+from sqlalchemy.pool import NullPool
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'poolclass': NullPool, # 연결을 쌓아두지 않고 즉시 반납 (가장 확실한 해결책)
     'pool_pre_ping': True,
-    'pool_recycle': 200,   # 연결 갱신 주기를 더 빠르게
-    'pool_timeout': 180,   # 3분간 포기하지 않고 연결 대기
-    'max_overflow': 2,     # 추가 연결을 극도로 제한하여 풀러 부하 감소
-    'pool_size': 1         # 기본 연결을 1개만 사용 (가장 안전)
+    'pool_recycle': 120,
+    'pool_timeout': 180
 }
 
 from models import db, Order, OrderItem, Waiting, Store, User, SystemConfig, TaxInvoice, ServiceRequest, Customer, PointTransaction, Attendance
