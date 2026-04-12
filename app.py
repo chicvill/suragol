@@ -50,9 +50,13 @@ load_dotenv()
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # ---------------------------------------------------------
-# Flask 앱 및 스케줄러 초기화
+# Flask 앱 및 환경 판별
 # ---------------------------------------------------------
 app = Flask(__name__, static_folder='static', static_url_path='/static')
+is_render = 'RENDER' in os.environ
+debug_mode = os.environ.get('FLASK_DEBUG') == '1' or (not is_render and sys.platform == 'win32')
+app.config['DEBUG'] = debug_mode
+
 app.jinja_env.add_extension('jinja2.ext.do')  # {% do %} 태그 활성화
 scheduler = APScheduler()
 scheduler.init_app(app) # 스케줄러와 앱 연결
@@ -62,8 +66,8 @@ app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 
-# [보안] 로컬 테스트가 아닌 실제 배표 환경(Debug=False)에서만 Secure 적용
-if not app.config.get('DEBUG'):
+# [보안] 로컬 테스트가 아닌 실제 배표 환경에서만 Secure 적용
+if not debug_mode:
     app.config['SESSION_COOKIE_SECURE'] = True
 else:
     app.config['SESSION_COOKIE_SECURE'] = False
