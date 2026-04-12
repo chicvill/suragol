@@ -66,8 +66,8 @@ app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 
-# [보안] 로컬 테스트가 아닌 실제 배표 환경에서만 Secure 적용
-if not debug_mode:
+# [보안] 로컬 테스트가 아닌 배표 환경이거나, 도메인 연결(DOMAIN_MODE) 모드일 때만 Secure 적용
+if not debug_mode or os.getenv("DOMAIN_MODE") == "1":
     app.config['SESSION_COOKIE_SECURE'] = True
 else:
     app.config['SESSION_COOKIE_SECURE'] = False
@@ -483,9 +483,6 @@ if __name__ == '__main__':
         except Exception as e:
             print(f"⚠️ [DB 경고] {e}")
 
-    is_render = 'RENDER' in os.environ
-    # [최적화] FLASK_DEBUG 환경변수가 있으면 반영합니다.
-    debug_mode = os.environ.get('FLASK_DEBUG') == '1' or not is_render
-    
+    # [실행] 서버 기동
     print(f"🚀 [서버 가동] http://localhost:{port} 에서 MQnet 시스템이 활성화되었습니다.")
     socketio.run(app, debug=debug_mode, host='0.0.0.0', port=port, allow_unsafe_werkzeug=True)

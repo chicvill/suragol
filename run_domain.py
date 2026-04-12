@@ -101,9 +101,14 @@ def main():
     # 3. 서버 실행 (터미널에 직접 로그 출력하여 에러 확인)
     print("\n[2/3] 내부 서버를 가동 중입니다 (실시간 에러 확인 모드)...")
     try:
+        # 도메인 모드임을 명시적으로 설정 (세션 쿠키 보안용)
+        env = os.environ.copy()
+        env["DOMAIN_MODE"] = "1"
+        
         # 로그 파일 대신 터미널로 직접 출력
         server_proc = subprocess.Popen(
             [sys.executable, "app.py"], 
+            env=env,
             text=True
         )
         time.sleep(2) # 서버 가동 확인 대기 시간을 2초로 단축 (이제 즉시 뜹니다)
