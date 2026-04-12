@@ -43,39 +43,44 @@
             gap: 20px;
         }
 
-        /* 테이블 카드 스타일 */
+        /* [실버 개편] 테이블 카드 스타일 (큼직하고 단순하게) */
         .table-card {
-            background: var(--card-bg);
-            border: 1px solid #222;
-            border-radius: 16px;
-            padding: 20px;
+            background: #111;
+            border: 2px solid #333;
+            border-radius: 20px;
+            padding: 25px;
             position: relative;
-            transition: transform 0.2s, border-color 0.2s;
+            transition: all 0.2s;
             display: flex; flex-direction: column;
+            min-height: 250px;
         }
-        .table-card:hover { border-color: var(--royal-gold); }
-        .table-card.ready-to-serve { border: 2px solid var(--royal-gold); box-shadow: 0 0 15px rgba(212, 175, 55, 0.2); }
+        .table-card:hover { border-color: var(--royal-gold); background: #1a1a1a; }
+        .table-card.active-table { border: 4px solid #fff; }
+        .table-card.ready-to-serve { border: 4px solid var(--royal-gold); background: rgba(212, 175, 55, 0.05); }
 
         .status-badge {
-            position: absolute; top: 15px; right: 20px;
-            font-size: 0.75rem; padding: 4px 10px; border-radius: 20px; font-weight: bold;
+            position: absolute; top: 25px; right: 25px;
+            font-size: 1.1rem; padding: 6px 15px; border-radius: 30px; font-weight: 900;
         }
-        .status-pending { background: #333; color: #aaa; }
-        .status-ready { background: var(--royal-gold); color: #000; }
-        .status-served { background: #1e3a8a; color: #fff; }
+        .status-pending { background: #333; color: #fff; }
+        .status-ready { background: var(--royal-gold); color: #000; animation: blink 1s infinite; }
+        .status-served { background: #0064ff; color: #fff; }
 
-        .items-list { margin: 15px 0; flex: 1; font-size: 0.95rem; }
-        .item-row { display: flex; justify-content: space-between; margin-bottom: 5px; color: #ccc; }
+        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+
+        .items-list { margin: 20px 0; flex: 1; font-size: 1.3rem; line-height: 1.4; color: #eee; font-weight: 700; }
+        .item-row { display: flex; justify-content: space-between; margin-bottom: 8px; }
 
         .price-total { 
-            font-size: 1.5rem; font-weight: 900; color: var(--royal-gold);
-            border-top: 1px solid #222; padding-top: 15px; margin-top: 10px;
+            font-size: 2.2rem; font-weight: 1000; color: var(--royal-gold);
+            border-top: 2px dashed #333; padding-top: 15px; margin-top: 10px;
         }
 
         .action-btn {
-            width: 100%; padding: 12px; border: none; border-radius: 10px;
-            font-weight: bold; cursor: pointer; margin-top: 15px;
-            display: flex; align-items: center; justify-content: center; gap: 8px;
+            width: 100%; padding: 20px; border: none; border-radius: 15px;
+            font-weight: 1000; cursor: pointer; margin-top: 20px;
+            font-size: 1.4rem;
+            display: flex; align-items: center; justify-content: center; gap: 10px;
         }
         .btn-serve { background: var(--royal-gold); color: black; }
         .btn-pay { background: var(--royal-red); color: white; }
@@ -172,11 +177,12 @@
     </style>
 </head>
 <body>
-    <header style="justify-content: space-between; padding: 8px 25px; align-items: center;">
-        <h1 style="margin:0; font-size:1.5rem; color:var(--royal-gold); letter-spacing: -1px;">{{ store.name }}</h1>
+    <header style="justify-content: space-between; padding: 15px 30px; align-items: center; background: #000; border-bottom: 3px solid var(--royal-gold);">
+        <h1 style="margin:0; font-size:1.8rem; color:var(--royal-gold); font-weight: 1000; letter-spacing: -1.5px;">🦁 왕궁 중화요리 카운터</h1>
         <div class="status-badge-container">
-            <div class="status-item"><span id="dot-svr" class="status-dot dot-green"></span> SVR</div>
-            <div class="status-item"><span id="dot-db" class="status-dot dot-green"></span> DB</div>
+            <div class="status-item" style="font-size: 0.8rem;"><span id="dot-svr" class="status-dot dot-green"></span> 서버 OK</div>
+            <div class="status-item" style="font-size: 0.8rem;"><span id="dot-db" class="status-dot dot-green"></span> 데이터 OK</div>
+            <button onclick="location.reload()" style="background: #222; color: #fff; border: 1px solid #444; padding: 8px 15px; border-radius: 10px; font-weight: bold; cursor: pointer; margin-left: 10px;">새로고침</button>
         </div>
     </header>
 
@@ -316,8 +322,8 @@
                 card.className = `table-card ${currentStatus === 'ready' ? 'ready-to-serve' : ''}`;
                 card.innerHTML = `
                     <div class="status-badge status-${currentStatus}">${currentStatus==='ready'?'서빙대기':(currentStatus==='served'?'식사중':'조리중')}</div>
-                    <div style="font-size:1.4rem; font-weight:900;">${s.table_id}번 테이블</div>
-                    <div style="font-size:0.8rem; color:#555; margin-bottom:10px;">(${sid})</div>
+                    <div class="table-number">#${s.table_id}</div>
+                    <div style="font-size:1rem; font-weight: 800; color:#fff; margin-bottom:10px;">번 테이블</div>
                     ${s.is_prepaid ? '<div class="prepaid-badge">✨ 선결제 완료</div>' : ''}
                     <div class="items-list">
                         ${ol.flatMap(o => (o.items||[]).filter(it=>it.status!=='cancelled').map(it => `<div class="item-row"><span>${it.name}</span><span>x${it.quantity}</span></div>`)).join('')}
