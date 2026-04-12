@@ -419,3 +419,14 @@ def init_store_routes(app):
             socketio.emit('order_status_update', {'id': order_id, 'is_prepaid': True}, room=o.store_id)
             return jsonify({'status': 'success'})
         return jsonify({'error': 'Not found'}), 404
+
+    @app.route('/api/<slug>/stats/reset', methods=['POST'])
+    @login_required
+    def api_reset_orders(slug):
+        """오늘의 모든 주문(미결제/호출 등)을 비우기 위해 대시보드에서 제외 처리합니다."""
+        orders = Order.query.filter_by(store_id=slug).filter(Order.status != 'paid').all()
+        for o in orders:
+            o.status = 'cancelled'
+        db.session.commit()
+        socketio.emit('order_status_update', {'bulk_reset': True}, room=slug)
+        return jsonify({'status': 'success'})

@@ -119,92 +119,13 @@ with app.app_context():
     if os.environ.get('LOCAL_SKIP_MIGRATION') == 'true':
         print("⏭️ [DB] 마이그레이션을 건너뛰고 바로 연결합니다. (로컬 모드)")
     else:
-        print("🔍 [DB 점검] 테이블 및 컬럼 상태를 확인합니다...")
+        # [클라우드 배포] 부팅 속도를 위해 최소한의 테이블 확인만 수행합니다.
+        print("🔍 [DB 준비] 데이터베이스 연결을 시도합니다...")
         try:
             db.create_all()
-            
-            # [컬럼 보강] 반복 로직 통합 처리
-            tables_cols = {
-                "users": [
-                    ("is_approved", "BOOLEAN DEFAULT FALSE"),
-                    ("agreed_at", "TIMESTAMP WITH TIME ZONE"),
-                    ("full_name", "VARCHAR(100)"),
-                    ("phone", "VARCHAR(50)"),
-                    ("hourly_rate", "INTEGER DEFAULT 10000"),
-                    ("position", "VARCHAR(50)"),
-                    ("work_schedule", "JSON"),
-                    ("contract_start", "DATE"),
-                    ("contract_end", "DATE")
-                ],
-                "stores": [
-                    ("monthly_fee", "INTEGER DEFAULT 50000"),
-                    ("attendance_pin", "VARCHAR(255) DEFAULT '0000'"),
-                    ("recommended_by", "INTEGER"),
-                    ("is_public", "BOOLEAN DEFAULT FALSE"),
-                    ("signature_owner", "TEXT"),
-                    ("signature_partner", "TEXT"),
-                    ("theme_color", "VARCHAR(20) DEFAULT '#3b82f6'"),
-                    ("contact_phone", "VARCHAR(50)"),
-                    ("point_ratio", "FLOAT DEFAULT 0.0"),
-                    ("waiting_sms_no", "VARCHAR(50)"),
-                    ("business_type", "VARCHAR(50)"),
-                    ("business_item", "VARCHAR(100)"),
-                    ("business_email", "VARCHAR(100)"),
-                    ("stats_reset_at", "TIMESTAMP WITH TIME ZONE"),
-                    ("timezone", "VARCHAR(50) DEFAULT 'Asia/Seoul'"),
-                    ("bank_name", "VARCHAR(50)"),
-                    ("account_no", "VARCHAR(50)"),
-                    ("account_holder", "VARCHAR(50)"),
-                    ("commission_rate", "FLOAT DEFAULT 0.0")
-                ],
-                "system_configs": [
-                    ("hq_bank", "VARCHAR(50)"),
-                    ("hq_account", "VARCHAR(50)"),
-                    ("hq_holder", "VARCHAR(100)")
-                ],
-                "order_items": [
-                    ("status", "VARCHAR(20) DEFAULT 'pending'")
-                ],
-                "orders": [
-                    ("order_no", "VARCHAR(10)"),
-                    ("phone", "VARCHAR(20)"),
-                    ("depositor_name", "VARCHAR(100)"),
-                    ("is_prepaid", "BOOLEAN DEFAULT FALSE"),
-                    ("session_id", "VARCHAR(50)")
-                ]
-            }
-            # [컬럼 보강] 반복 로직 통합 처리 (엔진 직접 연결 사용 - 조회 속도 최적화)
-            with db.engine.connect() as conn:
-                for table, cols in tables_cols.items():
-                    try:
-                        # 1. 테이블의 현재 컬럼 목록을 한 번에 조회 (속도 10배 향상)
-                        res = conn.execute(text(f"SELECT column_name FROM information_schema.columns WHERE table_name='{table}'"))
-                        existing_cols = {row[0] for row in res}
-                        
-                        # 2. 없는 컬럼만 골라서 추가
-                        for col, dtype in cols:
-                            if col not in existing_cols:
-                                conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {dtype}"))
-                                conn.commit()
-                                print(f"✅ [DB] {table}.{col} 컬럼 새로 생성 완료")
-                    except Exception as e:
-                        conn.rollback()
-                        print(f"⚠️ [DB] {table} 컬럼 검사 중 오류: {str(e)[:100]}")
-
-            # PIN 자리수 확장 (중요) - 이미 적용되었으므로 부팅 속도 향상을 위해 생략 (Lock 방지)
-            import time
-            max_retries = 3
-            for i in range(max_retries):
-                try:
-                    db.create_all()
-                    print("✅ [DB] 모든 테이블 연결 및 동기화 완료.")
-                    break
-                except Exception as e:
-                    print(f"⚠️ [DB] 연결 시도 중 ({i+1}/{max_retries}): {e}")
-                    if i == max_retries - 1: raise e
-                    time.sleep(5)
+            print("✅ [DB] 연결 완료.")
         except Exception as e:
-            print(f"❌ [에러] 초기화 중 문제 발생: {e}")
+            print(f"⚠️ [DB 지연] 연결 대기 중... (첫 접속 시 재시도됨): {e}")
 
 
 # --- 라우트 및 소켓 초기 설정 ---
@@ -436,6 +357,18 @@ def privacy_page():
 @app.route('/terms')
 def terms_page():
     return render_template('terms.html')
+
+# [신규] 시스템 상태 체크 API (프론트엔드 모니터링용)
+@app.route('/api/health')
+def health_check():
+    health = {"server": "online", "db": "offline", "time": datetime.now().strftime('%H:%M:%S')}
+    try:
+        # DB에 아주 가벼운 쿼리를 날려 연결 확인
+        db.session.execute(text('SELECT 1'))
+        health["db"] = "online"
+    except Exception as e:
+        health["db"] = f"error: {str(e)[:50]}"
+    return jsonify(health)
 
 if __name__ == '__main__':
     # Render는 PORT 환경변수를 사용합니다.

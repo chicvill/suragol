@@ -155,14 +155,26 @@
         .note-content { font-size: 0.95rem; font-weight: 900; line-height: 1.3; }
         .note-footer { margin-top: 8px; font-size: 0.7rem; text-align: right; font-weight: bold; opacity: 0.6; }
         
+        /* [신규] 시스템 상태 표시등 스타일 */
+        .status-badge-container { display: flex; align-items: center; gap: 12px; margin-left: 15px; }
+        .status-item { display: flex; align-items: center; gap: 4px; font-size: 0.65rem; font-weight: 800; color: #666; }
+        .status-dot { width: 7px; height: 7px; border-radius: 50%; opacity: 0.8; }
+        .dot-green { background: #10b981; box-shadow: 0 0 6px #10b981; }
+        .dot-orange { background: #f59e0b; box-shadow: 0 0 6px #f59e0b; }
+        .dot-red { background: #ef4444; box-shadow: 0 0 6px #ef4444; }
+        
         /* 확인 완료 시 날아가는 애니메이션 */
         .post-it.removing { transform: translateX(-150%) rotate(-20deg) !important; opacity: 0; }
         .waiting-note.removing { transform: translateX(150%) rotate(20deg) !important; opacity: 0; }
     </style>
 </head>
 <body>
-    <header style="justify-content: center; padding: 10px;">
-        <h1 style="margin:0; font-size:1.6rem; color:var(--royal-gold); letter-spacing: -1px;">{{ store.name }}</h1>
+    <header style="justify-content: space-between; padding: 8px 25px; align-items: center;">
+        <h1 style="margin:0; font-size:1.5rem; color:var(--royal-gold); letter-spacing: -1px;">{{ store.name }}</h1>
+        <div class="status-badge-container">
+            <div class="status-item"><span id="dot-svr" class="status-dot dot-green"></span> SVR</div>
+            <div class="status-item"><span id="dot-db" class="status-dot dot-green"></span> DB</div>
+        </div>
     </header>
 
     <div class="main-layout" style="overflow-y: auto;"> <!-- 스크롤 가능하게 변경 -->
@@ -237,8 +249,38 @@
                     if(o.is_prepaid) sessions[sid].is_prepaid = true;
                 });
                 render();
-            } catch (e) { console.error(e); }
+            } catch (e) { 
+                console.error(e);
+                updateStatusUI('svr', 'red');
+            }
         }
+
+        // [신규] 시스템 헬스 체크 로직
+        async function checkSystemHealth() {
+            try {
+                const res = await fetch('/api/health');
+                const data = await res.json();
+                
+                updateStatusUI('svr', data.server === 'online' ? 'green' : 'red');
+                if (data.db === 'online') updateStatusUI('db', 'green');
+                else if (data.db.startsWith('error')) updateStatusUI('db', 'orange');
+                else updateStatusUI('db', 'red');
+                
+            } catch (e) {
+                updateStatusUI('svr', 'red');
+                updateStatusUI('db', 'red');
+            }
+        }
+
+        function updateStatusUI(type, color) {
+            const el = document.getElementById(`dot-${type}`);
+            if(!el) return;
+            el.className = `status-dot dot-${color}`;
+        }
+        
+        // 10초마다 헬스체크 실행
+        setInterval(checkSystemHealth, 10000);
+        checkSystemHealth();
 
         function render() {
             const grid = document.getElementById('tables-grid');
