@@ -187,9 +187,17 @@ with app.app_context():
                         print(f"⚠️ [DB] {table} 컬럼 검사 중 오류: {str(e)[:100]}")
 
             # PIN 자리수 확장 (중요) - 이미 적용되었으므로 부팅 속도 향상을 위해 생략 (Lock 방지)
-            pass
-
-            print("🚀 [완료] 데이터베이스 구조 동기화 완료.")
+            import time
+            max_retries = 3
+            for i in range(max_retries):
+                try:
+                    db.create_all()
+                    print("✅ [DB] 모든 테이블 연결 및 동기화 완료.")
+                    break
+                except Exception as e:
+                    print(f"⚠️ [DB] 연결 시도 중 ({i+1}/{max_retries}): {e}")
+                    if i == max_retries - 1: raise e
+                    time.sleep(5)
         except Exception as e:
             print(f"❌ [에러] 초기화 중 문제 발생: {e}")
 
