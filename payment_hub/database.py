@@ -1,5 +1,5 @@
 import os
-import psycopg2
+import pg8000.dbapi
 from datetime import datetime
 from dotenv import load_dotenv
 
@@ -17,7 +17,7 @@ def update_order_payment_status(sender_name, amount, order_no=""):
     conn = None
     try:
         # DB 연결
-        conn = psycopg2.connect(DATABASE_URL)
+        conn = pg8000.dbapi.connect(dsn=DATABASE_URL)
         cur = conn.cursor()
         
         # 1. 매칭되는 주문 찾기 

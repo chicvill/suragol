@@ -1,4 +1,4 @@
-import psycopg2
+import pg8000.dbapi
 import os
 from dotenv import load_dotenv
 
@@ -10,7 +10,7 @@ def migrate():
     print(f"[Migration] Connecting to DB...")
     conn = None
     try:
-        conn = psycopg2.connect(DATABASE_URL)
+        conn = pg8000.dbapi.connect(dsn=DATABASE_URL)
         cur = conn.cursor()
         
         print(f"[Migration] Adding 'depositor_name' column to 'orders' table...")
