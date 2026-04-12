@@ -102,9 +102,14 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # [클라우드 최적화] 전역 DB 엔진 옵션 주입 (철벽 생존 모드 - NullPool)
 from sqlalchemy.pool import NullPool
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-    'poolclass': NullPool, # 연결을 쌓아두지 않고 즉시 반납 (가장 확실한 해결책)
-    'pool_pre_ping': True  # 매 연결 시도 시 생존 여부 확인
+    'poolclass': NullPool,
+    'pool_pre_ping': True
 }
+# 불필요한 기본 풀 설정이 주입되지 않도록 강제 방어
+app.config['SQLALCHEMY_POOL_SIZE'] = None
+app.config['SQLALCHEMY_POOL_TIMEOUT'] = None
+app.config['SQLALCHEMY_POOL_RECYCLE'] = None
+app.config['SQLALCHEMY_MAX_OVERFLOW'] = None
 
 from models import db, Order, OrderItem, Waiting, Store, User, SystemConfig, TaxInvoice, ServiceRequest, Customer, PointTransaction, Attendance
 
