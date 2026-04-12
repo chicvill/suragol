@@ -435,6 +435,15 @@ if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))
     print(f"🔥 [서버 구동] 포트 {port}번에서 MQnet Central 기동...")
     
+    # [클라우드 최적화] DB 연결 안정성 강화 설정
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+        'pool_pre_ping': True,
+        'pool_recycle': 300,
+        'pool_timeout': 60,
+        'max_overflow': 15,
+        'pool_size': 10
+    }
+    
     with app.app_context():
         try:
             db.create_all()
