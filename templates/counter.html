@@ -39,8 +39,9 @@
 
         .tables-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 20px;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 25px;
+            padding: 25px;
         }
 
         /* [실버 개편] 테이블 카드 스타일 (큼직하고 단순하게) */
@@ -305,10 +306,17 @@
                 const ol = Object.values(s.orders);
                 const sTotal = ol.reduce((sum, o) => sum + (o.items||[]).filter(it=>it.status!=='cancelled').reduce((ism, it) => ism + (it.price * it.quantity), 0), 0);
                 
-                // 결정적 상태 계산
+                // 결정적 상태 계산 (실버 모드 최적화)
                 const anyReady = ol.some(o => o.status === 'ready');
-                const allServed = ol.every(o => o.status === 'served');
-                const currentStatus = anyReady ? 'ready' : (allServed ? 'served' : 'pending');
+                const anyPending = ol.some(o => o.status === 'pending');
+                
+                // 하나라도 'ready'면 서빙하기가 우선, 그 외엔 모두 served 여부로 판단
+                let currentStatus = 'pending';
+                if (anyReady) {
+                    currentStatus = 'ready';
+                } else if (!anyPending && ol.length > 0) {
+                    currentStatus = 'served';
+                }
 
                 // 현금영수증 신청 여부
                 const crQuery = ol.find(o => o.cash_receipt_type);

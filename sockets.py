@@ -82,11 +82,16 @@ def register_socketio_events(socketio):
     def on_set_served(data):
         sid = data.get('session_id')
         slug = data.get('store_id')
-        orders = Order.query.filter_by(store_id=slug, session_id=sid, status='ready').all()
+        # [개선] ready 뿐만 아니라 조리 중(pending)인 주문도 일괄 서빙 완료 처리 지원
+        orders = Order.query.filter(Order.store_id == slug, Order.session_id == sid, Order.status.in_(['ready', 'pending'])).all()
+        
         if not orders:
-            # [수정] 주문이 없을 경우 조기 종료 (tid=None으로 emit하던 버그 방지)
-            print(f"⚠️ [set_served] 처리할 주문 없음 (session_id={sid})")
+            # 이미 모든 주문이 served인 경우에도 UI 갱신 이벤트를 다시 쏘아줌
+            fallback = Order.query.filter_by(store_id=slug, session_id=sid).first()
+            if fallback:
+                socketio.emit('table_status_update', {'store_id': slug, 'session_id': sid, 'table_id': fallback.table_id, 'status': 'served'}, room=slug)
             return
+
         tid = orders[0].table_id
         for o in orders:
             o.status = 'served'
