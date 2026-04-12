@@ -417,9 +417,8 @@ if __name__ == '__main__':
         except Exception as e:
             print(f"⚠️ [DB 경고] {e}")
 
-    is_render = 'RENDER' in os.environ
-    # [최적화] Windows 로컬 + eventlet 환경에서 데드락 방지를 위해 debug 모드를 비활성화합니다.
-    debug_mode = False
+    # [최적화] FLASK_DEBUG 환경변수가 있으면 반영합니다.
+    debug_mode = os.environ.get('FLASK_DEBUG') == '1' or not is_render
     
     print(f"🚀 [서버 가동] http://localhost:{port} 에서 MQnet 시스템이 활성화되었습니다.")
     socketio.run(app, debug=debug_mode, host='0.0.0.0', port=port, allow_unsafe_werkzeug=True)
