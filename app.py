@@ -470,6 +470,7 @@ if __name__ == '__main__':
         except Exception as e:
             print(f"⚠️ [DB 경고] {e}")
 
+    is_render = 'RENDER' in os.environ
     # [최적화] FLASK_DEBUG 환경변수가 있으면 반영합니다.
     debug_mode = os.environ.get('FLASK_DEBUG') == '1' or not is_render
     

@@ -144,7 +144,7 @@ def init_store_routes(app):
         try:
             tz = ZoneInfo(store.timezone if store and store.timezone else 'Asia/Seoul')
         except Exception:
-            from datetime import timezone as dt_timezone, timedelta
+            from datetime import timezone as dt_timezone
             tz = dt_timezone(timedelta(hours=9))
             
         now_local = datetime.now(tz)
@@ -158,8 +158,8 @@ def init_store_routes(app):
         else:
             local_start = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
             
-        from datetime import timezone
-        start_date = local_start.astimezone(timezone.utc).replace(tzinfo=None)
+        from datetime import timezone as utc_tz
+        start_date = local_start.astimezone(utc_tz.utc).replace(tzinfo=None)
         
         # [수정] 통계 리셋 기준점 반영
         store = db.session.get(Store, slug)
@@ -250,7 +250,7 @@ def init_store_routes(app):
             from zoneinfo import ZoneInfo
             tz = ZoneInfo(store.timezone if store and store.timezone else 'Asia/Seoul')
         except Exception:
-            from datetime import timezone as dt_timezone, timedelta
+            from datetime import timezone as dt_timezone
             tz = dt_timezone(timedelta(hours=9))
             
         now_local = datetime.now(tz)
@@ -293,7 +293,7 @@ def init_store_routes(app):
             from zoneinfo import ZoneInfo
             tz = ZoneInfo(store.timezone if store and store.timezone else 'Asia/Seoul')
         except Exception:
-            from datetime import timezone as dt_timezone, timedelta
+            from datetime import timezone as dt_timezone
             tz = dt_timezone(timedelta(hours=9))
             
         now_local = datetime.now(tz)

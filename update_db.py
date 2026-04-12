@@ -7,7 +7,9 @@ load_dotenv()
 # DB 연결 정보 설정
 DATABASE_URL = os.environ.get('DATABASE_URL', 'sqlite:///suragol.db')
 if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+pg8000://", 1)
+elif DATABASE_URL.startswith("postgresql://") and "+pg8000" not in DATABASE_URL:
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+pg8000://", 1)
 
 print(f"Connecting to: {DATABASE_URL}")
 engine = create_engine(DATABASE_URL)
@@ -17,7 +19,8 @@ new_columns = [
     ("stores", "business_no", "VARCHAR(20)"),
     ("stores", "ceo_name", "VARCHAR(50)"),
     ("stores", "business_type", "VARCHAR(50)"),
-    ("stores", "business_item", "VARCHAR(100)")
+    ("stores", "business_item", "VARCHAR(100)"),
+    ("stores", "stats_reset_at", "TIMESTAMP")
 ]
 
 def update_schema():

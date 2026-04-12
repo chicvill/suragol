@@ -74,6 +74,9 @@ class Store(db.Model):
     # [정산] 수수료율 (정산 시 활용)
     commission_rate = db.Column(db.Float, default=0.0)
 
+    # [통계] 데이터 리셋 기준 시간
+    stats_reset_at = db.Column(db.DateTime, nullable=True)
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     users = db.relationship('User', backref='store_ptr', lazy=True, foreign_keys=[User.store_id])

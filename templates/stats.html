@@ -11,52 +11,52 @@
         @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
         :root {
             --primary: #3b82f6; --accent: #10b981; --warning: #f59e0b; --danger: #ef4444;
-            --bg: #0b1121; --card: #161c2d; --border: rgba(255,255,255,0.08); --text: #f1f5f9;
+            --bg: #0b1121; --card: #161c2d; --border: rgba(255,255,255,0.12); --text: #f8fafc;
         }
-        body { background: var(--bg); color: var(--text); font-family: 'Pretendard', sans-serif; margin: 0; min-height: 100vh; }
-        .stats-container { max-width: 1000px; margin: 0 auto; padding: 20px; }
+        body { background: var(--bg); color: var(--text); font-family: 'Pretendard', sans-serif; margin: 0; min-height: 100vh; -webkit-font-smoothing: antialiased; }
+        .stats-container { max-width: 1100px; margin: 0 auto; padding: 25px; }
         
         .nav-header { 
             display: flex; justify-content: space-between; align-items: center; 
-            margin-bottom: 25px; padding: 15px 25px; 
-            background: rgba(255, 255, 255, 0.03); border-radius: 20px; border: 1px solid var(--border);
+            margin-bottom: 30px; padding: 20px 30px; 
+            background: rgba(255, 255, 255, 0.04); border-radius: 24px; border: 1px solid var(--border);
         }
 
         .period-tabs {
-            display: flex; gap: 8px; margin-bottom: 25px; 
-            background: rgba(0,0,0,0.2); padding: 6px; border-radius: 14px;
+            display: flex; gap: 10px; margin-bottom: 30px; 
+            background: rgba(0,0,0,0.3); padding: 8px; border-radius: 18px;
         }
         .tab-btn {
-            flex: 1; padding: 10px; background: none; border: none;
-            color: #64748b; border-radius: 10px; cursor: pointer;
-            font-size: 0.85rem; font-weight: 800; transition: 0.2s;
+            flex: 1; padding: 14px; background: none; border: none;
+            color: #94a3b8; border-radius: 12px; cursor: pointer;
+            font-size: 1rem; font-weight: 800; transition: 0.2s;
         }
-        .tab-btn.active { background: var(--primary); color: #fff; }
+        .tab-btn.active { background: var(--primary); color: #fff; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); }
 
         .stat-card {
-            background: var(--card); border: 1px solid var(--border); border-radius: 24px; padding: 30px;
-            margin-bottom: 20px;
+            background: var(--card); border: 1px solid var(--border); border-radius: 28px; padding: 35px;
+            margin-bottom: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);
         }
-        .sales-value { font-size: 2.8rem; font-weight: 900; color: var(--primary); margin: 10px 0; }
-        .label-text { font-size: 0.8rem; color: #64748b; text-transform: uppercase; letter-spacing: 1px; }
+        .sales-value { font-size: 3.5rem; font-weight: 1000; color: #fff; margin: 15px 0; letter-spacing: -1px; }
+        .label-text { font-size: 1rem; color: #94a3b8; text-transform: uppercase; font-weight: 800; letter-spacing: 1.5px; }
 
         .item-row { 
             display: flex; justify-content: space-between; align-items: center; 
-            padding: 15px 0; border-bottom: 1px solid var(--border);
+            padding: 18px 0; border-bottom: 1px solid var(--border);
         }
         .item-row:last-child { border: none; }
 
-        .table-box { border-radius: 15px; overflow: hidden; border: 1px solid var(--border); }
-        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-        th { background: rgba(255,255,255,0.03); padding: 15px; text-align: left; color: #64748b; }
-        td { padding: 15px; border-top: 1px solid var(--border); }
+        .table-box { border-radius: 20px; overflow: hidden; border: 1px solid var(--border); margin-top: 10px; }
+        table { width: 100%; border-collapse: collapse; font-size: 1.05rem; }
+        th { background: rgba(255,255,255,0.05); padding: 20px; text-align: left; color: #94a3b8; font-weight: 800; font-size: 0.9rem; text-transform: uppercase; }
+        td { padding: 20px; border-top: 1px solid var(--border); color: #e2e8f0; }
 
         .btn-action {
-            background: rgba(255,255,255,0.05); border: 1px solid var(--border);
-            color: #fff; padding: 8px 15px; border-radius: 10px; cursor: pointer;
-            text-decoration: none; font-size: 0.8rem; font-weight: 700; display: inline-flex; align-items: center; gap: 6px;
+            background: rgba(255,255,255,0.08); border: 1px solid var(--border);
+            color: #fff; padding: 10px 20px; border-radius: 12px; cursor: pointer;
+            text-decoration: none; font-size: 1rem; font-weight: 800; display: inline-flex; align-items: center; gap: 8px;
         }
-        .btn-action:hover { background: var(--primary); border-color: var(--primary); }
+        .btn-action:hover { background: var(--primary); border-color: var(--primary); transform: translateY(-2px); transition: 0.2s; }
     </style>
 </head>
 <body>
@@ -154,13 +154,13 @@
                         const div = document.createElement('div');
                         div.className = 'item-row';
                         div.innerHTML = `
-                            <span style="font-size: 0.9rem;">${index + 1}. <span style="font-weight:800; color:#fff;">${item.name}</span></span>
-                            <span style="font-weight: 900; color: var(--primary);">${item.count}</span>
+                            <span style="font-size: 1.1rem;">${index + 1}. <span style="font-weight:800; color:#fff;">${item.name}</span></span>
+                            <span style="font-weight: 950; color: var(--primary); font-size: 1.2rem;">${item.count}</span>
                         `;
                         list.appendChild(div);
                     });
                 } else {
-                    list.innerHTML = '<div style="text-align:center; color:#475569; padding:20px;">데이터 없음</div>';
+                    list.innerHTML = '<div style="text-align:center; color:#94a3b8; padding:30px; font-size:1.1rem;">데이터 없음</div>';
                 }
 
                 const custRes = await fetch(`/api/{{ store.id }}/customers`);
@@ -171,9 +171,9 @@
                 customers.slice(0, 5).forEach(c => {
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
-                        <td style="color: #fff; font-weight:700;">${c.phone}</td>
-                        <td style="text-align: center;">${c.visit_count}</td>
-                        <td style="text-align: right; font-weight: 800; color: var(--accent);">${(c.total_spent || 0).toLocaleString()}</td>
+                        <td style="color: #fff; font-weight:800; font-size:1.1rem;">${c.phone}</td>
+                        <td style="text-align: center; font-weight:800;">${c.visit_count}</td>
+                        <td style="text-align: right; font-weight: 950; color: var(--accent); font-size:1.1rem;">${(c.total_spent || 0).toLocaleString()}</td>
                     `;
                     clist.appendChild(tr);
                 });
@@ -195,17 +195,33 @@
                         data: bestMenu.map(m => m.count),
                         backgroundColor: '#3b82f6',
                         borderRadius: 8,
-                        barThickness: 20
+                        barThickness: 25
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     scales: {
-                        y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b' } },
-                        x: { grid: { display: false }, ticks: { color: '#64748b', font: { size: 10 } } }
+                        y: { 
+                            beginAtZero: true, 
+                            grid: { color: 'rgba(255,255,255,0.08)' }, 
+                            ticks: { color: '#94a3b8', font: { size: 12, weight: 'bold' } } 
+                        },
+                        x: { 
+                            grid: { display: false }, 
+                            ticks: { color: '#94a3b8', font: { size: 13, weight: 'bold' } } 
+                        }
                     },
-                    plugins: { legend: { display: false } }
+                    plugins: { 
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#1e293b',
+                            titleFont: { size: 14, weight: 'bold' },
+                            bodyFont: { size: 13 },
+                            padding: 12,
+                            cornerRadius: 10
+                        }
+                    }
                 }
             });
         }
