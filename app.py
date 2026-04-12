@@ -241,13 +241,13 @@ app.jinja_env.filters['format_phone'] = format_phone
 # MQnet Central Index
 @app.route('/')
 def index():
-    t0 = time.time()
     user_id = session.get('user_id')
+    # 로그인 정보가 없으면 바로 로그인 페이지로 안내
     if not user_id:
-        return render_template('index.html', logged_in=False)
+        return redirect(url_for('auth_login'))
     
-    # 1. User 조회
-    t1 = time.time()
+    # 로그인 되어 있으면 매장 선택 화면으로
+    return redirect(url_for('select_store'))
     user = db.session.get(User, user_id)
     t2 = time.time()
     print(f" > [DB] User Fetch: {t2-t1:.2f}s")
