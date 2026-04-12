@@ -84,6 +84,9 @@ if errorlevel 1 (
     goto MENU
 )
 
+echo [Info] Configuring Terminal Environment (PowerShell Policy)...
+powershell -Command "Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force"
+
 echo [Info] Installing packages...
 .venv\Scripts\python.exe -m pip install --upgrade pip
 .venv\Scripts\pip.exe install --no-cache-dir -r requirements.txt
