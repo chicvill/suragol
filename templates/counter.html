@@ -81,20 +81,23 @@
         .btn-pay { background: var(--royal-red); color: white; }
         .btn-waiting { background: #222; color: #444; }
 
-        /* [개조] 하단 업무 영역 (스크롤 기반) */
+        /* [개조] 하단 업무 영역 (플로팅 고정 구조) */
         .bottom-task-floor {
-            margin-top: 50px;
-            padding: 20px;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 0 30px 20px 30px;
             display: flex;
             justify-content: space-between;
-            min-height: 250px;
-            border-top: 1px solid #222;
-            background: #050505;
+            align-items: flex-end;
+            pointer-events: none; /* 배경 클릭 방해 금지 */
+            z-index: 2000;
         }
         #call-stack, #wait-stack {
             position: relative;
-            width: 260px; height: 180px;
-            pointer-events: auto;
+            width: 280px; height: 180px;
+            pointer-events: auto; /* 메모지는 클릭 가능해야 함 */
         }
 
         .post-it { 
@@ -177,19 +180,19 @@
         </div>
     </header>
 
-    <div class="main-layout" style="overflow-y: auto;"> <!-- 스크롤 가능하게 변경 -->
+    <div class="main-layout" style="overflow-y: auto; height: calc(100vh - 60px);"> 
         <!-- 중앙: 테이블 현황 -->
-        <div class="tables-area" style="overflow: visible;">
-            <div class="tables-grid" id="tables-grid">
+        <div class="tables-area">
+            <div class="tables-grid" id="tables-grid" style="padding-bottom: 220px;"> <!-- 하단 플로팅 영역 공간 확보 -->
                 <div style="text-align: center; color: #444; padding: 100px 0;">데이터를 불러오는 중...</div>
             </div>
-            
-            <!-- 하단 메모지 스택 플로어 (스크롤 시 노출) -->
-            <div class="bottom-task-floor">
-                <div id="call-stack"></div>
-                <div id="wait-stack"></div>
-            </div>
         </div>
+    </div>
+
+    <!-- 하단 메모지 스택 플로어 (화면에 고정되어 따라다님) -->
+    <div class="bottom-task-floor">
+        <div id="call-stack"></div>
+        <div id="wait-stack"></div>
     </div>
 
 
