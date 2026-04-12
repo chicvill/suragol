@@ -58,7 +58,14 @@ scheduler = APScheduler()
 scheduler.init_app(app) # 스케줄러와 앱 연결
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1) # HTTPS 프록시 헤더 처리
 app.config['SECRET_KEY'] = 'suragol-secret-key-2026'
-app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=3) # 3분 후 자동 로그아웃
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
+
+# [보안] 도메인 연결 모드이거나 배포 환경일 때만 쿠키 Secure 옵션 활성화
+if os.getenv("CLOUDFLARE_TUNNEL_TOKEN") or not os.getenv("FLASK_DEBUG"):
+    app.config['SESSION_COOKIE_SECURE'] = True
+# app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=3) # 기존 3분 설정을 제거함
 app.url_map.strict_slashes = False # URL 끝 슬래시(/) 유무에 상관없이 접속 허용
 app.config['UPLOAD_FOLDER'] = os.path.join(BASE_DIR, 'static', 'images')
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
