@@ -162,6 +162,59 @@ def inject_globals():
 
 app.jinja_env.filters['format_phone'] = format_phone
 
+# --- [Temporary Seed Route] ---
+@app.route('/api/internal/seed-demo')
+def internal_seed_demo():
+    import random
+    from datetime import datetime, timedelta
+    from models import Store, Order, OrderItem, Customer
+    
+    store_id = 'wangpung'
+    store = db.session.get(Store, store_id)
+    if not store:
+        return "Store not found", 404
+        
+    menus = []
+    if store.menu_data:
+        for cat, items in store.menu_data.items():
+            for item in items:
+                menus.append(item)
+    
+    if not menus:
+        menus = [{"name": "짜장면", "price": 7000}, {"name": "짬뽕", "price": 8000}, {"name": "탕수육", "price": 18000}]
+
+    now = datetime.utcnow()
+    phones = [f"010-1234-567{i}" for i in range(10)]
+    for phone in phones:
+        if not Customer.query.filter_by(store_id=store_id, phone=phone).first():
+            db.session.add(Customer(store_id=store_id, phone=phone))
+    db.session.commit()
+    
+    all_customers = Customer.query.filter_by(store_id=store_id).all()
+
+    for i in range(100):
+        days_ago = random.randint(0, 30)
+        order_time = now - timedelta(days=days_ago, hours=random.randint(0, 23))
+        order_id = f"demo_{order_time.strftime('%Y%m%d%H%M')}_{i}"
+        
+        cust = random.choice(all_customers)
+        order = Order(id=order_id, store_id=store_id, table_id=random.randint(1, 10), status='paid', created_at=order_time, phone=cust.phone)
+        
+        total = 0
+        for _ in range(random.randint(1, 4)):
+            m = random.choice(menus)
+            qty = random.randint(1, 2)
+            db.session.add(OrderItem(order_id=order_id, menu_id=0, name=m['name'], price=m['price'], quantity=qty))
+            total += m['price'] * qty
+        
+        order.total_price = total
+        cust.visit_count += 1
+        cust.total_spent += total
+        db.session.add(order)
+        
+    db.session.commit()
+    return "Seed Success"
+
 # MQnet Central Index
 @app.route('/')
 def index():
