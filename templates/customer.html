@@ -401,7 +401,6 @@
         }
 
         function addToCart(event, id, name, price) {
-            // ID가 누락된 경우(AI 추천 메뉴 초기 상태 등) 이름 기반으로 임시 ID 생성
             const finalId = id || (name.length + price);
             const existing = cart.find(i => i.id === finalId);
             if (existing) {
@@ -412,11 +411,16 @@
             saveCart();
             updateCartBar();
             
-            // UI Feedback
             showToast(`${name} 장바구니 추가`);
-            const btn = event.currentTarget;
-            btn.style.transform = 'scale(1.3)';
-            setTimeout(() => btn.style.transform = 'scale(1)', 200);
+            
+            // UI Feedback (안전하게 실행)
+            if (event && event.currentTarget) {
+                const btn = event.currentTarget;
+                if (btn.style) {
+                    btn.style.transform = 'scale(1.3)';
+                    setTimeout(() => btn.style.transform = 'scale(1)', 200);
+                }
+            }
         }
 
         function saveCart() {
@@ -1015,7 +1019,7 @@
         }
 
         function processVoiceOrder(text) {
-            const cleanText = text.replace(/\s/g, '').replace(/[0-9]/g, ''); // 공백과 숫자 제거
+            const cleanText = text.replace(/\s/g, ''); // 공백 제거
             showToast(`"${text}" 인식됨...`);
 
             // 0. 취소 및 삭제 명령어 처리
@@ -1040,39 +1044,58 @@
             }
             
             // 1. 서비스 요청 처리
-            if (text.includes("물") || text.includes("반찬") || text.includes("여기요") || text.includes("호출")) {
-                sendServiceRequest(text);
+            if (text.includes("물") || text.includes("반찬") || text.includes("여기요") || text.includes("호출") || text.includes("앞접시") || text.includes("수저")) {
+                let reqType = "호출";
+                if(text.includes("물")) reqType = "물";
+                else if(text.includes("반찬")) reqType = "반찬";
+                else if(text.includes("앞접시")) reqType = "앞접시";
+                else if(text.includes("수저")) reqType = "수저";
+                else if(text.includes("티슈")) reqType = "티슈";
+                
+                sendServiceRequest(reqType);
                 return;
             }
 
-            // 2. 메뉴 매칭 (유연한 로직)
+            // 2. 메뉴 매칭 (더욱 유연하게 개선)
             let found = false;
             let flatMenu = [];
             for (let category in menuData) {
                 menuData[category].forEach(item => flatMenu.push(item));
             }
 
-            // 가장 잘 어울리는 메뉴 찾기 (글자 수가 많이 겹치는 순서 등도 고려 가능하나 일단 포함 여부로)
-            flatMenu.forEach(item => {
-                const cleanName = item.name.replace(/\s/g, '').replace(/\(.*\)/g, ''); // 이름에서 (계절) 등 괄호 제거
+            for (let item of flatMenu) {
+                const cleanName = item.name.replace(/\s/g, '').replace(/\(.*\)/g, ''); // 괄호 제거
                 
-                // 사용자가 말한 내용에 메뉴 이름이 있거나, 메뉴 이름에 사용자가 말한 키워드가 있는 경우
-                if (cleanText.includes(cleanName) || (cleanName.length > 1 && cleanText.includes(cleanName.substring(0, 2))) || (cleanText.length > 1 && cleanName.includes(cleanText))) {
-                    if (found) return; // 이미 하나 찾았으면 중복 추가 방지
-
-                    let qty = 1;
-                    if (text.includes("두") || text.includes("2") || text.includes("둘")) qty = 2;
-                    else if (text.includes("세") || text.includes("3") || text.includes("셋")) qty = 3;
+                // 매칭 조건 강화: 100% 일치 또는 핵심 키워드 포함
+                if (cleanText.includes(cleanName) || cleanName.includes(cleanText) || 
+                    (cleanName.length > 2 && cleanText.includes(cleanName.substring(0, 2)))) {
                     
-                    for(let i=0; i<qty; i++) {
-                        addToCart({currentTarget: document.getElementById('voice-btn')}, item.id, item.name, item.price);
-                    }
-                    showToast(`✅ ${item.name} ${qty}개 추가됨`);
-                    found = true;
-                }
-            });
+                    let qty = 1;
+                    if (text.includes("두") || text.includes("2") || text.includes("둘") || text.includes("이")) qty = 2;
+                    else if (text.includes("세") || text.includes("3") || text.includes("셋") || text.includes("삼")) qty = 3;
+                    else if (text.includes("네") || text.includes("4") || text.includes("넷") || text.includes("사")) qty = 4;
+                    else if (text.includes("다섯") || text.includes("5") || text.includes("오")) qty = 5;
 
-            if (!found) showToast("메뉴를 찾지 못했습니다. 다시 말씀해 주세요.");
+                    // addToCart 루프 대신 수량만 조절하여 한 번에 반영하도록 최적화 가능하지만, 
+                    // 기존 addToCart 함수를 활용하되 UI 갱신은 마지막에 한 번만 실행되도록 addToCart 구조 변경 고려
+                    for(let i=0; i<qty; i++) {
+                        // addToCart 내부에서 updateCartBar를 호출하므로, 
+                        // voice ordering 상황에서는 UI 렉 방지를 위해 silent 모드 구현이 좋지만 우선 호출
+                        addToCart(null, item.id, item.name, item.price);
+                    }
+                    
+                    showToast(`✅ ${item.name} ${qty}개 확인되었습니다.`);
+                    found = true;
+                    break; // 하나 찾으면 중단
+                }
+            }
+
+            if (!found) {
+                showToast("음성 메뉴를 찾지 못했습니다. 다시 말씀해 주세요.");
+            } else {
+                // UI 강제 즉시 갱신
+                updateCartBar();
+            }
         }
 
         window.onload = () => {
