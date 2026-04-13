@@ -90,7 +90,7 @@ class Store(db.Model):
             'menu_data': self.menu_data,
             'status': self.status,
             'payment_status': self.payment_status,
-            'expires_at': self.expires_at.isoformat() if self.expires_at else None,
+            'expires_at': (self.expires_at.isoformat() + 'Z') if self.expires_at else None,
             'business_no': self.business_no,
             'ceo_name': self.ceo_name,
             'business_email': self.business_email,
@@ -130,7 +130,7 @@ class Order(db.Model):
             'is_prepaid': self.is_prepaid,
             'cash_receipt_type': self.cash_receipt_type,
             'cash_receipt_number': self.cash_receipt_number,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'created_at': (self.created_at.isoformat() + 'Z') if self.created_at else None,
             'items': [item.to_dict() for item in self.items]
         }
 
@@ -177,7 +177,7 @@ class Waiting(db.Model):
             'status': self.status,
             'nearby_notified': self.nearby_notified,
             'enter_notified': self.enter_notified,
-            'created_at': self.created_at.isoformat()
+            'created_at': self.created_at.isoformat() + 'Z'
         }
 
 class SystemConfig(db.Model):
@@ -204,7 +204,7 @@ class TaxInvoice(db.Model):
     store = db.relationship('Store', backref='invoices')
 
     def to_dict(self):
-        return { 'id': self.id, 'order_id': self.order_id, 'amount': self.amount, 'status': self.status, 'issued_at': self.issued_at.isoformat() }
+        return { 'id': self.id, 'order_id': self.order_id, 'amount': self.amount, 'status': self.status, 'issued_at': self.issued_at.isoformat() + 'Z' }
 
 class ServiceRequest(db.Model):
     __tablename__ = 'service_requests'
@@ -222,7 +222,7 @@ class ServiceRequest(db.Model):
             'table_id': self.table_id,
             'content': self.content,
             'status': self.status,
-            'created_at': self.created_at.isoformat()
+            'created_at': self.created_at.isoformat() + 'Z'
         }
 
 class Customer(db.Model):
@@ -245,7 +245,7 @@ class Customer(db.Model):
             'points': self.points,
             'visit_count': self.visit_count,
             'total_spent': self.total_spent,
-            'last_accumulation_at': self.last_accumulation_at.isoformat() if self.last_accumulation_at else None
+            'last_accumulation_at': (self.last_accumulation_at.isoformat() + 'Z') if self.last_accumulation_at else None
         }
 
 class PointTransaction(db.Model):
@@ -276,8 +276,8 @@ class Attendance(db.Model):
             'id': self.id,
             'user_id': self.user_id,
             'user_name': self.user.full_name or self.user.username,
-            'check_in_at': self.check_in_at.isoformat() if self.check_in_at else None,
-            'check_out_at': self.check_out_at.isoformat() if self.check_out_at else None,
+            'check_in_at': (self.check_in_at.isoformat() + 'Z') if self.check_in_at else None,
+            'check_out_at': (self.check_out_at.isoformat() + 'Z') if self.check_out_at else None,
             'total_minutes': self.total_minutes,
             'status': self.status
         }
