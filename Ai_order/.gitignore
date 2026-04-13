@@ -1,0 +1,8 @@
+﻿node_modules/
+android/app/build/
+android/.gradle/
+android/local.properties
+android/app/release/
+*.pyc
+__pycache__/
+.env

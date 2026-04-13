@@ -1,0 +1,1139 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if store.id == 'MQ-cafe' %}수라골 참숯갈비 통합 메뉴{% else %}{{ store.name }} - 주문{% endif %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ range(1, 9999) | random }}">
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script> <!-- 아이콘 라이브러리 추가 -->
+    <style>
+        #payment-sticky-bar {
+            position: fixed; top: 0; left: 0; width: 100%; z-index: 2000;
+            background: linear-gradient(90deg, #f1c40f, #b8860b);
+            color: #000; padding: 12px; text-align: center; font-weight: 800; font-size: 0.85rem;
+            display: none; cursor: pointer; border-bottom: 2px solid rgba(0,0,0,0.1);
+        }
+        
+        .add-btn {
+            background-color: #f1c40f !important;
+            color: #000 !important;
+            width: 45px; height: 45px;
+            font-size: 2rem;
+            border-radius: 10px;
+            border: 2px solid #000;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 900;
+        }
+
+        /* 모달 우선순위 및 레이아웃 강제 교정 */
+        .modal-overlay { 
+            z-index: 99999 !important; 
+        }
+        .cart-modal-inner {
+            padding-bottom: 80px !important; /* 아래쪽 버튼이 가려지지 않게 넉넉한 여백 */
+        }
+
+        /* [실버 모드] 고대비 및 대형 글자 스타일 */
+        body.silver-mode {
+            --primary-color: #f1c40f;
+            --background-color: #000;
+            font-size: 1.35rem; /* 기본 폰트 대폭 확대 */
+        }
+        body.silver-mode .menu-item {
+            flex-direction: column;
+            gap: 15px;
+            padding: 25px;
+            border-bottom: 3px solid #333;
+        }
+        body.silver-mode .menu-image-thumb, 
+        body.silver-mode .menu-image-placeholder {
+            width: 100%; height: 250px; border-radius: 15px;
+        }
+        body.silver-mode .item-info h3 {
+            font-size: 1.8rem !important; font-weight: 1000 !important; color: #f1c40f !important;
+        }
+        body.silver-mode .item-info .price {
+            font-size: 1.5rem !important; color: #fff !important;
+        }
+        body.silver-mode .add-btn {
+            width: 100%; height: 75px !important; font-size: 2.5rem !important;
+            background: #f1c40f !important; color: #000 !important;
+        }
+        body.silver-mode .tab {
+            font-size: 1.4rem; font-weight: 1000; padding: 15px 25px;
+        }
+        
+        body.silver-mode .voice-btn {
+            width: 90px; height: 90px; bottom: 120px;
+            z-index: 10000;
+        }
+        
+        /* 실버모드 전환 버튼 스타일 */
+        .silver-toggle-btn {
+            background: #333; border: 2px solid var(--primary-color);
+            color: var(--primary-color); padding: 8px 15px; border-radius: 12px;
+            font-size: 0.9rem; font-weight: 1000; cursor: pointer;
+            margin-left: 10px; display: flex; align-items: center; gap: 5px;
+        }
+        body.silver-mode .silver-toggle-btn {
+            background: var(--primary-color); color: #000;
+        }
+        
+        /* 장바구니/모달이 열렸을 때 마이크 버튼 물리적 삭제 */
+        body.modal-open .voice-btn {
+            display: none !important;
+        }
+
+        /* [실버 전용] 음성 인식 플로팅 버튼 */
+        .voice-btn {
+            position: fixed; 
+            bottom: 185px; right: 15px; /* 요약 바/장바구니 바 위로 이동 */
+            width: 75px; height: 75px; 
+            border-radius: 50%;
+            background: radial-gradient(circle, #3b82f6, #1d4ed8) !important;
+            color: white !important; 
+            border: 4px solid rgba(255,255,255,0.3) !important;
+            box-shadow: 0 15px 35px rgba(59, 130, 246, 0.6);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 9998 !important; /* 하단 바(10000) 보다는 아래, 하지만 메뉴보다는 위 */
+            cursor: pointer; 
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .voice-btn:active { transform: scale(0.9); }
+        .voice-btn.listening {
+            background: linear-gradient(135deg, #2ecc71, #27ae60) !important;
+            animation: pulse-green 1s infinite !important;
+            border: 4px solid #fff !important;
+            box-shadow: 0 0 20px rgba(46, 204, 113, 0.8) !important;
+        }
+        @keyframes pulse-green {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.15); }
+            100% { transform: scale(1); }
+        }
+        .voice-label {
+            position: absolute; bottom: -25px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.7); color: white; padding: 2px 8px; border-radius: 5px;
+            font-size: 0.7rem; white-space: nowrap; font-weight: 800;
+        }
+    </style>
+    <script src="https://js.tosspayments.com/v1"></script> <!-- 토스페이먼츠 결제창 SDK API -->
+</head>
+<body>
+    <!-- [신규] 상단 입금 안내 바 -->
+    <div id="payment-sticky-bar" onclick="reopenBankModal()">
+        <span>🏦 입금 대기 중: </span>
+        <span id="sticky-bank-info" style="text-decoration: underline;">계좌정보 확인하기</span>
+    </div>
+    <header>
+        <div class="header-left">
+            <div class="brand-korean" style="color: var(--text-white);">{{ store.name }}</div>
+            <div class="table-pill">
+                <span>{{ table_id }}번</span>
+            </div>
+            <button onclick="toggleSilverMode()" class="silver-toggle-btn" id="silver-toggle">
+                <i data-lucide="zoom-in" size="18"></i> 크게보기
+            </button>
+        </div>
+        <button onclick="toggleServiceModal()" class="call-staff-btn" style="background:var(--primary-color); color:#000; padding:10px 20px;">직원호출</button>
+    </header>
+
+    <div id="toast" class="toast">장바구니 추가</div>
+
+    <div id="active-session-summary" onclick="toggleCartModal(true)" 
+         style="background: #f1c40f; padding: 18px 0; border-radius: 30px 30px 0 0; box-shadow: 0 -10px 40px rgba(0,0,0,0.5); z-index: 9999; position: fixed; bottom: 0; left: 0; right: 0; cursor: pointer; border-top: 3px solid rgba(0,0,0,0.1);">
+        <div style="text-align: center;">
+            <div id="summary-items-desc" style="color: rgba(0,0,0,0.6); font-size: 0.9rem; font-weight: 800; margin-bottom: 3px; max-width: 80%; margin-left: auto; margin-right: auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                주문을 시작해 보세요!
+            </div>
+            <div style="font-size: 2.2rem; font-weight: 1000; color: #000; letter-spacing: -1px; line-height: 1;">
+                <span id="summary-total-val">0</span>원
+            </div>
+            <div style="color: rgba(0,0,0,0.4); font-size: 0.75rem; font-weight: 800; margin-top: 3px;">터치하여 주문 내역 확인 및 결제</div>
+        </div>
+    </div>
+
+    <div class="tabs">
+        {% if store.menu_data is not none %}
+            {% for category in store.menu_data.keys() %}
+            <div class="tab {{ 'active' if loop.first else '' }}" onclick="showCategory('{{ category }}', this)">
+                {{ category }}
+            </div>
+            {% endfor %}
+        {% else %}
+            <div style="padding: 20px; text-align: center; color: #94a3b8; font-size: 0.9rem; width: 100%;">메뉴를 구성 중입니다.</div>
+        {% endif %}
+    </div>
+
+    <div class="container" style="padding: 15px; padding-bottom: 150px;">
+        <div id="menu-container" class="menu-list">
+            <!-- 메뉴 항목 동적 생성 -->
+        </div>
+
+    <div id="current-orders-container" style="display: none;">
+        <div id="current-orders-list"></div>
+        <div id="whole-pay-area" style="display: none;"><span id="unpaid-total">0</span></div>
+    </div>
+    </div>
+
+    <!-- 장바구니 사이드바 (SideDrawer) -->
+    <div id="cart-modal" class="modal-overlay" onclick="closeCartOnOverlay(event)">
+        <div class="modal-content">
+            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <h2 style="margin: 0;">장바구니</h2>
+                <button onclick="scrollToMenu()" style="background: var(--secondary-color); color: #000; border: none; padding: 8px 15px; border-radius: 8px; font-weight: bold; font-size: 0.85rem; cursor: pointer;">
+                    + 메뉴 추가
+                </button>
+            </div>
+            <div class="modal-body" style="flex: 1; overflow-y: auto;">
+                <div id="cart-items-list" class="cart-items-list" style="overflow-y: visible; padding-bottom: 0;">
+                    <!-- 장바구니 항목 동적 생성 -->
+                </div>
+                <div style="padding: 0 20px 20px 20px; margin-top: 10px;">
+                    <!-- [추가] 결제 수단 선택 -->
+                    <div style="margin-bottom: 15px; background: rgba(255, 255, 255, 0.05); padding: 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1);">
+                        <div style="font-size: 0.85rem; margin-bottom: 10px; color: #fff; font-weight: bold;">💳 결제 방식 선택</div>
+                        <div style="display: flex; gap: 8px;">
+                            <button id="pay-card" onclick="setPaymentMethod('card')" style="flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #D4AF37; background: #8B0000; color: #fff; font-weight: bold; font-size: 0.85rem;">신용카드</button>
+                            <button id="pay-bank" onclick="setPaymentMethod('bank')" style="flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #444; background: rgba(0,0,0,0.3); color: #fff; font-weight: bold; font-size: 0.85rem;">무통장 입금</button>
+                            <button id="pay-cash" onclick="setPaymentMethod('postpaid')" style="flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #444; background: rgba(0,0,0,0.3); color: #fff; font-weight: bold; font-size: 0.85rem;">후불결제</button>
+                        </div>
+                        <!-- 무통장 입금 시 이름 입력 칸 (기본 숨김) -->
+                        <div id="bank-input-group" style="display: none; margin-top: 10px;">
+                            <input type="text" id="depositor-name" placeholder="입금자 성함 입력" style="width: 100%; padding: 10px; background: rgba(212, 175, 55, 0.1); border: 1px solid #D4AF37; color: white; border-radius: 8px; font-size: 0.9rem; text-align: center;">
+                            <p style="font-size: 0.65rem; color: #aaa; margin-top: 5px; text-align: center;">* 입금 확인 후 주방으로 주문이 발송됩니다.</p>
+                        </div>
+                    </div>
+
+                    <div id="checkout-cash-receipt" style="display: none; margin-bottom: 15px; background: rgba(59, 130, 246, 0.05); padding: 12px; border-radius: 10px; border: 1px solid rgba(59, 130, 246, 0.3);">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-bottom: 10px; font-size: 0.85rem; font-weight: bold; color: #fff;">
+                            <input type="checkbox" id="apply-cr" style="width: 18px; height: 18px;" onchange="toggleCheckoutCR()">
+                            <span>현금영수증 신청하시겠습니까?</span>
+                        </label>
+                        <div id="checkout-cr-group" style="display: none;">
+                            <div style="display: flex; gap: 5px; margin-bottom: 10px;">
+                                <button id="cart-cr-personal" onclick="setCartCRType('personal')" style="flex: 1; font-size: 0.75rem; padding: 10px; border-radius: 8px; border: 1px solid #3b82f6; background: rgba(59,130,246,0.1); color: #fff;">개인</button>
+                                <button id="cart-cr-business" onclick="setCartCRType('business')" style="flex: 1; font-size: 0.75rem; padding: 10px; border-radius: 8px; border: 1px solid #444; background: rgba(0,0,0,0.3); color: #fff;">사업자</button>
+                            </div>
+                            <input type="tel" id="cart-cr-number" placeholder="번호 입력" style="width: 100%; padding: 10px; background: rgba(0,0,0,0.5); border: 1px solid #444; color: white; border-radius: 8px; font-size: 0.9rem; text-align: center;">
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 15px; background: rgba(212, 175, 55, 0.1); padding: 12px; border-radius: 10px; border: 1px solid rgba(212,175,55,0.3);">
+                        <div style="font-size: 0.85rem; margin-bottom: 8px; color: var(--secondary-color); font-weight: bold;">💰 포인트 적립 (결제금액의 1%)</div>
+                        <input type="tel" id="order-phone" placeholder="휴대폰 번호 입력 (선택)" style="width: 100%; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid #444; color: white; border-radius: 8px; font-size: 0.9rem; text-align: center;" oninput="syncCRPhone(this.value)">
+                    </div>
+                </div> <!-- End of scrollable payment section -->
+            </div> <!-- End of modal-body -->
+
+            <div class="cart-summary" style="padding-top: 15px; background: #1a1a1a; box-shadow: 0 -5px 20px rgba(0,0,0,0.5);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <span style="color: var(--text-muted); font-size: 1.1rem; font-weight: 600;">총 합계</span>
+                    <span id="modal-total" style="color: var(--text-white); font-size: 1.6rem; font-weight: 800;">0원</span>
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                    <button onclick="scrollToMenu()" style="flex: 1; height: 55px; background: #333; color: #fff; border: 1px solid #444; border-radius: 12px; font-weight: bold;">+ 메뉴 추가하기</button>
+                    <button class="order-submit-btn" onclick="placeOrder()" style="flex: 2; height: 55px; margin: 0;">주문하기</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- [실버 브릿지] 음성 인식 버튼 -->
+    <div id="voice-btn" class="voice-btn" onclick="startVoiceOrder()">
+        <i data-lucide="mic" size="32"></i>
+    </div>
+
+    <!-- 서비스 요청 모달 (Service Request Modal) -->
+    <div id="service-modal" class="modal-overlay modal-bottom" onclick="closeServiceOnOverlay(event)">
+        <div class="modal-content" style="height: auto; max-height: 70%;">
+            <div class="modal-header">
+                <h2>요청</h2>
+                <button class="close-btn" onclick="toggleServiceModal(false)">×</button>
+            </div>
+            <div class="service-options-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 15px;">
+                <button class="service-opt-btn" onclick="sendServiceRequest('물')">💧 물</button>
+                <button class="service-opt-btn" onclick="sendServiceRequest('반찬')">🥗 반찬</button>
+                <button class="service-opt-btn" onclick="sendServiceRequest('앞접시')">🥣 앞접시</button>
+                <button class="service-opt-btn" onclick="sendServiceRequest('티슈')">🧻 티슈</button>
+                <button class="service-opt-btn" onclick="sendServiceRequest('수저')">🥢 수저</button>
+                <button class="service-opt-btn" onclick="sendServiceRequest('호출')" style="grid-column: span 2; background: var(--primary-color); color: white;">🙋 호출</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 주문 성공/입금 안내 모달 -->
+    <div id="success-modal" class="modal-overlay" style="z-index: 1100;">
+        <div class="modal-content" style="text-align: center; padding: 30px 20px;">
+            <div style="font-size: 3rem; margin-bottom: 15px;">✅</div>
+            <h2 id="success-title" style="color: var(--secondary-color); margin-bottom: 10px;">주문 접수 완료</h2>
+            <p id="success-msg" style="font-size: 0.95rem; line-height: 1.6; margin-bottom: 20px; color: #ccc;"></p>
+            
+            <div id="bank-info-box" style="display: none; background: rgba(255,255,255,0.05); padding: 20px; border-radius: 12px; border: 1px solid rgba(212, 175, 55, 0.3); margin-bottom: 25px;">
+                <p style="font-size: 0.8rem; color: #888; margin-bottom: 5px;">다음 계좌로 입금해 주세요</p>
+                <p id="bank-detail" style="font-weight: bold; font-size: 1.1rem; margin-bottom: 15px; color: #fff;"></p>
+                
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <button id="toss-link-btn" class="order-submit-btn" style="background: #0064ff; color: white; border: none; width: 100%;">토스로 바로 송금</button>
+                    <button id="account-copy-btn" style="background: rgba(255,255,255,0.1); border: 1px solid #444; color: white; padding: 12px; border-radius: 10px; font-size: 0.9rem; width: 100%;">계좌번호 복사하기</button>
+                </div>
+            </div>
+            
+            <div id="extra-actions" style="margin-top: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
+                <button id="view-receipt-btn" onclick="openMobileReceipt()" style="background: rgba(255,255,255,0.05); border: 1px solid #444; color: white; padding: 12px; border-radius: 10px; font-size: 0.8rem; display: none;">📄 모바일 영수증</button>
+                <button id="request-cr-btn" onclick="showCashReceiptUI()" style="background: rgba(255,255,255,0.05); border: 1px solid #444; color: white; padding: 12px; border-radius: 10px; font-size: 0.8rem; display: none;">📝 현금영수증 신청</button>
+            </div>
+
+            <!-- 현금영수증 입력 UI (기본 숨김) -->
+            <div id="cr-request-box" style="display: none; margin-top: 15px; background: rgba(212, 175, 55, 0.05); border: 1px solid rgba(212, 175, 55, 0.2); padding: 15px; border-radius: 12px; text-align: left; margin-bottom: 15px;">
+                <div style="font-size: 0.85rem; font-weight: bold; margin-bottom: 10px; color: var(--secondary-color);">현금영수증 신청</div>
+                <div style="display: flex; gap: 5px; margin-bottom: 10px;">
+                    <button id="cr-type-personal" onclick="selectCRType('personal')" style="flex: 1; font-size: 0.75rem; padding: 8px; border-radius: 6px; border: 1px solid #444; background: #000; color: #fff;">개인</button>
+                    <button id="cr-type-business" onclick="selectCRType('business')" style="flex: 1; font-size: 0.75rem; padding: 8px; border-radius: 6px; border: 1px solid #444; background: #000; color: #fff;">사업자</button>
+                </div>
+                <input type="tel" id="cr-phone-input" placeholder="번호 입력" style="width: 100%; padding: 10px; background: #000; border: 1px solid #444; color: white; border-radius: 8px; font-size: 0.9rem; text-align: center; margin-bottom: 10px;">
+                <button onclick="submitMobileCR()" class="order-submit-btn" style="padding: 10px; font-size: 0.85rem; margin: 0; background: var(--secondary-color); color: #000;">신청 완료</button>
+            </div>
+            
+            <button onclick="closeSuccessModal()" style="width: 100%; padding: 15px; background: #333; color: white; border: none; border-radius: 10px; font-weight: bold;">창 닫기</button>
+        </div>
+    </div>
+
+    <script id="menu-data" type="application/json">{{ store.menu_data | tojson | safe }}</script>
+    <script>
+        const socket = io();
+        
+        socket.on('connect', () => {
+            console.log('Socket.IO Connected for Customer');
+            socket.emit('join', { store_id: '{{ store.id }}' });
+        });
+
+        const menuData = JSON.parse(document.getElementById('menu-data').textContent);
+        let tableId = parseInt('{{ table_id }}');
+        
+        let sessionId = localStorage.getItem('wang_gung_session') || '{{ session_id }}';
+        if (!localStorage.getItem('wang_gung_session')) {
+            localStorage.setItem('wang_gung_session', sessionId);
+        }
+        const orderNoEl = document.getElementById('order-no');
+        if (orderNoEl) {
+            orderNoEl.innerText = `#${sessionId}`;
+        }
+
+        async function checkTableConflict() {
+            const currentTable = parseInt('{{ table_id }}');
+            const lastTable = localStorage.getItem('active_table_id');
+            const mySession = sessionId;
+
+            try {
+                const res = await fetch(`/api/{{ store.id }}/orders`);
+                const allOrders = await res.json();
+                
+                // 1. [자리 이동 감지] 이전 자리에 미결제 장부가 있는 경우
+                if (lastTable && parseInt(lastTable) !== currentTable) {
+                    const hasUnpaidOnLast = allOrders.some(o => o.table_id === parseInt(lastTable) && o.session_id === mySession && o.status !== 'paid' && o.status !== 'cancelled');
+                    if (hasUnpaidOnLast) {
+                        if (confirm(`현재 ${lastTable}번 테이블에 결제하실 내역이 있습니다. ${currentTable}번으로 자리를 옮겨서 계속 주문하시겠습니까?`)) {
+                            localStorage.setItem('active_table_id', currentTable);
+                            showToast("자리가 이동되었습니다.");
+                        } else {
+                            alert(`${lastTable}번 테이블 결제 완료 후 이용이 가능합니다.`);
+                            location.href = `/{{ store.id }}/${lastTable}`;
+                            return;
+                        }
+                    }
+                }
+
+                // 2. [일행 합류 체크] 
+                // [개선] 만약 내 세션(mySession)으로 이미 이 테이블에 주문한 내역이 단 하나라도 있다면, 
+                // 다른 세션의 유령 주문이 있더라도 무시하고 바로 입장합니다.
+                const myActiveOrder = allOrders.find(o => o.table_id === currentTable && o.session_id === mySession && o.status !== 'paid' && o.status !== 'cancelled');
+                
+                if (!myActiveOrder) {
+                    const otherActiveOrder = allOrders.find(o => o.table_id === currentTable && o.session_id !== mySession && o.status !== 'paid' && o.status !== 'cancelled');
+                    if (otherActiveOrder) {
+                        if (confirm("이 테이블은 이미 다른 일행이 주문 중입니다. 해당 일행과 합류(함께 주문)하시겠습니까?")) {
+                            localStorage.setItem('wang_gung_session', otherActiveOrder.session_id);
+                            location.reload(); 
+                            return;
+                        } else {
+                            alert("타인의 주문에 간섭할 수 없습니다. 다른 테이블을 이용해 주세요.");
+                            location.href = "/";
+                            return;
+                        }
+                    }
+                }
+                localStorage.setItem('active_table_id', currentTable);
+            } catch(e) { console.error("Conflict Check Error:", e); }
+        }
+        checkTableConflict();
+        
+        // 장바구니 초기화 (이전 캐시 오류 방지)
+        // localStorage.removeItem(`cart_table_${tableId}`); // 필요 시 로컬 캐시를 비우는 구문을 여기에 활성화할 수 있습니다.
+
+        // Load cart from localStorage or initialize empty
+        let cart = JSON.parse(localStorage.getItem(`cart_table_${tableId}`)) || [];
+
+        function showCategory(category, el) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            el.classList.add('active');
+
+            const container = document.getElementById('menu-container');
+            container.innerHTML = '';
+            
+            menuData[category].forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'menu-item';
+                div.innerHTML = `
+                    ${item.image ? `<img src="${item.image}" alt="${item.name}" class="menu-image-thumb">` : '<div class="menu-image-placeholder">No Image</div>'}
+                    <div class="item-info" style="flex: 1;">
+                        <h3 style="font-size: 1.1rem; margin-bottom: 6px; font-weight: 700;">${item.name}</h3>
+                        <p class="price" style="font-size: 1rem; color: #fff; opacity: 0.8;">${item.price.toLocaleString()}원</p>
+                    </div>
+                    <button class="add-btn" onclick="addToCart(event, ${item.id}, '${item.name}', ${item.price})">+</button>
+                `;
+                container.appendChild(div);
+            });
+            lucide.createIcons();
+        }
+
+        function addToCart(event, id, name, price) {
+            const finalId = id || (name.length + price);
+            const existing = cart.find(i => i.id === finalId);
+            if (existing) {
+                existing.quantity++;
+            } else {
+                cart.push({ id: finalId, name, price, quantity: 1 });
+            }
+            saveCart();
+            updateCartBar();
+            
+            showToast(`${name} 장바구니 추가`);
+            
+            // UI Feedback (안전하게 실행)
+            if (event && event.currentTarget) {
+                const btn = event.currentTarget;
+                if (btn.style) {
+                    btn.style.transform = 'scale(1.3)';
+                    setTimeout(() => btn.style.transform = 'scale(1)', 200);
+                }
+            }
+        }
+
+        function saveCart() {
+            localStorage.setItem(`cart_table_${tableId}`, JSON.stringify(cart));
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2000);
+        }
+
+        let serverUnpaidTotal = 0;
+        let serverOrderItemsSummary = "";
+
+        function refreshTotalSummary() {
+            const summaryVal = document.getElementById('summary-total-val');
+            const summaryDesc = document.getElementById('summary-items-desc');
+            
+            const cartTotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            const total = serverUnpaidTotal + cartTotal;
+            
+            summaryVal.innerText = total.toLocaleString();
+
+            // 품목 요약 생성
+            let allItemNames = [];
+            // 1. 이미 주문된 메뉴 (서버)
+            if (serverOrderItemsSummary) allItemNames.push(serverOrderItemsSummary);
+            // 2. 장바구니 메뉴
+            if (cart.length > 0) {
+                const cartSummary = cart[0].name + (cart.length > 1 ? ` 외 ${cart.length - 1}건` : "");
+                allItemNames.push(`장바구니: ${cartSummary}`);
+            }
+
+            if (allItemNames.length > 0) {
+                summaryDesc.innerText = allItemNames.join(" | ");
+                summaryDesc.style.color = "rgba(0,0,0,0.8)";
+            } else {
+                summaryDesc.innerText = "주문을 시작해 보세요!";
+                summaryDesc.style.color = "rgba(0,0,0,0.5)";
+            }
+        }
+
+        function updateCartBar() {
+            // [삭제 조치] 구형 cart-bar DOM 조작 코드를 모두 제거하고 통합 업데이트 로직만 남김
+            if (cart.length > 0) {
+                updateCartModalContent(); 
+            } else {
+                toggleCartModal(false); 
+            }
+            refreshTotalSummary(); // 통합 바 갱신 로직 (주동력)
+        }
+
+        function toggleCartModal(show) {
+            const modal = document.getElementById('cart-modal');
+            const isCurrentlyShown = modal.classList.contains('show');
+            const shouldShow = show === undefined ? !isCurrentlyShown : show;
+            
+            if (shouldShow) {
+                document.body.classList.add('modal-open');
+                modal.classList.add('show');
+                updateCartModalContent();
+            } else {
+                document.body.classList.remove('modal-open');
+                modal.classList.remove('show');
+            }
+        }
+
+        function closeCartOnOverlay(event) {
+            if (event.target.id === 'cart-modal') {
+                toggleCartModal(false);
+            }
+        }
+
+        function toggleServiceModal(show) {
+            const modal = document.getElementById('service-modal');
+            const isShown = modal.classList.contains('show');
+            show === undefined ? modal.classList.toggle('show') : (show ? modal.classList.add('show') : modal.classList.remove('show'));
+        }
+
+        function closeServiceOnOverlay(event) {
+            if (event.target.id === 'service-modal') toggleServiceModal(false);
+        }
+
+        async function sendServiceRequest(content) {
+            try {
+                const response = await fetch(`/api/{{ store.id }}/service_request`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content: content, table_id: tableId })
+                });
+                if (response.ok) {
+                    showToast(`'${content}' 요청이 전달되었습니다.`);
+                    toggleServiceModal(false);
+                }
+            } catch (err) {
+                console.error(err);
+                alert('요청 전달에 실패했습니다.');
+            }
+        }
+
+        function updateCartModalContent() {
+            const list = document.getElementById('cart-items-list');
+            const modalTotal = document.getElementById('modal-total');
+            list.innerHTML = '';
+            
+            let totalPrice = 0;
+            if (cart.length === 0) {
+                list.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-muted);">장바구니가 비어 있습니다.</div>';
+            }
+            
+            cart.forEach(item => {
+                totalPrice += item.price * item.quantity;
+                const div = document.createElement('div');
+                div.className = 'cart-item-row';
+                div.innerHTML = `
+                    <div style="flex: 1;">
+                        <div style="font-weight: bold; font-size: 1.1rem; margin-bottom: 3px;">${item.name}</div>
+                        <div style="font-size: 0.85rem; color: var(--secondary-color);">${item.price.toLocaleString()}원</div>
+                    </div>
+                    <div class="quantity-controls">
+                        <button onclick="changeQuantity(${item.id}, -1)">-</button>
+                        <span style="min-width: 20px; text-align: center; font-weight: bold;">${item.quantity}</span>
+                        <button onclick="changeQuantity(${item.id}, 1)">+</button>
+                    </div>
+                    <button class="remove-btn" onclick="removeItem(${item.id})" style="margin-left: 15px;">삭제</button>
+                `;
+                list.appendChild(div);
+            });
+            modalTotal.innerText = totalPrice.toLocaleString() + '원';
+        }
+
+        function changeQuantity(id, delta) {
+            const item = cart.find(i => i.id === id);
+            if (item) {
+                item.quantity += delta;
+                if (item.quantity <= 0) {
+                    removeItem(id);
+                } else {
+                    saveCart();
+                    updateCartBar();
+                }
+            }
+        }
+
+        function removeItem(id) {
+            cart = cart.filter(i => i.id !== id);
+            saveCart();
+            updateCartBar();
+        }
+
+        let selectedPaymentMethod = 'card';
+
+        function setPaymentMethod(method) {
+            selectedPaymentMethod = method;
+            const btnCard = document.getElementById('pay-card');
+            const btnBank = document.getElementById('pay-bank');
+            const btnCash = document.getElementById('pay-cash');
+            const bankInput = document.getElementById('bank-input-group');
+            const crSection = document.getElementById('checkout-cash-receipt');
+            
+            // 초기화
+            [btnCard, btnBank, btnCash].forEach(btn => {
+                if(btn) {
+                    btn.style.background = 'rgba(0,0,0,0.3)';
+                    btn.style.color = '#fff';
+                    btn.style.borderColor = '#444';
+                }
+            });
+
+            if (method === 'card') {
+                btnCard.style.background = '#8B0000'; btnCard.style.color = '#fff'; btnCard.style.borderColor = '#D4AF37';
+                bankInput.style.display = 'none';
+                crSection.style.display = 'none';
+            } else if (method === 'bank') {
+                btnBank.style.background = '#D4AF37'; btnBank.style.color = '#000'; btnBank.style.borderColor = '#D4AF37';
+                bankInput.style.display = 'block';
+                crSection.style.display = 'block';
+                setTimeout(() => { if(document.getElementById('depositor-name')) document.getElementById('depositor-name').focus(); }, 100);
+            } else if (method === 'postpaid') {
+                btnCash.style.background = '#27ae60'; btnCash.style.color = '#fff'; btnCash.style.borderColor = '#2ecc71';
+                bankInput.style.display = 'none';
+                crSection.style.display = 'none'; // 후불결제는 상호작용 후 카운터에서 영수증 처리
+            }
+        }
+
+        // --- 장바구니 현금영수증 제어 ---
+        let cartCRType = 'personal';
+        function toggleCheckoutCR() {
+            const checked = document.getElementById('apply-cr').checked;
+            document.getElementById('checkout-cr-group').style.display = checked ? 'block' : 'none';
+        }
+        function setCartCRType(type) {
+            cartCRType = type;
+            document.getElementById('cart-cr-personal').style.borderColor = (type === 'personal') ? '#3b82f6' : '#444';
+            document.getElementById('cart-cr-business').style.borderColor = (type === 'business') ? '#3b82f6' : '#444';
+            document.getElementById('cart-cr-personal').style.background = (type === 'personal') ? 'rgba(59,130,246,0.1)' : 'rgba(0,0,0,0.3)';
+            document.getElementById('cart-cr-business').style.background = (type === 'business') ? 'rgba(59,130,246,0.1)' : 'rgba(0,0,0,0.3)';
+        }
+        function syncCRPhone(val) {
+            const crNum = document.getElementById('cart-cr-number');
+            if(!crNum.value) crNum.value = val;
+        }
+
+        // [추가] 토스페이먼츠 성공 리다이렉트 처리 (테스트 모드용)
+        window.addEventListener('DOMContentLoaded', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('toss_success') === 'true') {
+                const pendingPayload = sessionStorage.getItem('pendingOrderPayload');
+                if (pendingPayload) {
+                    const payload = JSON.parse(pendingPayload);
+                    sessionStorage.removeItem('pendingOrderPayload');
+                    // 결제 성공 후 실제 주문 트리거
+                    showToast("카드 결제 및 주문이 완료되었습니다!");
+                    payload.is_prepaid = true;
+                    // 주소창 파라미터 지우기 (선택사항)
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                    socket.emit('place_order', payload);
+                }
+            } else if (urlParams.get('toss_fail') === 'true') {
+                alert("카드 결제가 취소되었거나 실패했습니다.\n" + (urlParams.get('message') || ''));
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+        });
+
+        function placeOrder() {
+            if (cart.length === 0) return;
+            
+            const depositorName = selectedPaymentMethod === 'bank' ? document.getElementById('depositor-name').value.trim() : '';
+            if (selectedPaymentMethod === 'bank' && !depositorName) {
+                alert('입금자 성함을 입력해 주세요.');
+                document.getElementById('depositor-name').focus();
+                return;
+            }
+
+            const totalPrice = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            const orderId = 'ORD-' + Date.now();
+            const phone = document.getElementById('order-phone').value.replace(/[^0-9]/g, '');
+            const payload = {
+                store_id: '{{ store.id }}',
+                order_id: orderId,
+                session_id: sessionId,
+                table_id: tableId,
+                items: cart,
+                total_price: totalPrice,
+                phone: phone,
+                payment_method: selectedPaymentMethod,
+                depositor_name: depositorName,
+                // [신규] 주문 시 현금영수증 신청 정보 포함
+                cash_receipt_type: document.getElementById('apply-cr').checked ? cartCRType : null,
+                cash_receipt_number: document.getElementById('apply-cr').checked ? document.getElementById('cart-cr-number').value : null,
+                timestamp: Date.now()
+            };
+            
+            // Save phone to localStorage for convenience
+            if (phone) localStorage.setItem('freeorder_phone', phone);
+            
+            // [추가] 토스페이먼츠 결제 분기 (테스트)
+            if (selectedPaymentMethod === 'card') {
+                // 현재 주문 정보를 세션에 임시 저장 (리다이렉트 후 복구)
+                sessionStorage.setItem('pendingOrderPayload', JSON.stringify(payload));
+                
+                // 토스페이먼츠 테스트 클라이언트 키
+                const tossPayments = TossPayments("test_ck_D5GePWvyJnrK0W0k6q8gLzN97Eoq");
+                
+                // 현재 주소 캡처
+                let currentUrl = window.location.href.split('?')[0]; 
+                
+                tossPayments.requestPayment('카드', {
+                    amount: payload.total_price,
+                    orderId: "TEST_" + Date.now(), // 고유 주문번호 생성
+                    orderName: "{{ store.name }} 결제 (" + payload.items.length + "건)",
+                    customerName: depositorName || "식당 손님",
+                    successUrl: currentUrl + "?toss_success=true",
+                    failUrl: currentUrl + "?toss_fail=true"
+                }).catch(function (error) {
+                    if (error.code === 'USER_CANCEL') {
+                        // 결제창 닫힘: 조용히 무시하거나 토스트 메시지
+                    } else {
+                        alert("결제창 호출 오류: " + error.message);
+                    }
+                });
+                return; // 이후의 emit 중지 (리다이렉트가 됨)
+            }
+
+            socket.emit('place_order', payload);
+        }
+
+        let lastBankData = null;
+
+        function reopenBankModal() {
+            if (lastBankData) {
+                document.getElementById('success-modal').classList.add('show');
+            }
+        }
+
+        // [신규] 기존 주문 내역 로드
+        async function loadCurrentOrders() {
+            try {
+                const res = await fetch(`/api/{{ store.id }}/orders`);
+                const allOrders = await res.json();
+                
+                // 내 세션 아이디와 일치하는 주문만 필터링
+                const myOrders = allOrders.filter(o => o.session_id === sessionId && o.status !== 'cancelled');
+                const list = document.getElementById('current-orders-list');
+                const payArea = document.getElementById('whole-pay-area');
+                
+                if (myOrders.length > 0) {
+                    list.innerHTML = '';
+                    let unpaidTotal = 0;
+                    let activeItems = [];
+                    
+                    myOrders.forEach(order => {
+                        if (order.status !== 'paid') unpaidTotal += order.total_price;
+                        order.items.forEach(item => {
+                            if (item.status !== 'cancelled') activeItems.push(item.name);
+                            // 내부 렌더링 (모달 등에서 활용)
+                            const div = document.createElement('div');
+                            div.className = 'cart-item-row';
+                            div.innerHTML = `<div style="flex:1;"><b>${item.name}</b></div><div>x${item.quantity}</div>`;
+                            list.appendChild(div);
+                        });
+                    });
+
+                    serverUnpaidTotal = unpaidTotal;
+                    if (activeItems.length > 0) {
+                        serverOrderItemsSummary = activeItems[0] + (activeItems.length > 1 ? ` 외 ${activeItems.length - 1}건` : "");
+                    } else {
+                        serverOrderItemsSummary = "";
+                    }
+                } else {
+                    serverUnpaidTotal = 0;
+                    serverOrderItemsSummary = "";
+                }
+                refreshTotalSummary();
+            } catch (err) { console.error(err); }
+        }
+
+        function scrollToMenu() {
+            toggleCartModal(false); // 장바구니가 열려있다면 닫기
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            showToast("메뉴를 골라 장바구니에 담아주세요.");
+        }
+
+        async function payWholeBalance() {
+            try {
+                const res = await fetch(`/api/{{ store.id }}/orders`);
+                const allOrders = await res.json();
+                const myUnpaid = allOrders.filter(o => o.session_id === sessionId && o.status !== 'paid' && o.status !== 'cancelled');
+                
+                if(myUnpaid.length === 0) return alert('결제할 잔액이 없습니다.');
+                
+                const total = myUnpaid.reduce((sum, o) => sum + o.total_price, 0);
+                const orderIds = myUnpaid.map(o => o.id);
+                
+                // 가상의 '전체 결제' 장바구니 생성
+                const tempItems = myUnpaid.flatMap(o => o.items).map(i => ({...i, id: i.id}));
+                
+                // 장바구니에 담고 모달 열기 (기존 결제 로직 재활용)
+                cart = tempItems;
+                saveCart();
+                updateCartBar();
+                setPaymentMethod('card'); // 기본 카드 선택
+                toggleCartModal(true);
+                
+                showToast("전체 잔액 결제를 준비합니다.");
+            } catch(e) { console.error(e); }
+        }
+
+        function cancelOrderItem(itemId) {
+            if (!confirm('해당 품목을 취소하시겠습니까?')) return;
+            socket.emit('cancel_order_item', { item_id: itemId });
+        }
+
+        socket.on('order_success', (data) => {
+            const modal = document.getElementById('success-modal');
+            const title = document.getElementById('success-title');
+            const msg = document.getElementById('success-msg');
+            const bankBox = document.getElementById('bank-info-box');
+            
+            if (data.depositor_name) {
+                // 무통장 입금인 경우 -> 상단 안내 바 활성화
+                lastBankData = data;
+                const stickyBar = document.getElementById('payment-sticky-bar');
+                stickyBar.style.display = 'block';
+                document.body.style.paddingTop = '45px'; // 상단바 공간 확보
+
+                title.innerText = "입금 대기 중";
+                msg.innerHTML = `주문번호: <b>#${data.order_no}</b><br>입금 자명 뒤에 번호를 꼭 적어주세요.<br><span style="color:#D4AF37; font-weight:bold;">[${data.depositor_name}${data.order_no}]</span>`;
+                
+                if (data.bank_name && data.account_no) {
+                    bankBox.style.display = 'block';
+                    document.getElementById('bank-detail').innerText = `${data.bank_name} ${data.account_no} (예금주: ${data.account_holder || data.store_name})`;
+                    
+                     // 기기 판별 및 스마트 딥링크 로직
+                    const isAndroid = /Android/i.test(navigator.userAgent);
+                    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+                    const tossMemo = `${data.depositor_name}${data.order_no}`;
+                    
+                    // 안드로이드 앱 호출 표준(Intent) 적용
+                    let tossUrl = `supertoss://send?bank=${encodeURIComponent(data.bank_name)}&accountNo=${data.account_no}&amount=${data.total_price}&memo=${encodeURIComponent(tossMemo)}`;
+                    if (isAndroid) {
+                        tossUrl = `intent://send?bank=${encodeURIComponent(data.bank_name)}&accountNo=${data.account_no}&amount=${data.total_price}&memo=${encodeURIComponent(tossMemo)}#Intent;scheme=supertoss;package=viva.republica.toss;end`;
+                    }
+                    
+                    const tossBtn = document.getElementById('toss-link-btn');
+                    tossBtn.onclick = (e) => {
+                        e.preventDefault();
+                        if (!data.bank_name || !data.account_no) {
+                            alert("계좌 정보가 설정되지 않았습니다. 매장에 문의해 주세요.");
+                            return;
+                        }
+
+                        const startTime = Date.now();
+
+                        // 1.5초 후에도 브라우저에 머물러 있다면 앱이 없는 것으로 간주
+                        setTimeout(() => {
+                            if (Date.now() - startTime < 2000) {
+                                if (confirm("토스 앱을 찾을 수 없습니다. 설치 페이지로 이동할까요?\n\n(취소 시 계좌번호를 복사하여 직접 입금하실 수 있습니다.)")) {
+                                    if (isIOS) window.location.href = "https://itunes.apple.com/app/id839333328";
+                                    else if (!isAndroid) window.location.href = "market://details?id=viva.republica.toss";
+                                    // 안드로이드 Intent 방식은 앱이 없으면 브라우저가 알아서 마켓으로 보내주므로 else if(!isAndroid) 처리
+                                } else {
+                                    showToast("계좌 정보를 확인하여 직접 입금해 주세요.");
+                                    document.getElementById('bank-info-box').style.borderColor = "#D4AF37"; // 계좌 박스 강조
+                                }
+                            }
+                        }, 1500);
+
+                        window.location.href = tossUrl;
+                    };
+                    
+                    const copyBtn = document.getElementById('account-copy-btn');
+                    copyBtn.onclick = (e) => {
+                        e.preventDefault();
+                        navigator.clipboard.writeText(data.account_no).then(() => {
+                            showToast("계좌번호가 복사되었습니다.");
+                        }).catch(() => {
+                            // 클립보드 복사 실패 시 대안 (일부 브라우저)
+                            const t = document.createElement("textarea");
+                            t.value = data.account_no;
+                            document.body.appendChild(t); t.select();
+                            document.execCommand("copy");
+                            document.body.removeChild(t);
+                            showToast("계좌번호가 복사되었습니다.");
+                        });
+                    };
+                }
+            } else {
+                // 일반 주문(카드 등)인 경우
+                title.innerText = "주문 완료";
+                msg.innerHTML = `주문이 성공적으로 완료되었습니다.<br>주문번호: <b>#${data.order_no}</b>`;
+                bankBox.style.display = 'none';
+            }
+            
+            // 영수증 및 현금영수증 버튼 노출 제어 (신규 로직: 결제 완료 전에는 숨김 또는 비활성화 권장)
+            document.getElementById('view-receipt-btn').style.display = 'none'; // 미결제 시 숨김
+            document.getElementById('request-cr-btn').style.display = 'none'; // 미리 신청했으므로 숨김
+            document.getElementById('cr-request-box').style.display = 'none';
+            
+            modal.classList.add('show');
+
+            // 장바구니 비우기 및 초기화
+            cart = [];
+            saveCart();
+            updateCartBar();
+            toggleCartModal(false);
+            loadCurrentOrders(); // 주문 성공 시 내역 갱신
+        });
+
+        // 실시간 주문 상태 업데이트 감지 (입금 확인 시 상단바 제거)
+        socket.on('order_update', (data) => {
+            if (lastBankData && data.order_id === lastBankData.order_id) {
+                if (data.payment_status === 'paid' || data.status === 'paid') {
+                    document.getElementById('payment-sticky-bar').style.display = 'none';
+                    document.body.style.paddingTop = '0';
+                    showToast("✅ 입금이 확인되었습니다. 감사합니다!");
+                    
+                    // [변경] 입금 확인 시 성공 모달의 내용을 "결제 완료" 모드로 전환
+                    const title = document.getElementById('success-title');
+                    const msg = document.getElementById('success-msg');
+                    const bankBox = document.getElementById('bank-info-box');
+                    const receiptBtn = document.getElementById('view-receipt-btn');
+                    
+                    title.innerText = "결제 완료";
+                    title.style.color = "#10b981";
+                    msg.innerHTML = `정상적으로 입금이 확인되어 <b>식사권이 확정</b>되었습니다.<br>이용해 주셔서 감사합니다!`;
+                    bankBox.style.display = 'none';
+                    
+                    // 영수증 버튼 크게 노출
+                    receiptBtn.style.display = 'block';
+                    receiptBtn.style.background = '#10b981';
+                    receiptBtn.style.width = '100%';
+                    receiptBtn.innerHTML = '<i data-lucide="file-check"></i> 발행된 전자 영수증 보기';
+                    lucide.createIcons();
+                    
+                    document.getElementById('success-modal').classList.add('show');
+                }
+            }
+            loadCurrentOrders(); // 상태 변경 시 내역 갱신
+        });
+
+        // [추가] 통합 주문 상태 업데이트 수신
+        socket.on('order_status_update', () => loadCurrentOrders());
+        socket.on('table_status_update', () => loadCurrentOrders());
+        socket.on('new_order', () => loadCurrentOrders());
+
+        function closeSuccessModal() {
+            document.getElementById('success-modal').classList.remove('show');
+        }
+
+        // --- 영수증 및 현금영수증 처리 로직 ---
+        let currentCRType = 'personal';
+        function selectCRType(type) {
+            currentCRType = type;
+            document.getElementById('cr-type-personal').style.borderColor = (type === 'personal') ? 'var(--secondary-color)' : '#444';
+            document.getElementById('cr-type-business').style.borderColor = (type === 'business') ? 'var(--secondary-color)' : '#444';
+        }
+
+        function showCashReceiptUI() {
+            document.getElementById('cr-request-box').style.display = 'block';
+            document.getElementById('request-cr-btn').style.display = 'none';
+            const phone = document.getElementById('order-phone').value;
+            if(phone) document.getElementById('cr-phone-input').value = phone;
+            selectCRType('personal');
+        }
+
+        async function submitMobileCR() {
+            if(!lastBankData) return;
+            const num = document.getElementById('cr-phone-input').value.trim();
+            if(!num) return alert('번호를 입력해 주세요.');
+
+            try {
+                const res = await fetch(`/api/order/${lastBankData.order_id}/cash_receipt`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ type: currentCRType, number: num })
+                });
+                if(res.ok) {
+                    alert('현금영수증 신청이 완료되었습니다.');
+                    document.getElementById('cr-request-box').innerHTML = '<div style="color:var(--secondary-color); font-weight:bold; text-align:center;">신청 완료</div>';
+                }
+            } catch(e) { alert('오류 발생'); }
+        }
+
+        function openMobileReceipt() {
+            if(!lastBankData) return;
+            window.open(`/receipt/${lastBankData.order_id}`, '_blank');
+        }
+
+        // [실버 브릿지] 실버 모드 제어
+        function toggleSilverMode() {
+            const isSilver = document.body.classList.toggle('silver-mode');
+            localStorage.setItem('freeorder_silver_mode', isSilver);
+            const btn = document.getElementById('silver-toggle');
+            btn.innerHTML = isSilver ? '<i data-lucide="zoom-out" size="18"></i> 작게보기' : '<i data-lucide="zoom-in" size="18"></i> 크게보기';
+            lucide.createIcons();
+            showToast(isSilver ? "큰 글씨 모드가 활성화되었습니다." : "일반 모드로 전환되었습니다.");
+            
+            // 데이터 재렌더링 (레이아웃 변경 반영을 위해)
+            const activeTab = document.querySelector('.tab.active');
+            if (activeTab) showCategory(activeTab.innerText.trim(), activeTab);
+        }
+
+        socket.on('order_error', (data) => {
+            alert(data.message);
+        });
+
+        // [실버 브릿지] 음성 인식 제어 로직
+        let recognition;
+        try {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (SpeechRecognition) {
+                recognition = new SpeechRecognition();
+                recognition.lang = 'ko-KR';
+                recognition.interimResults = false;
+                recognition.maxAlternatives = 1;
+
+                recognition.onstart = () => {
+                    document.getElementById('voice-btn').classList.add('listening');
+                    showToast("🎤 메뉴명을 말씀해 주세요...");
+                };
+                recognition.onend = () => {
+                    document.getElementById('voice-btn').classList.remove('listening');
+                };
+                recognition.onresult = (event) => {
+                    const speechToText = event.results[0][0].transcript;
+                    processVoiceOrder(speechToText);
+                };
+            }
+        } catch(e) { console.error("Web Speech API not supported", e); }
+
+        function startVoiceOrder() {
+            if (!recognition) return alert("이 브라우저에서는 음성 인식을 지원하지 않습니다.");
+            
+            // 즉시 피드백: 권한 확인 중에도 초록색으로 변경
+            const btn = document.getElementById('voice-btn');
+            btn.classList.add('listening');
+            
+            try {
+                recognition.start();
+            } catch(e) {
+                console.error("Speech Start Error:", e);
+                btn.classList.remove('listening');
+                if (e.name === 'NotAllowedError') alert("마이크 권한이 필요합니다. 브라우저 설정에서 허용해 주세요.");
+            }
+        }
+
+        function processVoiceOrder(text) {
+            const cleanText = text.replace(/\s/g, ''); // 공백 제거
+            showToast(`"${text}" 인식됨...`);
+
+            // 0. 취소 및 삭제 명령어 처리
+            if (text.includes("취소") || text.includes("제외") || text.includes("빼줘") || text.includes("삭제") || text.includes("지워")) {
+                let deleted = false;
+                if (text.includes("전부") || text.includes("다")) {
+                    if (cart.length > 0 && confirm("장바구니를 모두 비우시겠습니까?")) {
+                        cart = []; saveCart(); updateCartBar();
+                        showToast("🗑️ 장바구니를 비웠습니다.");
+                        return;
+                    }
+                }
+                cart.forEach(item => {
+                    const cleanName = item.name.replace(/\s/g, '');
+                    if (cleanText.includes(cleanName) || cleanName.includes(cleanText)) {
+                        removeItem(item.id);
+                        showToast(`🗑️ ${item.name} 삭제됨`);
+                        deleted = true;
+                    }
+                });
+                if (deleted) return;
+            }
+            
+            // 1. 서비스 요청 처리
+            if (text.includes("물") || text.includes("반찬") || text.includes("여기요") || text.includes("호출") || text.includes("앞접시") || text.includes("수저")) {
+                let reqType = "호출";
+                if(text.includes("물")) reqType = "물";
+                else if(text.includes("반찬")) reqType = "반찬";
+                else if(text.includes("앞접시")) reqType = "앞접시";
+                else if(text.includes("수저")) reqType = "수저";
+                else if(text.includes("티슈")) reqType = "티슈";
+                
+                sendServiceRequest(reqType);
+                return;
+            }
+
+            // 2. 메뉴 매칭 (더욱 유연하게 개선)
+            let found = false;
+            let flatMenu = [];
+            for (let category in menuData) {
+                menuData[category].forEach(item => flatMenu.push(item));
+            }
+
+            for (let item of flatMenu) {
+                const cleanName = item.name.replace(/\s/g, '').replace(/\(.*\)/g, ''); // 괄호 제거
+                
+                // 매칭 조건 강화: 100% 일치 또는 핵심 키워드 포함
+                if (cleanText.includes(cleanName) || cleanName.includes(cleanText) || 
+                    (cleanName.length > 2 && cleanText.includes(cleanName.substring(0, 2)))) {
+                    
+                    let qty = 1;
+                    if (text.includes("두") || text.includes("2") || text.includes("둘") || text.includes("이")) qty = 2;
+                    else if (text.includes("세") || text.includes("3") || text.includes("셋") || text.includes("삼")) qty = 3;
+                    else if (text.includes("네") || text.includes("4") || text.includes("넷") || text.includes("사")) qty = 4;
+                    else if (text.includes("다섯") || text.includes("5") || text.includes("오")) qty = 5;
+
+                    // addToCart 루프 대신 수량만 조절하여 한 번에 반영하도록 최적화 가능하지만, 
+                    // 기존 addToCart 함수를 활용하되 UI 갱신은 마지막에 한 번만 실행되도록 addToCart 구조 변경 고려
+                    for(let i=0; i<qty; i++) {
+                        // addToCart 내부에서 updateCartBar를 호출하므로, 
+                        // voice ordering 상황에서는 UI 렉 방지를 위해 silent 모드 구현이 좋지만 우선 호출
+                        addToCart(null, item.id, item.name, item.price);
+                    }
+                    
+                    showToast(`✅ ${item.name} ${qty}개 확인되었습니다.`);
+                    found = true;
+                    break; // 하나 찾으면 중단
+                }
+            }
+
+            if (!found) {
+                showToast("음성 메뉴를 찾지 못했습니다. 다시 말씀해 주세요.");
+            } else {
+                // UI 강제 즉시 갱신
+                updateCartBar();
+            }
+        }
+
+        window.onload = () => {
+            lucide.createIcons(); // 아이콘 생성 실행
+            
+            // [개선] 탭 초기화 및 첫 번째 메뉴 즉시 로드
+            setTimeout(() => {
+                const firstTab = document.querySelector('.tab');
+                if (firstTab) {
+                    const catName = firstTab.innerText.trim();
+                    showCategory(catName, firstTab);
+                }
+            }, 50);
+
+            updateCartBar(); 
+            setPaymentMethod('card');
+            loadCurrentOrders();
+            
+            const savedPhone = localStorage.getItem('freeorder_phone');
+            if (savedPhone) document.getElementById('order-phone').value = savedPhone;
+
+            if (localStorage.getItem('freeorder_silver_mode') === 'true') {
+                toggleSilverMode();
+            }
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: mqr-saas-platform
+    runtime: docker
+    plan: free # 무료 티어 또는 유료(starter) 선택 가능
+    # [Keep-Alive 스케줄러 중복 방지] APScheduler는 프로세스당 1개만 실행되어야 함
+    # gunicorn 멀티 워커 사용 시 스케줄러가 워커 수만큼 중복 실행되는 문제 방지
+    # startCommand는 Dockerfile의 CMD(["./run_cloud.sh"])와 충돌하므로 제거합니다.
+    # 이제 run_cloud.sh가 서버와 Cloudflare 터널을 동시에 실행합니다.
+    # Render가 사용할 기본 포트를 10000번으로 일치시킵니다.
+    envVars:
+      - key: PORT
+        value: "10000"
+      - key: DATABASE_URL
+        # 로컬 DB 대신 Supabase 주소를 Render 대시보드(Environment)에서 직접 입력하세요.
+        sync: false
+      - key: CLOUDFLARE_TUNNEL_TOKEN
+        # 보안을 위해 대시보드에서 직접 입력하도록 설정
+        sync: false
+    # 디스크 보존 설정 (무료 티어는 재배포 시 SQLite 파일이 초기화됨. 영구 저장은 'Disk' 서비스 추천)
+    disk:
+      name: suragol-storage
+      mountPath: /app/data
+      sizeGB: 1

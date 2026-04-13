@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MQnet 통합 주문관리 포털</title>
+    <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root {
+            --primary-color: #8B0000;
+            --secondary-color: #D4AF37;
+            --bg-dark: #0A0A0A;
+            --glass-bg: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(212, 175, 55, 0.2);
+            --text-white: #f5f5f5;
+            --text-muted: #888888;
+        }
+        body {
+            background: var(--bg-dark);
+            color: var(--text-white);
+            font-family: 'Pretendard', sans-serif;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        .portal-container {
+            max-width: 1000px;
+            width: 90%;
+            padding: 40px 0;
+            text-align: center;
+        }
+        .header {
+            margin-bottom: 60px;
+            animation: fadeInDown 0.8s ease-out;
+        }
+        .header h1 {
+            font-size: 3.5rem;
+            font-weight: 900;
+            margin-bottom: 10px;
+            background: linear-gradient(to right, #D4AF37, #f5f5f5);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .header p {
+            color: var(--text-muted);
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            font-weight: 500;
+        }
+        .store-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+        }
+        .store-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 40px 30px;
+            text-decoration: none;
+            color: white;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            backdrop-filter: blur(10px);
+        }
+        .store-card:hover {
+            transform: translateY(-15px);
+            border-color: var(--secondary-color);
+            background: rgba(255, 255, 255, 0.08);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5), 0 0 20px rgba(212, 175, 55, 0.1);
+        }
+        .store-card .icon-box {
+            width: 70px;
+            height: 70px;
+            background: rgba(139, 0, 0, 0.2);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 25px;
+            color: var(--secondary-color);
+            transition: 0.3s;
+        }
+        .store-card:hover .icon-box {
+            background: var(--primary-color);
+            transform: rotate(5deg);
+        }
+        .store-card h2 {
+            font-size: 1.8rem;
+            font-weight: 800;
+            margin-bottom: 8px;
+        }
+        .store-card .slug {
+            font-size: 0.9rem;
+            color: var(--secondary-color);
+            opacity: 0.7;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+        .store-card .status {
+            font-size: 0.85rem;
+            color: #4CAF50;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: #4CAF50;
+            border-radius: 50%;
+            box-shadow: 0 0 10px #4CAF50;
+        }
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <div class="portal-container">
+        <div class="header">
+            <p>Next-Gen Multi-Tenant System</p>
+            <h1>MQnet Cloud Portal</h1>
+        </div>
+        
+        <div class="store-grid">
+            {% for store in stores %}
+            <a href="/{{ store.id }}" class="store-card">
+                <div class="icon-box">
+                    <i data-lucide="store" size="36"></i>
+                </div>
+                <h2>{{ store.name }}</h2>
+                <div class="slug">@{{ store.id }}</div>
+                <div class="status">
+                    <span class="status-dot"></span>
+                    Operational
+                </div>
+            </a>
+            {% endfor %}
+            
+            <!-- 운영 관리 (Admin) 카드 -->
+            <a href="/admin" class="store-card" style="border-color: var(--secondary-color); background: rgba(212, 175, 55, 0.05); animation-delay: 0.2s;">
+                <div class="icon-box" style="background: var(--primary-color); border: 1px solid var(--glass-border);">
+                    <i data-lucide="layout-dashboard" size="36"></i>
+                </div>
+                <h2>운영 관리</h2>
+                <div class="slug">MQnet Central Admin</div>
+                <div class="status" style="color: var(--secondary-color);">
+                    <i data-lucide="shield-check" size="14"></i>
+                    Authorized Access
+                </div>
+            </a>
+        </div>
+        
+        <div style="margin-top: 60px; color: var(--text-muted); font-size: 0.9rem;">
+            &checkmark; 2026 MQnet Integrated Ordering Solution - Secure & Scalable
+        </div>
+    </div>
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+</html>

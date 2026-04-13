@@ -1,0 +1,11 @@
+.venv/
+venv/
+__pycache__/
+*.pyc
+.vscode/
+.git/
+.ipynb_checkpoints/
+screenshot/
+tmp/
+.gemini/
+.env

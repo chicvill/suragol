@@ -1,0 +1,9 @@
+{
+  "appId": "com.mqnet.app",
+  "appName": "MQnet",
+  "webDir": "static",
+  "server": {
+    "url": "https://free.chicvill.store",
+    "cleartext": true
+  }
+}

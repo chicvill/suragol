@@ -6,27 +6,38 @@ import random
 AI_MENU_PRESETS = {
     '커피/카페': {
         '☕ 에스프레소/커피': [
-            {'name': '아메리카노 (HOT/ICE)', 'price': 4500, 'image': '/static/images/sample_coffee.jpg'},
-            {'name': '카페라떼', 'price': 5000, 'image': ''},
-            {'name': '바닐라라떼', 'price': 5500, 'image': ''}
+            {'name': '아메리카노 (HOT/ICE)', 'price': 4500, 'image': 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=500&q=80'},
+            {'name': '카페라떼', 'price': 5000, 'image': 'https://images.unsplash.com/photo-1541167760496-1628856ab772?w=500&q=80'},
+            {'name': '바닐라라떼', 'price': 5500, 'image': 'https://images.unsplash.com/photo-1461023232487-0b1368421876?w=500&q=80'}
         ],
         '🍰 디저트': [
-            {'name': '전통 다과 세트', 'price': 7500, 'image': ''},
-            {'name': '치즈 케이크', 'price': 6500, 'image': ''}
+            {'name': '전통 다과 세트', 'price': 7500, 'image': 'https://images.unsplash.com/photo-1558961363-fa8fdf82db35?w=500&q=80'},
+            {'name': '치즈 케이크', 'price': 6500, 'image': 'https://images.unsplash.com/photo-1533134242443-d4fd215305ad?w=500&q=80'}
         ]
     },
     '한식/식당': {
         '🥘 식사류': [
-            {'name': '전통 비빔밥', 'price': 9000, 'image': ''},
-            {'name': '김치찌개 정식', 'price': 8500, 'image': ''},
-            {'name': '뚝배기 불고기', 'price': 11000, 'image': ''}
+            {'name': '전통 비빔밥', 'price': 9000, 'image': 'https://images.unsplash.com/photo-1590301157890-4810ed352733?w=500&q=80'},
+            {'name': '김치찌개 정식', 'price': 8500, 'image': 'https://images.unsplash.com/photo-1583224964978-2257b960c3d3?w=500&q=80'},
+            {'name': '뚝배기 불고기', 'price': 11000, 'image': 'https://images.unsplash.com/photo-1624462966581-20a282492162?w=500&q=80'}
+        ]
+    },
+    '중식/차이니즈': {
+        '🍜 면/식사류': [
+            {'name': '명품 짜장면', 'price': 7000, 'image': 'https://images.unsplash.com/photo-1585032226651-759b368d7246?w=500&q=80'},
+            {'name': '얼큰 해물 짬뽕', 'price': 8500, 'image': 'https://images.unsplash.com/photo-1512058560366-cd2429555614?w=500&q=80'},
+            {'name': '새우 볶음밥', 'price': 8000, 'image': 'https://images.unsplash.com/photo-1603133872878-684f208fb84b?w=500&q=80'}
+        ],
+        '🥟 요리류': [
+            {'name': '바삭 탕수육 (등심)', 'price': 18000, 'image': 'https://images.unsplash.com/photo-1525755662778-989d0524087e?w=500&q=80'},
+            {'name': '매콤 칠리새우', 'price': 25000, 'image': 'https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?w=500&q=80'}
         ]
     },
     '분식/매점': {
         '🍳 분식 대표': [
-            {'name': '매콤 떡볶이', 'price': 5000, 'image': ''},
-            {'name': '모둠 튀김', 'price': 6000, 'image': ''},
-            {'name': '찰순대', 'price': 4500, 'image': ''}
+            {'name': '매콤 떡볶이', 'price': 5000, 'image': 'https://images.unsplash.com/photo-1534353436294-0dbd4bdac845?w=500&q=80'},
+            {'name': '모둠 튀김', 'price': 6000, 'image': 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=500&q=80'},
+            {'name': '찰순대', 'price': 4500, 'image': 'https://images.unsplash.com/photo-1598515214211-89d3c73ae83b?w=500&q=80'}
         ]
     },
     '치킨/호프': {
@@ -59,6 +70,8 @@ def get_ai_recommended_menu(business_type):
     
     if any(k in biz_type for k in ['커피', '카페', '찻집', '다방', '디저트', '음료']):
         menu_template = AI_MENU_PRESETS.get('커피/카페')
+    elif any(k in biz_type for k in ['중식', '중국집', '짜장', '짬뽕', '마라탕']):
+        menu_template = AI_MENU_PRESETS.get('중식/차이니즈')
     elif any(k in biz_type for k in ['한식', '식당', '밥집', '국밥', '찌개', '갈비', '고기']):
         menu_template = AI_MENU_PRESETS.get('한식/식당')
     elif any(k in biz_type for k in ['분식', '떡볶이', '김밥', '매점', '포장마차']):
