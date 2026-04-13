@@ -10,6 +10,8 @@ if DATABASE_URL:
         DATABASE_URL = DATABASE_URL.replace(":6543", ":5432")
     if "aws-1-ap-south-1.pooler.supabase.com" in DATABASE_URL:
         DATABASE_URL = DATABASE_URL.replace("aws-1-ap-south-1.pooler.supabase.com", "wdikgmyhuxhhyeljnyqa.pooler.supabase.com")
+    if "wdikgmyhuxhhyeljnyqa.pooler.supabase.com" in DATABASE_URL:
+        DATABASE_URL = DATABASE_URL.replace("wdikgmyhuxhhyeljnyqa.pooler.supabase.com", "db.wdikgmyhuxhhyeljnyqa.supabase.co")
 
 def migrate():
     print(f"[Migration] Connecting to DB...")
