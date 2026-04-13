@@ -64,10 +64,6 @@ scheduler.init_app(app) # 스케줄러와 앱 연결
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1) 
 app.config['SECRET_KEY'] = 'suragol-secret-key-2026'
 
-@app.route('/health')
-def health_check():
-    return jsonify(status="ok", environment="production" if os.getenv("DOMAIN_MODE") == "1" else "local")
-
 # [세션 쿠키 설정 극강화]
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
