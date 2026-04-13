@@ -404,15 +404,14 @@ def keep_alive_ping():
     except Exception as e:
         print(f"🚨 [오류 경보] DB 연결 실패: {str(e)}")
         # 향후 여기에 이메일 발송 또는 관리자 알림 로직 추가 가능
-
-    # 2. Render 슬립 방지 외부 핑
-    if not render_url:
-        return
+    # Render 프리티어 등에서 서버가 잠들지 않도록 주기적으로 자기 자신 호출
+    # [보정] 외부 도메인 대신 내부 로컬 주소(127.0.0.1)를 호출하여 DNS 오류 방지
     try:
-        ping_url = f"{render_url.rstrip('/')}/ping"
-        req = urllib.request.urlopen(ping_url, timeout=10)
-        print(f"✅ [Keep-Alive] 핑 성공 → {ping_url} (HTTP {req.status})")
+        from urllib.request import urlopen
+        urlopen("http://127.0.0.1:10000/health", timeout=10)
+        print("🕒 [Keep-Alive] 핑 성공 (내부 주소)")
     except Exception as e:
+        # 실패하더라도 서비스엔 지장 없음
         print(f"⚠️ [Keep-Alive] 핑 실패: {e}")
 
 @app.route('/ping')
