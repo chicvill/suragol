@@ -1,5 +1,8 @@
-import eventlet
-eventlet.monkey_patch(dns=False)
+try:
+    import eventlet
+    eventlet.monkey_patch(dns=False)
+except (ImportError, AttributeError):
+    pass
 
 import os
 import sys
@@ -56,8 +59,12 @@ app.config['DEBUG'] = debug_mode
 app.jinja_env.add_extension('jinja2.ext.do')  # {% do %} 태그 활성화
 scheduler = APScheduler()
 scheduler.init_app(app) # 스케줄러와 앱 연결
-app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1) # 프록시 헤더 설정 강화
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1) 
 app.config['SECRET_KEY'] = 'suragol-secret-key-2026'
+
+@app.route('/health')
+def health_check():
+    return jsonify(status="ok", environment="production" if os.getenv("DOMAIN_MODE") == "1" else "local")
 
 # [세션 쿠키 설정 극강화]
 app.config['SESSION_COOKIE_HTTPONLY'] = True
