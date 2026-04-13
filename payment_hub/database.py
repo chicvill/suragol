@@ -7,9 +7,12 @@ load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-# [강제 보정] 6543 포트 접속 에러 방지
-if DATABASE_URL and ":6543" in DATABASE_URL:
-    DATABASE_URL = DATABASE_URL.replace(":6543", ":5432")
+# [강제 보정] 6543 포트 및 주소Lookup 에러 방지
+if DATABASE_URL:
+    if ":6543" in DATABASE_URL:
+        DATABASE_URL = DATABASE_URL.replace(":6543", ":5432")
+    if "aws-1-ap-south-1.pooler.supabase.com" in DATABASE_URL:
+        DATABASE_URL = DATABASE_URL.replace("aws-1-ap-south-1.pooler.supabase.com", "wdikgmyhuxhhyeljnyqa.pooler.supabase.com")
 
 def update_order_payment_status(sender_name, amount, order_no=""):
     """

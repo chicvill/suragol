@@ -5,8 +5,11 @@ from dotenv import load_dotenv
 load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
-if DATABASE_URL and ":6543" in DATABASE_URL:
-    DATABASE_URL = DATABASE_URL.replace(":6543", ":5432")
+if DATABASE_URL:
+    if ":6543" in DATABASE_URL:
+        DATABASE_URL = DATABASE_URL.replace(":6543", ":5432")
+    if "aws-1-ap-south-1.pooler.supabase.com" in DATABASE_URL:
+        DATABASE_URL = DATABASE_URL.replace("aws-1-ap-south-1.pooler.supabase.com", "wdikgmyhuxhhyeljnyqa.pooler.supabase.com")
 
 def migrate():
     print(f"[Migration] Connecting to DB...")

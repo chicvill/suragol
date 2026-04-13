@@ -107,6 +107,12 @@ if db_url:
                 db_url = db_url.replace(":6543", ":5432")
                 print("🐘 [DB 엔진] 포트를 6543에서 5432로 강제 보정 완료.")
             
+            # [주소 보정] 일반적인 AWS 풀러 주소 대신 프로젝트 고유 주소 사용 권장 (DNS Lookup 오류 방지)
+            if "aws-1-ap-south-1.pooler.supabase.com" in db_url:
+                project_id = "wdikgmyhuxhhyeljnyqa"
+                db_url = db_url.replace("aws-1-ap-south-1.pooler.supabase.com", f"{project_id}.pooler.supabase.com")
+                print(f"🐘 [DB 엔진] 주소를 프로젝트 고유 주소({project_id})로 자동 보정 완료.")
+            
             print("🐘 [DB 엔진] pg8000 엔진으로 자동 전환하여 연결합니다.")
 
     # 연결 문자열 로깅 (보안 마스킹)
