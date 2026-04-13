@@ -62,15 +62,18 @@ scheduler = APScheduler()
 scheduler.init_app(app) # 스케줄러와 앱 연결
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1) # 프록시 헤더 설정 강화
 app.config['SECRET_KEY'] = 'suragol-secret-key-2026'
+
+# [세션 쿠키 설정 극강화]
 app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 
-# [보안] 로컬 테스트가 아닌 배표 환경이거나, 도메인 연결(DOMAIN_MODE) 모드일 때만 Secure 적용
-if not debug_mode or os.getenv("DOMAIN_MODE") == "1":
+# 도메인 접속 모드(DOMAIN_MODE=1)일 때는 보안 설정을 최상으로 높임
+if os.getenv("DOMAIN_MODE") == "1":
     app.config['SESSION_COOKIE_SECURE'] = True
+    app.config['SESSION_COOKIE_SAMESITE'] = 'None'  # 가장 호환성 높은 설정
 else:
     app.config['SESSION_COOKIE_SECURE'] = False
+    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 # app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=3) # 기존 3분 설정을 제거함
 app.url_map.strict_slashes = False # URL 끝 슬래시(/) 유무에 상관없이 접속 허용
 app.config['UPLOAD_FOLDER'] = os.path.join(BASE_DIR, 'static', 'images')
