@@ -101,6 +101,12 @@ if db_url:
             if "postgresql+pg8000://" not in db_url:
                 db_url = db_url.replace("postgresql://", "postgresql+pg8000://", 1)
                 db_url = db_url.replace("postgres://", "postgresql+pg8000://", 1)
+            
+            # [강제 보정] 6543 포트 접속 에러가 빈번하므로 5432로 강제 전환
+            if ":6543/" in db_url:
+                db_url = db_url.replace(":6543/", ":5432/", 1)
+                print("🐘 [DB 엔진] 포트를 6543에서 5432로 자동 보정하여 연결합니다.")
+            
             print("🐘 [DB 엔진] pg8000 엔진으로 자동 전환하여 연결합니다.")
 
     # 연결 문자열 로깅 (보안 마스킹)
