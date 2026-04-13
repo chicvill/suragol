@@ -11,5 +11,5 @@ requests==2.31.0
 werkzeug==3.0.1
 flask-apscheduler
 gunicorn==21.2.0
-# psycopg2-binary (Removed due to installation issues on Windows, using pg8000 instead)
+psycopg2-binary
 setuptools
