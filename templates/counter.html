@@ -455,7 +455,7 @@
                 if (type === 'call') {
                     div.innerHTML += `
                         <div class="note-header"><span>🔔 CALL</span><span>${timeStr}</span></div>
-                        <div class="note-content">${item.table_id}번 입구/좌석<br>${item.content}</div>
+                        <div class="note-content">테이블 : #${item.table_id}<br>${item.content}</div>
                         <div class="note-footer">확인 완료하려면 클릭</div>
                     `;
                     div.onclick = async () => {
