@@ -197,8 +197,9 @@
                     <div style="margin-bottom: 15px; background: rgba(255, 255, 255, 0.05); padding: 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1);">
                         <div style="font-size: 0.85rem; margin-bottom: 10px; color: #fff; font-weight: bold;">💳 결제 방식 선택</div>
                         <div style="display: flex; gap: 8px;">
-                            <button id="pay-card" onclick="setPaymentMethod('card')" style="flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #D4AF37; background: #D4AF37; color: #000; font-weight: bold; font-size: 0.85rem;">신용카드</button>
+                            <button id="pay-card" onclick="setPaymentMethod('card')" style="flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #D4AF37; background: #8B0000; color: #fff; font-weight: bold; font-size: 0.85rem;">신용카드</button>
                             <button id="pay-bank" onclick="setPaymentMethod('bank')" style="flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #444; background: rgba(0,0,0,0.3); color: #fff; font-weight: bold; font-size: 0.85rem;">무통장 입금</button>
+                            <button id="pay-cash" onclick="setPaymentMethod('cash')" style="flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #444; background: rgba(0,0,0,0.3); color: #fff; font-weight: bold; font-size: 0.85rem;">현금결제</button>
                         </div>
                         <!-- 무통장 입금 시 이름 입력 칸 (기본 숨김) -->
                         <div id="bank-input-group" style="display: none; margin-top: 10px;">
@@ -579,20 +580,32 @@
             selectedPaymentMethod = method;
             const btnCard = document.getElementById('pay-card');
             const btnBank = document.getElementById('pay-bank');
+            const btnCash = document.getElementById('pay-cash');
             const bankInput = document.getElementById('bank-input-group');
             const crSection = document.getElementById('checkout-cash-receipt');
             
+            // 초기화
+            [btnCard, btnBank, btnCash].forEach(btn => {
+                if(btn) {
+                    btn.style.background = 'rgba(0,0,0,0.3)';
+                    btn.style.color = '#fff';
+                    btn.style.borderColor = '#444';
+                }
+            });
+
             if (method === 'card') {
-                btnCard.style.background = '#8B0000'; btnCard.style.color = '#fff';
-                btnBank.style.background = 'rgba(0,0,0,0.3)'; btnBank.style.color = '#fff';
+                btnCard.style.background = '#8B0000'; btnCard.style.color = '#fff'; btnCard.style.borderColor = '#D4AF37';
                 bankInput.style.display = 'none';
                 crSection.style.display = 'none';
-            } else {
-                btnBank.style.background = '#D4AF37'; btnBank.style.color = '#000';
-                btnCard.style.background = 'rgba(0,0,0,0.3)'; btnCard.style.color = '#fff';
+            } else if (method === 'bank') {
+                btnBank.style.background = '#D4AF37'; btnBank.style.color = '#000'; btnBank.style.borderColor = '#D4AF37';
                 bankInput.style.display = 'block';
                 crSection.style.display = 'block';
-                setTimeout(() => document.getElementById('depositor-name').focus(), 100);
+                setTimeout(() => { if(document.getElementById('depositor-name')) document.getElementById('depositor-name').focus(); }, 100);
+            } else if (method === 'cash') {
+                btnCash.style.background = '#27ae60'; btnCash.style.color = '#fff'; btnCash.style.borderColor = '#2ecc71';
+                bankInput.style.display = 'none';
+                crSection.style.display = 'none'; // 현금결제는 보통 카운터에서 영수증 처리
             }
         }
 
@@ -1111,6 +1124,7 @@
             }, 50);
 
             updateCartBar(); 
+            setPaymentMethod('card');
             loadCurrentOrders();
             
             const savedPhone = localStorage.getItem('freeorder_phone');
