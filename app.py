@@ -109,6 +109,11 @@ if db_url:
             if "aws-1-ap-south-1.pooler.supabase.com" in db_url:
                 db_url = db_url.replace("aws-1-ap-south-1.pooler.supabase.com", "wdikgmyhuxhhyeljnyqa.pooler.supabase.com")
             
+            # [최종 병기] 풀러 주소 접속이 계속 실패하므로 직접 연결 주소로 2차 보정
+            if "wdikgmyhuxhhyeljnyqa.pooler.supabase.com" in db_url:
+                db_url = db_url.replace("wdikgmyhuxhhyeljnyqa.pooler.supabase.com", "db.wdikgmyhuxhhyeljnyqa.supabase.co")
+                print("🐘 [DB 엔진] 직접 연결 주소(db.wdikgmyhuxhhyeljnyqa.supabase.co)로 최종 보정 완료.")
+
             print("🐘 [DB 엔진] 파라미터 보정 완료 후 pg8000으로 연결합니다.")
 
     # 연결 문자열 로깅 (보안 마스킹)
