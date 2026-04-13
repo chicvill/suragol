@@ -113,6 +113,13 @@ if db_url:
         print("🔗 [DB 접속 시도] URL 형식을 확인 중입니다...")
 
 app.config['SQLALCHEMY_DATABASE_URI'] = db_url
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    "pool_pre_ping": True,
+    "pool_recycle": 1800,
+    "connect_args": {
+        "timeout": 30  # 연결 대기 시간을 30초로 넉넉하게 설정
+    }
+}
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # [클라우드 최적화] 전역 DB 엔진 옵션 주입 (철벽 생존 모드 - NullPool)
