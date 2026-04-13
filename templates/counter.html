@@ -330,8 +330,7 @@
                 card.className = `table-card ${currentStatus === 'ready' ? 'ready-to-serve' : ''}`;
                 card.innerHTML = `
                     <div class="status-badge status-${currentStatus}">${currentStatus==='ready'?'서빙대기':(currentStatus==='served'?'식사중':'조리중')}</div>
-                    <div class="table-number">#${s.table_id}</div>
-                    <div style="font-size:1rem; font-weight: 800; color:#fff; margin-bottom:10px;">번 테이블</div>
+                    <div style="font-size:1.8rem; font-weight: 1000; color:#fff; margin-bottom:10px;">테이블 : #${s.table_id}</div>
                     ${s.is_prepaid ? '<div class="prepaid-badge">✨ 선결제 완료</div>' : ''}
                     <div class="items-list">
                         ${ol.flatMap(o => (o.items||[]).filter(it=>it.status!=='cancelled').map(it => `<div class="item-row"><span>${it.name}</span><span>x${it.quantity}</span></div>`)).join('')}

@@ -256,9 +256,10 @@
 
                 card.innerHTML = `
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                        <div style="font-size: 1.8rem; font-weight: 1000; color: #fff;">테이블 : #${order.table_id}</div>
                         <div class="status-badge" style="${isCancelled ? 'background: #ff4d4d; color: #fff;' : ''}">${isCancelled ? '취소됨' : '조리'}</div>
-                        <div class="elapsed-timer" data-start="${order.created_at}">${isCancelled ? '실패된 주문' : '-분 경과'}</div>
                     </div>
+                    <div class="elapsed-timer" data-start="${order.created_at}" style="margin-bottom:10px;">${isCancelled ? '실패된 주문' : '-분 경과'}</div>
                     
                     <div class="items-list" style="margin: 5px 0 15px 0; padding: 10px 0 15px 0; border-top: none; border-bottom: 2px dashed ${isCancelled ? '#ff4d4d' : 'rgba(212, 175, 55, 0.4)'};">
                         ${order.items.map(i => `
