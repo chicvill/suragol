@@ -5,6 +5,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
+if DATABASE_URL and ":6543" in DATABASE_URL:
+    DATABASE_URL = DATABASE_URL.replace(":6543", ":5432")
 
 def migrate():
     print(f"[Migration] Connecting to DB...")

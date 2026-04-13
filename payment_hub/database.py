@@ -7,6 +7,10 @@ load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
+# [강제 보정] 6543 포트 접속 에러 방지
+if DATABASE_URL and ":6543" in DATABASE_URL:
+    DATABASE_URL = DATABASE_URL.replace(":6543", ":5432")
+
 def update_order_payment_status(sender_name, amount, order_no=""):
     """
     입금자명 또는 주문번호와 금액을 기준으로 매칭되는 주문을 찾아 결제 완료 처리함
