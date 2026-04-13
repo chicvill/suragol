@@ -1,6 +1,8 @@
 try:
+    import os
+    os.environ["EVENTLET_NO_GREENDNS"] = "yes"  # DNS 타임아웃 버그 방지
     import eventlet
-    eventlet.monkey_patch(dns=False)
+    eventlet.monkey_patch()  # 호환성 최우선 패치
 except (ImportError, AttributeError):
     pass
 
