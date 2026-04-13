@@ -199,7 +199,7 @@
                         <div style="display: flex; gap: 8px;">
                             <button id="pay-card" onclick="setPaymentMethod('card')" style="flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #D4AF37; background: #8B0000; color: #fff; font-weight: bold; font-size: 0.85rem;">신용카드</button>
                             <button id="pay-bank" onclick="setPaymentMethod('bank')" style="flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #444; background: rgba(0,0,0,0.3); color: #fff; font-weight: bold; font-size: 0.85rem;">무통장 입금</button>
-                            <button id="pay-cash" onclick="setPaymentMethod('cash')" style="flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #444; background: rgba(0,0,0,0.3); color: #fff; font-weight: bold; font-size: 0.85rem;">현금결제</button>
+                            <button id="pay-cash" onclick="setPaymentMethod('postpaid')" style="flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #444; background: rgba(0,0,0,0.3); color: #fff; font-weight: bold; font-size: 0.85rem;">후불결제</button>
                         </div>
                         <!-- 무통장 입금 시 이름 입력 칸 (기본 숨김) -->
                         <div id="bank-input-group" style="display: none; margin-top: 10px;">
@@ -602,10 +602,10 @@
                 bankInput.style.display = 'block';
                 crSection.style.display = 'block';
                 setTimeout(() => { if(document.getElementById('depositor-name')) document.getElementById('depositor-name').focus(); }, 100);
-            } else if (method === 'cash') {
+            } else if (method === 'postpaid') {
                 btnCash.style.background = '#27ae60'; btnCash.style.color = '#fff'; btnCash.style.borderColor = '#2ecc71';
                 bankInput.style.display = 'none';
-                crSection.style.display = 'none'; // 현금결제는 보통 카운터에서 영수증 처리
+                crSection.style.display = 'none'; // 후불결제는 상호작용 후 카운터에서 영수증 처리
             }
         }
 

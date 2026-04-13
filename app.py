@@ -369,6 +369,16 @@ def mock_payment_trigger():
     if order:
         order.status = 'paid'
         order.paid_at = datetime.utcnow()
+        
+        # [신규] 무통장/현금 결제 시 영수증 신청 내역이 있으면 자동 발급 처리
+        if order.payment_method in ['bank', 'cash', 'postpaid'] and order.cash_receipt_type:
+            # 이미 발급된 영수증이 있는지 확인 (중복 발급 방지)
+            existing = TaxInvoice.query.filter_by(order_id=order.id).first()
+            if not existing:
+                ti = TaxInvoice(order_id=order.id, store_id=order.store_id, amount=order.total_price, status='issued')
+                db.session.add(ti)
+                print(f"🧾 [자동발급] 시뮬레이션 주문 {order.id} 현금영수증 발행 완료")
+        
         db.session.commit()
         
         # 실시간 상태 업데이트 전송

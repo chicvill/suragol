@@ -113,6 +113,7 @@ class Order(db.Model):
     # [추가] 현금영수증 정보
     cash_receipt_type = db.Column(db.String(20), nullable=True)   # personal, business
     cash_receipt_number = db.Column(db.String(20), nullable=True) 
+    payment_method = db.Column(db.String(20), nullable=True) # [신규] card, bank, cash
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     paid_at = db.Column(db.DateTime, nullable=True)
     items = db.relationship('OrderItem', backref='order', lazy=True, cascade="all, delete-orphan")
@@ -130,6 +131,7 @@ class Order(db.Model):
             'is_prepaid': self.is_prepaid,
             'cash_receipt_type': self.cash_receipt_type,
             'cash_receipt_number': self.cash_receipt_number,
+            'payment_method': self.payment_method,
             'created_at': (self.created_at.isoformat() + 'Z') if self.created_at else None,
             'items': [item.to_dict() for item in self.items]
         }

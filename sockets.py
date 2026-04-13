@@ -28,8 +28,28 @@ def register_socketio_events(socketio):
 
             order_id = str(uuid.uuid4())
             order_no = str(random.randint(1000, 9999)) # 화면 노출용 4자리 난수 주문번호
-            new_order = Order(id=order_id, order_no=order_no, store_id=slug, table_id=table_id, session_id=session_id, total_price=total_price, phone=phone, depositor_name=depositor_name)
+            new_order = Order(
+                id=order_id, 
+                order_no=order_no, 
+                store_id=slug, 
+                table_id=table_id, 
+                session_id=session_id, 
+                total_price=total_price, 
+                phone=phone, 
+                depositor_name=depositor_name,
+                payment_method=data.get('payment_method'),
+                is_prepaid=data.get('is_prepaid', False),
+                cash_receipt_type=data.get('cash_receipt_type'),
+                cash_receipt_number=data.get('cash_receipt_number')
+            )
             db.session.add(new_order)
+            
+            # [신규] 선결제(카드 등) 주문이면서 영수증 신청 정보가 있으면 자동 발급
+            if new_order.is_prepaid and new_order.cash_receipt_type:
+                from models import TaxInvoice
+                ti = TaxInvoice(order_id=order_id, store_id=slug, amount=total_price, status='issued')
+                db.session.add(ti)
+                print(f"🧾 [자동발급] 선결제 주문 {order_id} 현금영수증 발행 완료")
             
             for item in items:
                 # menu_id가 누락되었을 경우 0으로 대체 (AI 초기 메뉴 등)
@@ -140,6 +160,16 @@ def register_socketio_events(socketio):
         for o in orders:
             o.status = 'paid'
             o.paid_at = datetime.utcnow()
+            
+            # [신규] 무통장/현금 결제 시 영수증 신청 내역이 있으면 자동 발급 처리
+            if o.payment_method in ['bank', 'cash', 'postpaid'] and o.cash_receipt_type:
+                from models import TaxInvoice
+                # 이미 발급된 영수증이 있는지 확인 (중복 발급 방지)
+                existing = TaxInvoice.query.filter_by(order_id=o.id).first()
+                if not existing:
+                    ti = TaxInvoice(order_id=o.id, store_id=slug, amount=o.total_price, status='issued')
+                    db.session.add(ti)
+                    print(f"🧾 [자동발급] 주문 {o.id} 현금영수증 발행 완료")
         
         db.session.commit()
         socketio.emit('table_status_update', {'store_id': slug, 'session_id': sid, 'table_id': tid, 'status': 'paid'}, room=slug)

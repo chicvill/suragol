@@ -254,9 +254,15 @@
                 orders.forEach(o => {
                     if (o.status === 'cancelled' || o.status === 'paid') return;
                     const sid = o.session_id || `legacy-${o.table_id}`;
-                    if (!sessions[sid]) sessions[sid] = { table_id: o.table_id, orders: {}, total: 0, status: 'pending', is_prepaid: false };
+                    if (!sessions[sid]) sessions[sid] = { table_id: o.table_id, orders: {}, total: 0, status: 'pending', is_prepaid: false, method_name: '' };
                     sessions[sid].orders[o.id] = o;
-                    if(o.is_prepaid) sessions[sid].is_prepaid = true;
+                    if(o.is_prepaid) {
+                        sessions[sid].is_prepaid = true;
+                        // 한글 명칭 변환
+                        const m = o.payment_method;
+                        const mName = (m === 'card') ? '카드' : (m === 'bank' ? '계좌이체' : (m === 'postpaid' ? '후불' : (m === 'cash' ? '현금' : '결제됨')));
+                        sessions[sid].method_name = mName;
+                    }
                 });
                 render();
             } catch (e) { 
@@ -331,14 +337,17 @@
                 card.innerHTML = `
                     <div class="status-badge status-${currentStatus}">${currentStatus==='ready'?'서빙대기':(currentStatus==='served'?'식사중':'조리중')}</div>
                     <div style="font-size:1.8rem; font-weight: 1000; color:#fff; margin-bottom:10px;">테이블 : #${s.table_id}</div>
-                    ${s.is_prepaid ? '<div class="prepaid-badge">✨ 선결제 완료</div>' : ''}
+                    ${s.is_prepaid ? `
+                        <div class="prepaid-badge" style="background: #27ae60; color: #fff;">
+                            ✨ 선결제 완료 (${s.method_name || '결제됨'})
+                        </div>` : ''}
                     <div class="items-list">
                         ${ol.flatMap(o => (o.items||[]).filter(it=>it.status!=='cancelled').map(it => `<div class="item-row"><span>${it.name}</span><span>x${it.quantity}</span></div>`)).join('')}
                     </div>
                     ${crHtml}
                     <div class="price-total">${sTotal.toLocaleString()}원</div>
                     <div class="btns">
-                        ${renderActionBtn(sid, currentStatus)}
+                        ${renderActionBtn(sid, currentStatus, s.is_prepaid, s.method_name)}
                     </div>
                 `;
                 grid.appendChild(card);
@@ -346,9 +355,14 @@
             lucide.createIcons();
         }
 
-        function renderActionBtn(sid, status) {
+        function renderActionBtn(sid, status, isPrepaid, methodName) {
             if (status === 'ready') return `<button class="action-btn btn-serve" onclick="executeServe('${sid}')">서빙하기</button>`;
-            if (status === 'served') return `<button class="action-btn btn-pay" onclick="executePay('${sid}')">결제/퇴실</button>`;
+            if (status === 'served') {
+                if (isPrepaid) {
+                    return `<button class="action-btn" style="background: #27ae60; color: #fff;" onclick="confirmPrepaidExit('${sid}', '${methodName}')">퇴실 확인</button>`;
+                }
+                return `<button class="action-btn btn-pay" onclick="executePay('${sid}')">결제/퇴실</button>`;
+            }
             return `<button class="action-btn btn-waiting" disabled>조리 중...</button>`;
         }
 
@@ -393,6 +407,18 @@
             const rcptBtn = document.getElementById('view-mobile-receipt-btn');
             const firstO = Object.values(session.orders)[0];
             rcptBtn.onclick = () => window.open(`/receipt/${firstO.id}`, '_blank');
+        }
+
+        function confirmPrepaidExit(sid, methodName) {
+            const msg = `${methodName}으로 미리 결제하셨지요? 감사합니다.\n\n해당 테이블을 퇴실 처리하시겠습니까?`;
+            if (confirm(msg)) {
+                socket.emit('set_paid', { 
+                    store_id: '{{ store.id }}', 
+                    session_id: sid, 
+                    table_id: sessions[sid].table_id 
+                });
+                setTimeout(forceReSync, 300);
+            }
         }
 
         function closePaymentModal() { document.getElementById('payment-modal').style.display = 'none'; }

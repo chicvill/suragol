@@ -17,9 +17,23 @@ def migrate():
     print(f"[Migration] Connecting to DB...")
     conn = None
     try:
+        from sqlalchemy.engine import make_url
+        url = make_url(DATABASE_URL)
+        
         import ssl
         ssl_context = ssl.create_default_context()
-        conn = pg8000.dbapi.connect(dsn=DATABASE_URL, ssl_context=ssl_context)
+        ssl_context.check_hostname = False
+        ssl_context.verify_mode = ssl.CERT_NONE
+        
+        print(f"[Migration] Connecting to {url.host}:{url.port}...")
+        conn = pg8000.dbapi.connect(
+            host=url.host,
+            port=url.port,
+            user=url.username,
+            password=url.password,
+            database=url.database,
+            ssl_context=ssl_context
+        )
         cur = conn.cursor()
         
         print(f"[Migration] Adding 'depositor_name' column to 'orders' table...")
@@ -29,6 +43,9 @@ def migrate():
         cur.execute("ALTER TABLE stores ADD COLUMN IF NOT EXISTS bank_name VARCHAR(50);")
         cur.execute("ALTER TABLE stores ADD COLUMN IF NOT EXISTS account_no VARCHAR(50);")
         cur.execute("ALTER TABLE stores ADD COLUMN IF NOT EXISTS account_holder VARCHAR(50);")
+        
+        print(f"[Migration] Adding 'payment_method' column to 'orders' table...")
+        cur.execute("ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_method VARCHAR(20);")
         
         conn.commit()
         print("[Migration] Success! Database schema updated.")
