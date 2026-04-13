@@ -25,8 +25,10 @@ def update_order_payment_status(sender_name, amount, order_no=""):
 
     conn = None
     try:
-        # DB 연결
-        conn = pg8000.dbapi.connect(dsn=DATABASE_URL)
+        # DB 연결 (SSL 강제 활성화)
+        import ssl
+        ssl_context = ssl.create_default_context()
+        conn = pg8000.dbapi.connect(dsn=DATABASE_URL, ssl_context=ssl_context)
         cur = conn.cursor()
         
         # 1. 매칭되는 주문 찾기 

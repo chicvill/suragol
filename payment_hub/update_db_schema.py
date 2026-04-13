@@ -17,7 +17,9 @@ def migrate():
     print(f"[Migration] Connecting to DB...")
     conn = None
     try:
-        conn = pg8000.dbapi.connect(dsn=DATABASE_URL)
+        import ssl
+        ssl_context = ssl.create_default_context()
+        conn = pg8000.dbapi.connect(dsn=DATABASE_URL, ssl_context=ssl_context)
         cur = conn.cursor()
         
         print(f"[Migration] Adding 'depositor_name' column to 'orders' table...")

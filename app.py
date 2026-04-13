@@ -128,9 +128,12 @@ if db_url:
 app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     "pool_pre_ping": True,
-    "pool_recycle": 1800,
+    "pool_recycle": 600,  # 연결 회전 주기를 더 짧게 설정
+    "pool_size": 10,
+    "max_overflow": 20,
     "connect_args": {
-        "timeout": 30  # 연결 대기 시간을 30초로 넉넉하게 설정
+        "timeout": 60,  # 타임아웃을 60초로 더 연장
+        "ssl_context": True  # [핵심] SSL 보안 연결 강제 활성화
     }
 }
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
