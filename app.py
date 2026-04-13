@@ -1,9 +1,5 @@
-# try:
-#     import eventlet
-#     eventlet.monkey_patch(dns=False)
-# except (ImportError, AttributeError):
-#     # 파이썬 3.12+ 호환성 보정 (로컬 윈도우 환경용)
-#     pass
+import eventlet
+eventlet.monkey_patch(dns=False)
 
 import os
 import sys
@@ -102,18 +98,13 @@ if db_url:
                 db_url = db_url.replace("postgresql://", "postgresql+pg8000://", 1)
                 db_url = db_url.replace("postgres://", "postgresql+pg8000://", 1)
             
-            # [강제 보정] 6543 포트 접속 에러가 빈번하므로 5432로 강제 전환
+            # [강제 보정] 포트(6543 -> 5432) 및 DNS Lookup 오류 방지
             if ":6543" in db_url:
                 db_url = db_url.replace(":6543", ":5432")
-                print("🐘 [DB 엔진] 포트를 6543에서 5432로 강제 보정 완료.")
-            
-            # [주소 보정] 일반적인 AWS 풀러 주소 대신 프로젝트 고유 주소 사용 권장 (DNS Lookup 오류 방지)
             if "aws-1-ap-south-1.pooler.supabase.com" in db_url:
-                project_id = "wdikgmyhuxhhyeljnyqa"
-                db_url = db_url.replace("aws-1-ap-south-1.pooler.supabase.com", f"{project_id}.pooler.supabase.com")
-                print(f"🐘 [DB 엔진] 주소를 프로젝트 고유 주소({project_id})로 자동 보정 완료.")
+                db_url = db_url.replace("aws-1-ap-south-1.pooler.supabase.com", "wdikgmyhuxhhyeljnyqa.pooler.supabase.com")
             
-            print("🐘 [DB 엔진] pg8000 엔진으로 자동 전환하여 연결합니다.")
+            print("🐘 [DB 엔진] 파라미터 보정 완료 후 pg8000으로 연결합니다.")
 
     # 연결 문자열 로깅 (보안 마스킹)
     try:
