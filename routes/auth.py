@@ -34,7 +34,10 @@ def init_auth_routes(app):
                 else:
                     flash("⚠️ 아이디 또는 비밀번호를 확인해주세요.")
             except Exception as e:
-                print(f"❌ [로그인 오류] {e}")
+                import traceback
+                print(f"❌ [로그인 오류 상세]")
+                traceback.print_exc()
+                print(f"----------------------")
                 flash("시스템 처리 중 오류가 발생했습니다.")
                 
         return render_template('index.html', logged_in=False)
